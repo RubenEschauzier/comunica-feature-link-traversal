@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+
+// Test Command:
+// node bin/query.js https://fragments.dbpedia.org/2015/en "SELECT DISTINCT * WHERE { ?s ?p <http://dbpedia.org/resource/Belgium>. ?s ?p ?o} LIMIT 10"
 import { HttpServiceSparqlEndpoint } from '@comunica/actor-init-query';
 
 const defaultConfigPath = `${__dirname}/../config/config-default.json`;

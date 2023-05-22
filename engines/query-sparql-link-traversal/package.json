@@ -24,9 +24,9 @@
   ],
   "license": "MIT",
   "bin": {
+    "comunica-dynamic-sparql-link-traversal": "bin/query-dynamic.js",
     "comunica-sparql-link-traversal": "bin/query.js",
-    "comunica-sparql-link-traversal-http": "bin/http.js",
-    "comunica-dynamic-sparql-link-traversal": "bin/query-dynamic.js"
+    "comunica-sparql-link-traversal-http": "bin/http.js"
   },
   "bugs": {
     "url": "https://github.com/comunica/comunica/issues"

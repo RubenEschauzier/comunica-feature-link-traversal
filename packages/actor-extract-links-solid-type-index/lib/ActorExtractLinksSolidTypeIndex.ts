@@ -79,6 +79,11 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
     // Follow all type links in the other case
     const links: ILink[] = [];
     for (const linksInner of Object.values(typeLinks)) {
+      // Own code for adding source metadata
+      linksInner.map(x => {
+        x.metadata ? x.metadata.source = 'typeIndex' : x.metadata = { source: 'typeIndex' };
+        return x;
+      });
       links.push(...linksInner);
     }
     return { links };

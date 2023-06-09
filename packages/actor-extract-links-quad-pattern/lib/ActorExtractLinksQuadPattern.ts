@@ -35,7 +35,6 @@ export class ActorExtractLinksQuadPattern extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     const quadPattern: Algebra.Pattern = ActorExtractLinksQuadPattern
       .getCurrentQuadPattern(action.context)!;
-
     return {
       links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
         if (this.onlyVariables) {

@@ -4,45 +4,37 @@ import type {
 } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
-import { ActionContextKey } from '@comunica/core';
-import { LinkQueueLimitCount } from './LinkQueueLimitCount';
+import { LinkQueuePriorityMetadata } from './LinkQueuePriorityMetadata';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
  */
-export class ActorRdfResolveHypermediaLinksQueueWrapperLimitCount extends ActorRdfResolveHypermediaLinksQueue {
-  private readonly limit: number;
+export class ActorRdfResolveHypermediaLinksQueueSolidLinkPrioritisation extends ActorRdfResolveHypermediaLinksQueue {
   private readonly mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
 
-  public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperLimitCountArgs) {
+  public possibleLinkSources: string[];
+
+  public constructor(args: IActionRdfResolveHypermediaLinksQueueSolidLinkPrioritisationArgs) {
     super(args);
+    this.possibleLinkSources = args.possibleLinkSources
   }
 
   public async test(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorTest> {
-    if (action.context.get(KEY_CONTEXT_WRAPPED)) {
-      throw new Error('Unable to wrap link queues multiple times');
-    }
     return true;
   }
 
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
-    const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
-    const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
-    console.log(linkQueue);
-    return { linkQueue: new LinkQueueLimitCount(linkQueue, this.limit) };
+    return { linkQueue: new LinkQueuePriorityMetadata(this.possibleLinkSources) };
   }
 }
 
-export interface IActorRdfResolveHypermediaLinksQueueWrapperLimitCountArgs
+export interface IActionRdfResolveHypermediaLinksQueueSolidLinkPrioritisationArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
-  limit: number;
+  possibleLinkSources: string[];
   mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
-}
+};
 
-export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
-  '@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-limit-count:wrapped',
-);

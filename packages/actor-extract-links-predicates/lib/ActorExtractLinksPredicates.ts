@@ -8,11 +8,12 @@ import type { IActorArgs, IActorTest } from '@comunica/core';
 export class ActorExtractLinksPredicates extends ActorExtractLinks {
   private readonly checkSubject: boolean;
   private readonly predicates: RegExp[];
+  private readonly predicateStrings: string[];
 
   public constructor(args: IActorExtractLinksTraversePredicatesArgs) {
     super(args);
-
     this.predicates = args.predicateRegexes.map(stringRegex => new RegExp(stringRegex, 'u'));
+    this.predicateStrings = args.predicateRegexes
   }
 
   public async test(action: IActionExtractLinks): Promise<IActorTest> {
@@ -23,9 +24,9 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
     return {
       links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
         if (!this.checkSubject || this.subjectMatches(quad.subject.value, action.url)) {
-          for (const regex of this.predicates) {
+          for (const [i, regex] of this.predicates.entries()) {
             if (regex.test(quad.predicate.value)) {
-              links.push({ url: quad.object.value });
+              links.push({ url: quad.object.value, metadata: { source: this.predicateStrings[i] } });
               break;
             }
           }

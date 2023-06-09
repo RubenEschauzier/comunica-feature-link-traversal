@@ -1,5 +1,5 @@
 {
-  "name": "@comunica/query-sparql-link-traversal-solid",
+  "name": "@comunica/query-sparql-link-traversal-solid-benchmark-version",
   "version": "0.1.1",
   "description": "A Comunica engine for link traversal-based query evaluation over Solid data pods",
   "lsd:module": true,
@@ -25,9 +25,9 @@
   ],
   "license": "MIT",
   "bin": {
+    "comunica-dynamic-sparql-link-traversal-solid": "bin/query-dynamic.js",
     "comunica-sparql-link-traversal-solid": "bin/query.js",
-    "comunica-sparql-link-traversal-solid-http": "bin/http.js",
-    "comunica-dynamic-sparql-link-traversal-solid": "bin/query-dynamic.js"
+    "comunica-sparql-link-traversal-solid-http": "bin/http.js"
   },
   "bugs": {
     "url": "https://github.com/comunica/comunica-feature-solid/issues"
@@ -67,7 +67,8 @@
     "@comunica/core": "^2.6.8",
     "@comunica/query-sparql-link-traversal": "^0.1.1",
     "@comunica/query-sparql-solid": "^2.4.0",
-    "@comunica/runner-cli": "^2.6.8"
+    "@comunica/runner-cli": "^2.6.8",
+    "@types/node": "^20.2.5"
   },
   "scripts": {
     "build": "npm run build:ts",
@@ -76,5 +77,8 @@
   },
   "browser": {
     "./lib/index.js": "./lib/index-browser.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.2.5"
   }
 }

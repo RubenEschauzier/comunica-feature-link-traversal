@@ -84,7 +84,6 @@ export class ActorExtractLinksContentPolicies extends ActorExtractLinks
     const currentQuadPattern = ActorExtractLinksContentPolicies.getCurrentQuadPattern(action.context);
     const links: ILink[] = [];
     let store: RDF.Store | undefined;
-
     // If KEY_CONTEXT_WITHPOLICIES is enabled, extract all content policies from the metadata
     if (action.context && action.context.get(KEY_CONTEXT_WITHPOLICIES)) {
       store = await storeStream(action.metadata);

@@ -75,15 +75,13 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     const operation: Algebra.Operation = ActorExtractLinksQuadPatternQuery
       .getCurrentQuery(action.context)!;
-
-    return {
+    const output = {
       links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
         const matchingPatterns = ActorExtractLinksQuadPatternQuery
           .matchQuadPatternInOperation(quad, operation);
         if (matchingPatterns.length > 0) {
           if (this.onlyVariables) {
             // --- If we only want to follow links matching with a variable component ---
-
             // Determine quad term names that we should check
             const quadTermNames: Partial<Record<QuadTermName, boolean>> = {};
             for (const quadPattern of matchingPatterns) {
@@ -95,18 +93,19 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
             // For the discovered quad term names, check extract the named nodes in the quad
             for (const quadTermName of <QuadTermName[]> Object.keys(quadTermNames)) {
               if (quad[quadTermName].termType === 'NamedNode') {
-                links.push({ url: quad[quadTermName].value });
+                links.push({ url: quad[quadTermName].value, metadata: { source: 'cMatch' } });
               }
             }
           } else {
             // --- If we want to follow links, irrespective of matching with a variable component ---
             for (const link of getNamedNodes(getTerms(quad))) {
-              links.push({ url: link.value });
+              links.push({ url: link.value, metadata: { source: 'cMatch' }});
             }
           }
         }
-      }),
+      })
     };
+    return output;
   }
 }
 

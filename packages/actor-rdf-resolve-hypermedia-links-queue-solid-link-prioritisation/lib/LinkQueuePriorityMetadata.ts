@@ -22,6 +22,7 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
   public push(link: ILink): boolean {
     // Insert link into queue, here we assume that we keep priorities sorted by always inserting at proper index
     const linkPriority = (!link.metadata?.source || !this.priorityDict[link.metadata.source]) ? this.numPriorities : this.priorityDict[link.metadata.source];
+    console.log(`Pushed link with priority: ${linkPriority}`);
     const insertIndex = this.findInsertIndex(this.priorities, linkPriority);
 
     this.links.splice(insertIndex, 0, link);

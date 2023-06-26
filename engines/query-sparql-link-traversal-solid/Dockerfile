@@ -2,6 +2,7 @@ FROM node:16
 
 # Install location
 ENV dir /var/www/@comunica/query-sparql-link-traversal-solid/
+ENV NODE_OPTIONS=--max_old_space_size=5000 
 
 # Copy the engine files (generated from package.json!files)
 COPY config ${dir}/config/

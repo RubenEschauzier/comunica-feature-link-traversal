@@ -1,6 +1,6 @@
 {
   "name": "@comunica/config-query-sparql-link-traversal",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "default configuration files for Comunica SPARQL Link Traversal",
   "lsd:module": true,
   "main": "lib/index.js",
@@ -41,7 +41,7 @@
     "build:components": "componentsjs-generator"
   },
   "dependencies": {
-    "@comunica/config-query-sparql": "^2.6.0",
+    "@comunica/config-query-sparql": "^2.7.0",
     "@comunica/config-query-sparql-solid": "^2.4.0"
   }
 }

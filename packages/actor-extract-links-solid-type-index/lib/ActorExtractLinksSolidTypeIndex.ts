@@ -44,7 +44,6 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     // Determine links to type indexes
     const typeIndexes = [ ...await this.extractTypeIndexLinks(action.metadata) ];
-
     // Dereference all type indexes, and collect them in one record
     const typeLinks = (await Promise.all(typeIndexes
       .map(typeIndex => this.dereferenceTypeIndex(typeIndex, action.context))))
@@ -66,13 +65,21 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
 
     // Different behaviour depending on whether or not we match type index entries with the current query.
     if (this.onlyMatchingTypes) {
+      console.log("Matching triples");
+      // Filter out those links that match with query
+      const links = await this.getLinksMatchingQuery(
+        typeLinks,
+        action.context.get(KeysInitQuery.query)!,
+        action.context.get(KeysQueryOperation.operation)!,
+      );
+      // Annotate with source metadata
+      links.map(x => {
+        x.metadata ? x.metadata.source = 'typeIndex' : x.metadata = { source: 'typeIndex' };
+        return x;
+      });
       // Filter out those links that match with the query
       return {
-        links: await this.getLinksMatchingQuery(
-          typeLinks,
-          action.context.get(KeysInitQuery.query)!,
-          action.context.get(KeysQueryOperation.operation)!,
-        ),
+        links
       };
     }
 

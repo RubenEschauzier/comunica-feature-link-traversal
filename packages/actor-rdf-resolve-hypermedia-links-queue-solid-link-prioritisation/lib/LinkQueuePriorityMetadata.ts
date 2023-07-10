@@ -19,12 +19,12 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     this.links = [];
 
     this.priorityDict = {};
-    possibleLinkSources.map((x, i) => this.priorityDict[x] = i); 
+    possibleLinkSources.map((x, i) => this.priorityDict[x] = i+1); 
     this.numPriorities = possibleLinkSources.length;
 
     // Code making figure link priority content
-    this.logFileContentQueue = '/home/reschauz/projects/experiments-comunica/comunica-experiment-link-prioritisation/testNumDifferentPriorities/linkQueueEvolution.txt'
-    this.logFileTimeStamps = '/home/reschauz/projects/experiments-comunica/comunica-experiment-link-prioritisation/testNumDifferentPriorities/linkQueueEvolutionTimeStamps.txt'
+    this.logFileContentQueue = '/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/testNumDifferentPriorities/linkQueueEvolution.txt'
+    this.logFileTimeStamps = '/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/testNumDifferentPriorities/linkQueueEvolutionTimeStamps.txt'
     // End
   }
 
@@ -49,7 +49,7 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     // Insert link into queue, here we assume that we keep priorities sorted by always inserting at proper index
     const linkPriority = (!link.metadata?.source || !this.priorityDict[link.metadata.source]) ? this.numPriorities : this.priorityDict[link.metadata.source];
     const insertIndex = this.findInsertIndex(this.priorities, linkPriority);
-
+    
     this.links.splice(insertIndex, 0, link);
     this.priorities.splice(insertIndex, 0, linkPriority);
 

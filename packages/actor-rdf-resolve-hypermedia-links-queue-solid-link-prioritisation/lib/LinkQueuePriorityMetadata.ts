@@ -9,24 +9,39 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
   public numPriorities: number;
   public randomId: number;
 
+  // Code making figure link priority content
+  public logFileContentQueue: string;
+  public logFileTimeStamps: string;
+  // End
+
   public constructor(possibleLinkSources: string[]) {
     this.priorities = [];
     this.links = [];
 
     this.priorityDict = {};
     possibleLinkSources.map((x, i) => this.priorityDict[x] = i); 
-    this.numPriorities = possibleLinkSources.length
+    this.numPriorities = possibleLinkSources.length;
+
+    // Code making figure link priority content
+    this.logFileContentQueue = '/home/reschauz/projects/experiments-comunica/comunica-experiment-link-prioritisation/testNumDifferentPriorities/linkQueueEvolution.txt'
+    this.logFileTimeStamps = '/home/reschauz/projects/experiments-comunica/comunica-experiment-link-prioritisation/testNumDifferentPriorities/linkQueueEvolutionTimeStamps.txt'
+    // End
   }
 
   // Code for making figure nothing more should not be in release
-  public appendToList(currentList: number[][], newList: number[]){
+  public appendToList(currentList: number[][]|number[], newList: number[]|number){
     return [...currentList, newList]
   }
-  public appendToFile(newList: number[]){
-    const logFileLoc = '/home/reschauz/projects/experiments-comunica/comunica-experiment-link-prioritisation/testNumDifferentPriorities/linkQueueEvolution.txt'
-    const oldList: number[][] = JSON.parse(fs.readFileSync(logFileLoc, 'utf-8'));
+  public appendToFile(newList: number[]|number, fileLocation: string){
+    const oldList: number[][]|number[] = JSON.parse(fs.readFileSync(fileLocation, 'utf-8'));
     const toSaveList = this.appendToList(oldList, newList);
-    fs.writeFileSync(logFileLoc, JSON.stringify(toSaveList));
+    fs.writeFileSync(fileLocation, JSON.stringify(toSaveList));
+  }
+  
+  public getTimeSeconds(){
+    const hrTime: number[] = process.hrtime();
+    const time: number = hrTime[0] + hrTime[1] / 1000000000;
+    return time
   }
   // End code
 
@@ -39,7 +54,8 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     this.priorities.splice(insertIndex, 0, linkPriority);
 
     // Experiment code should never make it to final version
-    this.appendToFile(this.priorities);
+    this.appendToFile(this.priorities, this.logFileContentQueue);
+    this.appendToFile(this.getTimeSeconds(), this.logFileTimeStamps);
     // End experiment code
 
     return true;
@@ -52,14 +68,15 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     this.links.push(link);
 
     // Experiment code should never make it to final version
-    this.appendToFile(this.priorities);
+    this.appendToFile(this.priorities, this.logFileContentQueue);
+    this.appendToFile(this.getTimeSeconds(), this.logFileTimeStamps);
     // End experiment code
 
     return true
   }
 
   public push(link: ILink): boolean {
-    return this.pushNonPriority(link);
+    return this.pushPriority(link);
   }
 
   public getSize(): number {
@@ -74,7 +91,8 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     this.priorities.shift();
 
     // Experiment code should not be in release
-    this.appendToFile(this.priorities);
+    this.appendToFile(this.priorities, this.logFileContentQueue);
+    this.appendToFile(this.getTimeSeconds(), this.logFileTimeStamps);
     // End code
 
     return this.links.shift();

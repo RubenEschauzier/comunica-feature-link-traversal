@@ -65,7 +65,6 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
 
     // Different behaviour depending on whether or not we match type index entries with the current query.
     if (this.onlyMatchingTypes) {
-      console.log("Matching triples");
       // Filter out those links that match with query
       const links = await this.getLinksMatchingQuery(
         typeLinks,

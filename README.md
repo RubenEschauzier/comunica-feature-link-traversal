@@ -16,6 +16,8 @@
 
 **[Learn more about Comunica on our website](https://comunica.dev/).**
 
+NOTE: This is a WIP repository, when I'm back from my holidays I will ensure all code for reproducing the link queue content analysis experiments are in one repository that is easily used for reproducing the experiments. If the paper is accepted, this will be in the camera-ready version.
+
 This is a monorepo that contains packages for allowing [Comunica](https://github.com/comunica/comunica) to link traversal-based query execution.
 If you want to _use_ an Link Traversal-enabled Comunica engine, have a look at [Comunica SPARQL Link Traversal](https://github.com/comunica/comunica-feature-link-traversal/tree/master/engines/query-sparql-link-traversal).
 

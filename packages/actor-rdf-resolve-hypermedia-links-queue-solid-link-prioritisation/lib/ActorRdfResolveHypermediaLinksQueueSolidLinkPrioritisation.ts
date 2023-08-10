@@ -3,7 +3,7 @@ import type {
   IActorRdfResolveHypermediaLinksQueueOutput,
 } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
+import { ActionContextKey, type Actor, type IActorArgs, type IActorTest, type Mediator } from '@comunica/core';
 import { LinkQueuePriorityMetadata } from './LinkQueuePriorityMetadata';
 
 /**
@@ -18,7 +18,7 @@ export class ActorRdfResolveHypermediaLinksQueueSolidLinkPrioritisation extends 
 
   public constructor(args: IActionRdfResolveHypermediaLinksQueueSolidLinkPrioritisationArgs) {
     super(args);
-    this.possibleLinkSources = args.possibleLinkSources
+    this.possibleLinkSources = args.possibleLinkSources;
   }
 
   public async test(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorTest> {

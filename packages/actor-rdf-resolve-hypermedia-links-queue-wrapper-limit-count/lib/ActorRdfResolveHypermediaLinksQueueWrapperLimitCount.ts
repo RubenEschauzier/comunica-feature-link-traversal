@@ -30,7 +30,6 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitCount extends ActorR
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
-    console.log(linkQueue);
     return { linkQueue: new LinkQueueLimitCount(linkQueue, this.limit) };
   }
 }

@@ -7,11 +7,13 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
 
   public priorityDict: Record<string, number>;
   public numPriorities: number;
-  public randomId: number;
 
   // Code making figure link priority content
   public logFileContentQueue: string;
   public logFileTimeStamps: string;
+  public logFileLinkQueueEvolution: string;
+  public randomId: number;
+  public queueEvolution: IQueueEvolution
   // End
 
   public constructor(possibleLinkSources: string[]) {
@@ -20,28 +22,58 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
 
     this.priorityDict = {};
     possibleLinkSources.map((x, i) => this.priorityDict[x] = i+1); 
-    this.numPriorities = possibleLinkSources.length;
+    this.numPriorities = possibleLinkSources.length + 1;
 
     // Code making figure link priority content
     this.logFileContentQueue = '/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/testNumDifferentPriorities/linkQueueEvolution.txt'
     this.logFileTimeStamps = '/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/testNumDifferentPriorities/linkQueueEvolutionTimeStamps.txt'
+    this.randomId = Math.floor(Math.random() * (Number.MAX_SAFE_INTEGER));
+    this.logFileLinkQueueEvolution = `/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/intermediateResultFiles/${this.randomId}.txt`
+
+    this.queueEvolution = {linkQueueContent: [], timeStamps: []};
+    console.log(`CREATING LINK QUEUE!!!!!!!!!!, random id ${this.randomId}`);
+
     // End
   }
 
   // Code for making figure nothing more should not be in release
-  public appendToList(currentList: number[][]|number[], newList: number[]|number){
+  public appendToList(currentList: number[][], newList: number[]){
     return [...currentList, newList]
   }
-  public appendToFile(newList: number[]|number, fileLocation: string){
-    const oldList: number[][]|number[] = JSON.parse(fs.readFileSync(fileLocation, 'utf-8'));
+  public appendToFile(newList: number[], fileLocation: string){
+    const oldList: number[][] = JSON.parse(fs.readFileSync(fileLocation, 'utf-8'));
     const toSaveList = this.appendToList(oldList, newList);
     fs.writeFileSync(fileLocation, JSON.stringify(toSaveList));
   }
+
+  public appendToListTimeStamp(currentList: number[], newList: number){
+    return [...currentList, newList]
+  }
+  public appendToFileTimeStamp(newList: number, fileLocation: string){
+    const oldList: number[] = JSON.parse(fs.readFileSync(fileLocation, 'utf-8'));
+    const toSaveList = this.appendToListTimeStamp(oldList, newList);
+    fs.writeFileSync(fileLocation, JSON.stringify(toSaveList));
+  }
   
-  public getTimeSeconds(){
+  public getTimeSeconds(): number{
     const hrTime: number[] = process.hrtime();
     const time: number = hrTime[0] + hrTime[1] / 1000000000;
     return time
+  }
+
+  public readRecordsLinkQueue(fileLocation: string){
+    const records: Record<number, IQueueEvolution> = JSON.parse(fs.readFileSync(fileLocation, 'utf-8'));
+    return records; 
+  }
+
+  public writeToFile(fileLocation: string){
+    const objectToWrite = {linkQueueContent: JSON.stringify(this.queueEvolution.linkQueueContent), timeStamps: JSON.stringify(this.queueEvolution.timeStamps)};
+    fs.writeFileSync(fileLocation, JSON.stringify(objectToWrite));
+  }
+
+  public updateQueueEvolution(){
+    this.queueEvolution.linkQueueContent = [...this.queueEvolution.linkQueueContent, [...this.priorities]]
+    this.queueEvolution.timeStamps.push(this.getTimeSeconds());
   }
   // End code
 
@@ -49,13 +81,14 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     // Insert link into queue, here we assume that we keep priorities sorted by always inserting at proper index
     const linkPriority = (!link.metadata?.source || !this.priorityDict[link.metadata.source]) ? this.numPriorities : this.priorityDict[link.metadata.source];
     const insertIndex = this.findInsertIndex(this.priorities, linkPriority);
-    
+
     this.links.splice(insertIndex, 0, link);
     this.priorities.splice(insertIndex, 0, linkPriority);
+    // console.log(`Pushing type ${link.metadata?.source}, priority ${linkPriority}`);
 
     // Experiment code should never make it to final version
-    this.appendToFile(this.priorities, this.logFileContentQueue);
-    this.appendToFile(this.getTimeSeconds(), this.logFileTimeStamps);
+    // this.appendToFile(this.priorities, this.logFileContentQueue);
+    // this.appendToFileTimeStamp(this.getTimeSeconds(), this.logFileTimeStamps);
     // End experiment code
 
     return true;
@@ -67,16 +100,20 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     this.priorities.push(linkPriority);
     this.links.push(link);
 
+
     // Experiment code should never make it to final version
-    this.appendToFile(this.priorities, this.logFileContentQueue);
-    this.appendToFile(this.getTimeSeconds(), this.logFileTimeStamps);
+    this.updateQueueEvolution();
+    this.writeToFile(this.logFileLinkQueueEvolution);
+    // this.appendToFile(this.priorities, this.logFileContentQueue);
+    // this.appendToFileTimeStamp(this.getTimeSeconds(), this.logFileTimeStamps);
     // End experiment code
 
     return true
   }
 
   public push(link: ILink): boolean {
-    return this.pushPriority(link);
+    // console.log(link.metadata?.source);
+    return this.pushNonPriority(link);
   }
 
   public getSize(): number {
@@ -91,8 +128,10 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     this.priorities.shift();
 
     // Experiment code should not be in release
-    this.appendToFile(this.priorities, this.logFileContentQueue);
-    this.appendToFile(this.getTimeSeconds(), this.logFileTimeStamps);
+    this.updateQueueEvolution();
+    this.writeToFile(this.logFileLinkQueueEvolution);
+    // this.appendToFile(this.priorities, this.logFileContentQueue);
+    // this.appendToFileTimeStamp(this.getTimeSeconds(), this.logFileTimeStamps);
     // End code
 
     return this.links.shift();
@@ -119,4 +158,9 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     }
     return low;
   }
+}
+
+export interface IQueueEvolution{
+  linkQueueContent: number[][];
+  timeStamps: number[]
 }

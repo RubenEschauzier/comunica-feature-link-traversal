@@ -32,6 +32,8 @@
       "http://www.w3.org/ns/ldp#contains",
       "cMatch"
       ],
+      "logFileQueueEvolution": "/tmp/logFileQueueContent.txt",
+      "usePriority": false,
       "mediatorRdfResolveHypermediaLinksQueue": { "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/mediators#main" }
     }
   ]

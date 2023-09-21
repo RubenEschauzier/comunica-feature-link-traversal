@@ -7,16 +7,15 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
 
   public priorityDict: Record<string, number>;
   public numPriorities: number;
+  public usePriority: boolean;
 
-  // Code making figure link priority content
   public logFileContentQueue: string;
   public logFileTimeStamps: string;
   public logFileLinkQueueEvolution: string;
   public randomId: number;
   public queueEvolution: IQueueEvolution
-  // End
 
-  public constructor(possibleLinkSources: string[]) {
+  public constructor(possibleLinkSources: string[], logFileQueueEvolution: string, priority: boolean) {
     this.priorities = [];
     this.links = [];
 
@@ -24,16 +23,13 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     possibleLinkSources.map((x, i) => this.priorityDict[x] = i+1); 
     this.numPriorities = possibleLinkSources.length + 1;
 
-    // Code making figure link priority content
-    this.logFileContentQueue = '/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/testNumDifferentPriorities/linkQueueEvolution.txt'
-    this.logFileTimeStamps = '/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/testNumDifferentPriorities/linkQueueEvolutionTimeStamps.txt'
+    this.logFileContentQueue = logFileQueueEvolution;
+    this.usePriority = priority
+    // We assign a random ID to each link queue, as each query can make auxillary queues (that do not impact results).
+    // The largest queue log file is the actual link queue
     this.randomId = Math.floor(Math.random() * (Number.MAX_SAFE_INTEGER));
     this.logFileLinkQueueEvolution = `/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/intermediateResultFiles/${this.randomId}.txt`
-
     this.queueEvolution = {linkQueueContent: [], timeStamps: []};
-    console.log(`CREATING LINK QUEUE!!!!!!!!!!, random id ${this.randomId}`);
-
-    // End
   }
 
   // Code for making figure nothing more should not be in release
@@ -84,36 +80,27 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
 
     this.links.splice(insertIndex, 0, link);
     this.priorities.splice(insertIndex, 0, linkPriority);
-    // console.log(`Pushing type ${link.metadata?.source}, priority ${linkPriority}`);
-
-    // Experiment code should never make it to final version
-    // this.appendToFile(this.priorities, this.logFileContentQueue);
-    // this.appendToFileTimeStamp(this.getTimeSeconds(), this.logFileTimeStamps);
-    // End experiment code
-
     return true;
   }
 
   public pushNonPriority(link: ILink): boolean{
     const linkPriority = (!link.metadata?.source || !this.priorityDict[link.metadata.source]) ? this.numPriorities : this.priorityDict[link.metadata.source];
-
     this.priorities.push(linkPriority);
     this.links.push(link);
 
-
-    // Experiment code should never make it to final version
     this.updateQueueEvolution();
     this.writeToFile(this.logFileLinkQueueEvolution);
-    // this.appendToFile(this.priorities, this.logFileContentQueue);
-    // this.appendToFileTimeStamp(this.getTimeSeconds(), this.logFileTimeStamps);
-    // End experiment code
 
     return true
   }
 
   public push(link: ILink): boolean {
-    // console.log(link.metadata?.source);
-    return this.pushNonPriority(link);
+    if (this.usePriority){
+      return this.pushPriority(link);
+    }
+    else{
+      return this.pushNonPriority(link);
+    }
   }
 
   public getSize(): number {

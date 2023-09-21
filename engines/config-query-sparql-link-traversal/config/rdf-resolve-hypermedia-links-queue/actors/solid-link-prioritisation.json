@@ -12,6 +12,8 @@
         "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/actors#solid-link-prioritisation",
         "@type": "ActorRdfResolveHypermediaLinksQueueSolidLinkPrioritisation",
         "beforeActors": { "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/actors#fifo" },
+        "logFileQueueEvolution": "/tmp/logFileQueueContent.txt",
+        "usePriority": false,
         "possibleLinkSources": [
         "typeIndex", 
         "http://www.w3.org/ns/ldp#contains",

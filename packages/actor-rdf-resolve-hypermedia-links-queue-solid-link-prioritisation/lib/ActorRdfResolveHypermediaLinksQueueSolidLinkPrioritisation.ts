@@ -15,10 +15,14 @@ export class ActorRdfResolveHypermediaLinksQueueSolidLinkPrioritisation extends 
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
 
   public possibleLinkSources: string[];
+  public logFileQueueEvolution: string;
+  public usePriority: boolean;
 
   public constructor(args: IActionRdfResolveHypermediaLinksQueueSolidLinkPrioritisationArgs) {
     super(args);
     this.possibleLinkSources = args.possibleLinkSources;
+    this.logFileQueueEvolution = args.logFileQueueEvolution
+    this.usePriority = args.usePriority;
   }
 
   public async test(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorTest> {
@@ -26,13 +30,15 @@ export class ActorRdfResolveHypermediaLinksQueueSolidLinkPrioritisation extends 
   }
 
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
-    return { linkQueue: new LinkQueuePriorityMetadata(this.possibleLinkSources) };
+    return { linkQueue: new LinkQueuePriorityMetadata(this.possibleLinkSources, this.logFileQueueEvolution, this.usePriority) };
   }
 }
 
 export interface IActionRdfResolveHypermediaLinksQueueSolidLinkPrioritisationArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   possibleLinkSources: string[];
+  logFileQueueEvolution: string;
+  usePriority: boolean;
   mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;

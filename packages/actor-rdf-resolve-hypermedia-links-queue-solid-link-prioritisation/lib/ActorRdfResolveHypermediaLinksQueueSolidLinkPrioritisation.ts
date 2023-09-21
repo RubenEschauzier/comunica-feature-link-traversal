@@ -3,7 +3,7 @@ import type {
   IActorRdfResolveHypermediaLinksQueueOutput,
 } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { ActionContextKey, type Actor, type IActorArgs, type IActorTest, type Mediator } from '@comunica/core';
+import { type Actor, type IActorArgs, type IActorTest, type Mediator } from '@comunica/core';
 import { LinkQueuePriorityMetadata } from './LinkQueuePriorityMetadata';
 
 /**
@@ -21,7 +21,7 @@ export class ActorRdfResolveHypermediaLinksQueueSolidLinkPrioritisation extends 
   public constructor(args: IActionRdfResolveHypermediaLinksQueueSolidLinkPrioritisationArgs) {
     super(args);
     this.possibleLinkSources = args.possibleLinkSources;
-    this.logFileQueueEvolution = args.logFileQueueEvolution
+    this.logFileQueueEvolution = args.logFileQueueEvolution;
     this.usePriority = args.usePriority;
   }
 
@@ -42,5 +42,5 @@ export interface IActionRdfResolveHypermediaLinksQueueSolidLinkPrioritisationArg
   mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
-};
+}
 

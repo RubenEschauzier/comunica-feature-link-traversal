@@ -13,7 +13,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
   public constructor(args: IActorExtractLinksTraversePredicatesArgs) {
     super(args);
     this.predicates = args.predicateRegexes.map(stringRegex => new RegExp(stringRegex, 'u'));
-    this.predicateStrings = args.predicateRegexes
+    this.predicateStrings = args.predicateRegexes;
   }
 
   public async test(action: IActionExtractLinks): Promise<IActorTest> {
@@ -24,9 +24,9 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
     return {
       links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
         if (!this.checkSubject || this.subjectMatches(quad.subject.value, action.url)) {
-          for (const [i, regex] of this.predicates.entries()) {
+          for (const [ i, regex ] of this.predicates.entries()) {
             if (regex.test(quad.predicate.value)) {
-              links.push({ url: quad.object.value, metadata: { source: this.predicateStrings[i] } });
+              links.push({ url: quad.object.value, metadata: { source: this.predicateStrings[i] }});
               break;
             }
           }

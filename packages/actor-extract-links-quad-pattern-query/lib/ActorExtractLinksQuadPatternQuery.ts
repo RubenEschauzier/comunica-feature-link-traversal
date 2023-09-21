@@ -93,7 +93,7 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
             // For the discovered quad term names, check extract the named nodes in the quad
             for (const quadTermName of <QuadTermName[]> Object.keys(quadTermNames)) {
               if (quad[quadTermName].termType === 'NamedNode') {
-                links.push({ url: quad[quadTermName].value, metadata: { source: 'cMatch' } });
+                links.push({ url: quad[quadTermName].value, metadata: { source: 'cMatch' }});
               }
             }
           } else {
@@ -103,7 +103,7 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
             }
           }
         }
-      })
+      }),
     };
     return output;
   }

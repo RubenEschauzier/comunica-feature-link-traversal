@@ -78,7 +78,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
       });
       // Filter out those links that match with the query
       return {
-        links
+        links,
       };
     }
 

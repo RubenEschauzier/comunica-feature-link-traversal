@@ -1,4 +1,5 @@
 {
   "sources": [],
-  "lenient": true
+  "lenient": true,
+  "idp": "void"
 }

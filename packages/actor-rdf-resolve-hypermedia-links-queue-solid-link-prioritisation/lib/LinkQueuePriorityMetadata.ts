@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import * as path from 'path';
 import type { ILinkQueue, ILink } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 
 export class LinkQueuePriorityMetadata implements ILinkQueue {
@@ -9,7 +10,6 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
   public numPriorities: number;
   public usePriority: boolean;
 
-  public logFileContentQueue: string;
   public logFileTimeStamps: string;
   public logFileLinkQueueEvolution: string;
   public randomId: number;
@@ -23,12 +23,15 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     possibleLinkSources.map((x, i) => this.priorityDict[x] = i + 1);
     this.numPriorities = possibleLinkSources.length + 1;
 
-    this.logFileContentQueue = logFileQueueEvolution;
     this.usePriority = priority;
+    const queryNum = fs.readFileSync(path.join(logFileQueueEvolution, 'queryNum.txt'));
+    // make dir for queryNumber
+    // fs.mkdirSync(path.join(logFileQueueEvolution, `query${queryNum}`));
     // We assign a random ID to each link queue, as each query can make auxillary queues (that do not impact results).
     // The largest queue log file is the actual link queue
+    
     this.randomId = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
-    this.logFileLinkQueueEvolution = `/home/rubscrub/projects/experiments-comunica/run_link_prioritisation_order_experiments/intermediateResultFiles/${this.randomId}.txt`;
+    this.logFileLinkQueueEvolution = path.join(logFileQueueEvolution + `${this.randomId}.txt`;
     this.queueEvolution = { linkQueueContent: [], timeStamps: []};
   }
 
@@ -73,7 +76,6 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     this.queueEvolution.linkQueueContent = [ ...this.queueEvolution.linkQueueContent, [ ...this.priorities ]];
     this.queueEvolution.timeStamps.push(this.getTimeSeconds());
   }
-  // End code
 
   public pushPriority(link: ILink): boolean {
     // Insert link into queue, here we assume that we keep priorities sorted by always inserting at proper index
@@ -100,7 +102,12 @@ export class LinkQueuePriorityMetadata implements ILinkQueue {
     if (this.usePriority) {
       return this.pushPriority(link);
     }
-
+    try{
+      return this.pushNonPriority(link);
+    }
+    catch(err){
+      console.log(err)
+    }
     return this.pushNonPriority(link);
   }
 

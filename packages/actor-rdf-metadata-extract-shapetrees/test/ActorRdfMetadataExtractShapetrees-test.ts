@@ -1,4 +1,4 @@
-import type { ActorInitQuery } from '@comunica/actor-init-query-topology';
+import type { ActorInitQuery } from '@comunica/actor-init-query';
 import { BindingsFactory } from '@comunica/bindings-factory';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { MediatorHttp } from '@comunica/bus-http';

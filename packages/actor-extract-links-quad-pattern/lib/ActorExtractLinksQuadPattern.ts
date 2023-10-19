@@ -1,4 +1,5 @@
 import type { IActionExtractLinks,
+  IActorExtractLinksArgs,
   IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysQueryOperation } from '@comunica/context-entries';
@@ -35,34 +36,43 @@ export class ActorExtractLinksQuadPattern extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     const quadPattern: Algebra.Pattern = ActorExtractLinksQuadPattern
       .getCurrentQuadPattern(action.context)!;
-
-    return {
-      links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
-        if (this.onlyVariables) {
-          // --- If we only want to follow links matching with a variable component ---
-          if (matchPatternComplete(quad, quadPattern)) {
-            for (const quadTermName of filterQuadTermNames(quadPattern, value => value.termType === 'Variable')) {
-              if (quad[quadTermName].termType === 'NamedNode') {
-                links.push({ url: quad[quadTermName].value });
-              }
-            }
-          }
-        } else {
-          // --- If we want to follow links, irrespective of matching with a variable component ---
-          // eslint-disable-next-line no-lonely-if
-          if (matchPatternComplete(quad, quadPattern)) {
-            for (const link of getNamedNodes(getTerms(quad))) {
-              links.push({ url: link.value });
+    const links = await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
+      if (this.onlyVariables) {
+        // --- If we only want to follow links matching with a variable component ---
+        if (matchPatternComplete(quad, quadPattern)) {
+          for (const quadTermName of filterQuadTermNames(quadPattern, value => value.termType === 'Variable')) {
+            if (quad[quadTermName].termType === 'NamedNode') {
+              links.push({ url: quad[quadTermName].value });
             }
           }
         }
-      }),
+      } else {
+        // --- If we want to follow links, irrespective of matching with a variable component ---
+        // eslint-disable-next-line no-lonely-if
+        if (matchPatternComplete(quad, quadPattern)) {
+          for (const link of getNamedNodes(getTerms(quad))) {
+            links.push({ url: link.value });
+          }
+        }
+      }
+    });
+    if (links.length > 0){
+      const metaData: Record<string, any>[] = [];
+      for (let i = 0; i<links.length; i++){
+        metaData.push({linkSource: 'ExtractLinksQuadPattern', dereferenced: false});
+      }
+      this.addLinksToGraph(action.url, links, metaData, action.context, false);
+    }
+
+
+    return {
+      links: links,
     };
   }
 }
 
 export interface IActorExtractLinksQuadPatternArgs
-  extends IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
+  extends IActorExtractLinksArgs {
   /**
    * @default {true}
    */

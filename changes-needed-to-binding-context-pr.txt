@@ -1,0 +1,2 @@
+1. Get, Delete functions need to propagate context too
+2. Use .value of named node in source instead of just the NamedNode to enable comparison

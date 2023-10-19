@@ -1,6 +1,8 @@
+import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { IActorArgs, IActorOutput, IActorTest, Mediate, IAction } from '@comunica/core';
 import { Actor } from '@comunica/core';
+import { IActionContext } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 
 /**
@@ -15,6 +17,8 @@ import type * as RDF from '@rdfjs/types';
  * @see IActorExtractLinksOutput
  */
 export abstract class ActorExtractLinks extends Actor<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
+  public readonly mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
+
   /**
    * @param args - @defaultNested {<default_bus> a <cc:components/Bus.jsonld#Bus>} bus
    */
@@ -22,6 +26,27 @@ export abstract class ActorExtractLinks extends Actor<IActionExtractLinks, IActo
     super(args);
   }
 
+  /**
+   * A function that calls mediator to add found links to graph
+   */
+  public addLinksToGraph(
+    parentUrl: string,
+    foundLinks: ILink[],
+    metadata: Record<string, any>[],
+    context: IActionContext,
+    setDereferenced: boolean,
+  )
+  {
+    return this.mediatorConstructTraversedTopology.mediate({
+      parentUrl: parentUrl,
+      links: foundLinks,
+      metadata: metadata,
+      context: context,
+      setDereferenced: setDereferenced,
+    });
+  }
+  
+  
   /**
    * A helper function to append links based on incoming quads.
    * @param metadata A metadata stream of quads.
@@ -80,8 +105,12 @@ export interface IActorExtractLinksOutput extends IActorOutput {
   linksConditional?: ILink[];
 }
 
-export type IActorExtractLinksArgs = IActorArgs<
-IActionExtractLinks, IActorTest, IActorExtractLinksOutput>;
+export interface IActorExtractLinksArgs
+  extends IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
+  mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
+}
+// export type IActorExtractLinksArgs = IActorArgs<
+// IActionExtractLinks, IActorTest, IActorExtractLinksOutput>;
 
 export type MediatorExtractLinks = Mediate<
 IActionExtractLinks, IActorExtractLinksOutput>;

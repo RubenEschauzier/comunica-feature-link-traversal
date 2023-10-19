@@ -14,8 +14,14 @@ export class TraversedGraph {
   }
 
   public addNode(node: string, parent: string, metadata: Record<string, any>) {
+    if (this.nodeToIndex[node]){
+      console.log("We are adding node that already exists");
+    }
+    metadata.hasParent = true;
     if (this.nodeToIndex[parent] == undefined && !metadata.sourceNode) {
-      throw new Error('Adding node to traversed graph that has an unknown parent node');
+      console.warn('Adding node to traversed graph that has an unknown parent node')
+      metadata.hasParent = false
+      // throw new Error('Adding node to traversed graph that has an unknown parent node');
     }
     // If we add first node we initialise the matrix
     if (this.adjacencyMatrix.length === 0) {
@@ -40,6 +46,10 @@ export class TraversedGraph {
     this.metadataNode.push(metadata);
   }
 
+  public setMetaDataNode(node: string, metadata: Record<string, any>) {
+    this.metadataNode[this.nodeToIndex[node]] = metadata;
+  }
+
   public getMetaDataNode(node: string) {
     return this.metadataNode[this.nodeToIndex[node]];
   }
@@ -48,6 +58,10 @@ export class TraversedGraph {
     return this.adjacencyMatrix;
   }
 
+  public getMetaDataAll(){
+    return this.metadataNode;
+  }
+  
   public getNodeToIndexes() {
     return this.nodeToIndex;
   }

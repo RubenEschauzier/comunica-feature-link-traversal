@@ -1,6 +1,7 @@
-import type { ActorInitQueryBase } from '@comunica/actor-init-query';
-import { QueryEngineBase } from '@comunica/actor-init-query';
+import type { ActorInitQueryBase } from '@comunica/actor-init-query-topology';
+import { QueryEngineBase } from '@comunica/actor-init-query-topology';
 import type { IActionExtractLinks,
+  IActorExtractLinksArgs,
   IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import {
   ActorExtractLinks,
@@ -143,7 +144,7 @@ export class ActorExtractLinksContentPolicies extends ActorExtractLinks
 }
 
 export interface IActorExtractLinksContentPoliciesArgs
-  extends IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput>{
+  extends IActorExtractLinksArgs{
   /**
    * An init query actor that is used to query all links to follow from a stream.
    * @default {<urn:comunica:default:init/actors#query>}

@@ -1,5 +1,5 @@
 import type { Readable } from 'stream';
-import type { ActorInitQuery } from '@comunica/actor-init-query';
+import type { ActorInitQuery } from '@comunica/actor-init-query-topology';
 import { BindingsFactory } from '@comunica/bindings-factory';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import { KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
@@ -8,11 +8,12 @@ import { ArrayIterator } from 'asynciterator';
 import { DataFactory } from 'rdf-data-factory';
 import { Factory as AlgebraFactory } from 'sparqlalgebrajs';
 import { ActorExtractLinksSolidTypeIndex } from '../lib/ActorExtractLinksSolidTypeIndex';
+
 const quad = require('rdf-quad');
 const stream = require('streamify-array');
 
 const DF = new DataFactory();
-const BF = new BindingsFactory();
+const BF = new BindingsFactory({});
 const AF = new AlgebraFactory();
 
 describe('ActorExtractLinksSolidTypeIndex', () => {

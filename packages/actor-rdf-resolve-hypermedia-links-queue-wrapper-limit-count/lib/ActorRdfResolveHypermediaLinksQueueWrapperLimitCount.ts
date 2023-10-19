@@ -6,6 +6,7 @@ import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-h
 import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
 import { ActionContextKey } from '@comunica/core';
 import { LinkQueueLimitCount } from './LinkQueueLimitCount';
+import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
@@ -15,6 +16,7 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitCount extends ActorR
   private readonly mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
+  public readonly mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperLimitCountArgs) {
     super(args);
@@ -30,13 +32,14 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitCount extends ActorR
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
-    return { linkQueue: new LinkQueueLimitCount(linkQueue, this.limit) };
+    return { linkQueue: new LinkQueueLimitCount(linkQueue, this.limit, this.mediatorConstructTraversedTopology) };
   }
 }
 
 export interface IActorRdfResolveHypermediaLinksQueueWrapperLimitCountArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   limit: number;
+  mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
   mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;

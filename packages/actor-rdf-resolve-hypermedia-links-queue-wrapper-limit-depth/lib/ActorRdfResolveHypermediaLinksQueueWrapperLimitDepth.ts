@@ -6,6 +6,7 @@ import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-h
 import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
 import { ActionContextKey } from '@comunica/core';
 import { LinkQueueLimitDepth } from './LinkQueueLimitDepth';
+import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 
 /**
  * A comunica Wrapper Limit Depth RDF Resolve Hypermedia Links Queue Actor.
@@ -15,6 +16,7 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitDepth extends ActorR
   private readonly mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
+  public readonly mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperLimitDepthArgs) {
     super(args);
@@ -30,16 +32,18 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitDepth extends ActorR
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
-    return { linkQueue: new LinkQueueLimitDepth(linkQueue, this.limit) };
+    return { linkQueue: new LinkQueueLimitDepth(linkQueue, this.limit, this.mediatorConstructTraversedTopology) };
   }
 }
 
 export interface IActorRdfResolveHypermediaLinksQueueWrapperLimitDepthArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   limit: number;
+  mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
   mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
+  
 }
 
 export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(

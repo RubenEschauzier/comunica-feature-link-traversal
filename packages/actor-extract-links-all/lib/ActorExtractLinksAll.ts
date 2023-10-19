@@ -1,4 +1,4 @@
-import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
+import type { IActionExtractLinks, IActorExtractLinksArgs, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorArgs, IActorTest } from '@comunica/core';
 import { getNamedNodes, getTerms } from 'rdf-terms';
@@ -7,7 +7,7 @@ import { getNamedNodes, getTerms } from 'rdf-terms';
  * A comunica Traverse All RDF Metadata Extract Actor.
  */
 export class ActorExtractLinksAll extends ActorExtractLinks {
-  public constructor(args: IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput>) {
+  public constructor(args: IActorExtractLinksArgs) {
     super(args);
   }
 

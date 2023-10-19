@@ -1,4 +1,4 @@
-import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
+import type { IActionExtractLinks, IActorExtractLinksArgs, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorArgs, IActorTest } from '@comunica/core';
 
@@ -8,11 +8,13 @@ import type { IActorArgs, IActorTest } from '@comunica/core';
 export class ActorExtractLinksPredicates extends ActorExtractLinks {
   private readonly checkSubject: boolean;
   private readonly predicates: RegExp[];
+  private readonly predicatesList: string[]
 
   public constructor(args: IActorExtractLinksTraversePredicatesArgs) {
     super(args);
 
     this.predicates = args.predicateRegexes.map(stringRegex => new RegExp(stringRegex, 'u'));
+    this.predicatesList = args.predicateRegexes;
   }
 
   public async test(action: IActionExtractLinks): Promise<IActorTest> {
@@ -20,17 +22,27 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
   }
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
-    return {
-      links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
-        if (!this.checkSubject || this.subjectMatches(quad.subject.value, action.url)) {
-          for (const regex of this.predicates) {
-            if (regex.test(quad.predicate.value)) {
-              links.push({ url: quad.object.value });
-              break;
-            }
+    const links =  await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
+      if (!this.checkSubject || this.subjectMatches(quad.subject.value, action.url)) {
+        for (const regex of this.predicates) {
+          if (regex.test(quad.predicate.value)) {
+            links.push({ url: quad.object.value });
+            break;
           }
         }
-      }),
+      }
+    });
+    // If we found links we add to the traversed graph
+    if (links.length > 0){
+      const metaData: Record<string, any>[] = []
+      for (let i = 0; i<links.length; i++){
+        metaData.push({linkSource: 'ExtractLinkPredicates', dereferenced: false, predicates: this.predicatesList})
+      }
+      this.addLinksToGraph(action.url, links, metaData, action.context, false);
+    }
+
+    return {
+      links: links
     };
   }
 
@@ -44,7 +56,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
 }
 
 export interface IActorExtractLinksTraversePredicatesArgs
-  extends IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
+  extends IActorExtractLinksArgs {
   /**
    * If only quads will be considered that have a subject equal to the request URL.
    */

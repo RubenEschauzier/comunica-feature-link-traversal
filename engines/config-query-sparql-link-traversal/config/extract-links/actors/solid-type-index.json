@@ -10,7 +10,8 @@
     {
       "@id": "urn:comunica:default:extract-links/actors#solid-type-index",
       "@type": "ActorExtractLinksSolidTypeIndex",
-      "mediatorDereferenceRdf": { "@id": "urn:comunica:default:dereference-rdf/mediators#main" }
+      "mediatorDereferenceRdf": { "@id": "urn:comunica:default:dereference-rdf/mediators#main" },
+      "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" }
     }
   ]
 }

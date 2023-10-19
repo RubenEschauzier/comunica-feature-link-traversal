@@ -1,7 +1,7 @@
-import { QueryEngineBase } from '@comunica/actor-init-query';
-import type { ActorInitQueryBase } from '@comunica/actor-init-query';
+import { QueryEngineBase } from '@comunica/actor-init-query-topology';
+import type { ActorInitQueryBase } from '@comunica/actor-init-query-topology';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
-import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
+import type { IActionExtractLinks, IActorExtractLinksArgs, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import { KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
@@ -58,6 +58,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
       }
       return acc;
     }, {});
+    console.log(typeLinks);
 
     // Avoid further processing if no type index entries were discovered
     if (Object.keys(typeLinks).length === 0) {
@@ -66,13 +67,22 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
 
     // Different behaviour depending on whether or not we match type index entries with the current query.
     if (this.onlyMatchingTypes) {
+      const links = await this.getLinksMatchingQuery(
+        typeLinks,
+        action.context.get(KeysInitQuery.query)!,
+        action.context.get(KeysQueryOperation.operation)!,
+      );
+
+      if (links.length > 0){
+        const metaData: Record<string, any>[] = []
+        for (let i = 0; i<links.length; i++){
+          metaData.push({linkSource: 'TypeIndex', dereferenced: false})
+        }
+        this.addLinksToGraph(action.url, links, metaData, action.context, false);
+      }
       // Filter out those links that match with the query
       return {
-        links: await this.getLinksMatchingQuery(
-          typeLinks,
-          action.context.get(KeysInitQuery.query)!,
-          action.context.get(KeysQueryOperation.operation)!,
-        ),
+        links: links,
       };
     }
 
@@ -81,6 +91,14 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
     for (const linksInner of Object.values(typeLinks)) {
       links.push(...linksInner);
     }
+    if (links.length > 0){
+      const metaData: Record<string, any>[] = []
+      for (let i = 0; i<links.length; i++){
+        metaData.push({linkSource: 'TypeIndex', dereferenced: false})
+      }
+      this.addLinksToGraph(action.url, links, metaData, action.context, false);
+    }
+
     return { links };
   }
 
@@ -286,7 +304,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
 }
 
 export interface IActorExtractLinksSolidTypeIndexArgs
-  extends IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
+  extends IActorExtractLinksArgs {
   /**
    * The type index predicate URLs that will be followed.
    * @default {http://www.w3.org/ns/solid/terms#publicTypeIndex}

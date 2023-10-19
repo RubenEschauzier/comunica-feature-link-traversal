@@ -29,11 +29,15 @@ export interface IActionConstructTraversedTopology extends IAction {
   /**
    * The extracted links
    */
-  foundLinks: ILink[];
+  links: ILink[];
   /**
    * Extracted links metadata
    */
   metadata: Record<string, any>[];
+  /**
+   * Whether we add node or update metadata of node 
+   */
+  setDereferenced: boolean;
 }
 
 export interface IActorConstructTraversedTopologyOutput extends IActorOutput {

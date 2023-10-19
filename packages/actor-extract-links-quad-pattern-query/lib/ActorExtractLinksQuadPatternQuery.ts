@@ -1,4 +1,4 @@
-import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
+import type { IActionExtractLinks, IActorExtractLinksArgs, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysInitQuery } from '@comunica/context-entries';
 import type { IActorArgs, IActorTest } from '@comunica/core';
@@ -75,43 +75,51 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     const operation: Algebra.Operation = ActorExtractLinksQuadPatternQuery
       .getCurrentQuery(action.context)!;
+    const links = await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
+      const matchingPatterns = ActorExtractLinksQuadPatternQuery
+        .matchQuadPatternInOperation(quad, operation);
+      if (matchingPatterns.length > 0) {
+        if (this.onlyVariables) {
+          // --- If we only want to follow links matching with a variable component ---
 
-    return {
-      links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
-        const matchingPatterns = ActorExtractLinksQuadPatternQuery
-          .matchQuadPatternInOperation(quad, operation);
-        if (matchingPatterns.length > 0) {
-          if (this.onlyVariables) {
-            // --- If we only want to follow links matching with a variable component ---
-
-            // Determine quad term names that we should check
-            const quadTermNames: Partial<Record<QuadTermName, boolean>> = {};
-            for (const quadPattern of matchingPatterns) {
-              for (const quadTermName of filterQuadTermNames(quadPattern, value => value.termType === 'Variable')) {
-                quadTermNames[quadTermName] = true;
-              }
-            }
-
-            // For the discovered quad term names, check extract the named nodes in the quad
-            for (const quadTermName of <QuadTermName[]> Object.keys(quadTermNames)) {
-              if (quad[quadTermName].termType === 'NamedNode') {
-                links.push({ url: quad[quadTermName].value });
-              }
-            }
-          } else {
-            // --- If we want to follow links, irrespective of matching with a variable component ---
-            for (const link of getNamedNodes(getTerms(quad))) {
-              links.push({ url: link.value });
+          // Determine quad term names that we should check
+          const quadTermNames: Partial<Record<QuadTermName, boolean>> = {};
+          for (const quadPattern of matchingPatterns) {
+            for (const quadTermName of filterQuadTermNames(quadPattern, value => value.termType === 'Variable')) {
+              quadTermNames[quadTermName] = true;
             }
           }
+
+          // For the discovered quad term names, check extract the named nodes in the quad
+          for (const quadTermName of <QuadTermName[]> Object.keys(quadTermNames)) {
+            if (quad[quadTermName].termType === 'NamedNode') {
+              links.push({ url: quad[quadTermName].value });
+            }
+          }
+        } else {
+          // --- If we want to follow links, irrespective of matching with a variable component ---
+          for (const link of getNamedNodes(getTerms(quad))) {
+            links.push({ url: link.value });
+          }
         }
-      }),
+      }
+    });
+    if (links.length > 0){
+      const metaData: Record<string, any>[] = []
+      for (let i = 0; i<links.length; i++){
+        metaData.push({linkSource: 'cMatch', dereferenced: false})
+      }
+      this.addLinksToGraph(action.url, links, metaData, action.context, false);
+    }
+
+    return {
+      links: links,
     };
   }
 }
 
 export interface IActorExtractLinksQuadPatternQueryArgs
-  extends IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
+  extends IActorExtractLinksArgs {
   /**
    * If only links that match a variable in the query should be included.
    * @default {true}

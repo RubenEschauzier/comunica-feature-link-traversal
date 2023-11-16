@@ -1,4 +1,4 @@
-import type { ActorInitQuery } from '@comunica/actor-init-query';
+import type { ActorInitQuery } from '@comunica/actor-init-query-topology';
 import { BindingsFactory } from '@comunica/bindings-factory';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { MediatorHttp } from '@comunica/bus-http';
@@ -12,7 +12,7 @@ import { ActorRdfMetadataExtractShapetrees } from '../lib/ActorRdfMetadataExtrac
 import { ShapeTree } from '../lib/ShapeTree';
 
 const DF = new DataFactory();
-const BF = new BindingsFactory();
+const BF = new BindingsFactory({});
 const AF = new AlgebraFactory();
 const shexParser = require('@shexjs/parser');
 

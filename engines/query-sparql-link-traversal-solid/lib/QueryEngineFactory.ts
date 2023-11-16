@@ -1,4 +1,4 @@
-import { QueryEngineFactoryBase } from '@comunica/actor-init-query';
+import { QueryEngineFactoryBase } from '@comunica/actor-init-query-topology';
 import { QueryEngine } from './QueryEngine';
 
 /**

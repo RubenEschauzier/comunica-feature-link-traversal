@@ -30,6 +30,7 @@ export abstract class ActorExtractLinks extends Actor<IActionExtractLinks, IActo
    * A function that calls mediator to add found links to graph
    */
   public addLinksToGraph(
+    mediatorConstructTraversedTopology: MediatorConstructTraversedTopology,
     parentUrl: string,
     foundLinks: ILink[],
     metadata: Record<string, any>[],
@@ -37,7 +38,7 @@ export abstract class ActorExtractLinks extends Actor<IActionExtractLinks, IActo
     setDereferenced: boolean,
   )
   {
-    return this.mediatorConstructTraversedTopology.mediate({
+    return mediatorConstructTraversedTopology.mediate({
       parentUrl: parentUrl,
       links: foundLinks,
       metadata: metadata,

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { HttpServiceSparqlEndpoint } from '@comunica/actor-init-query';
+import { HttpServiceSparqlEndpoint } from '@comunica/actor-init-query-topology';
 import { CliArgsHandlerSolidAuth } from '@comunica/query-sparql-solid';
 import { CliArgsHandlerAnnotateSources } from '../lib/CliArgsHandlerAnnotateSources';
 

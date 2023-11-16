@@ -51,7 +51,7 @@
     "@comunica/actor-extract-links-quad-pattern": "^0.2.0",
     "@comunica/actor-extract-links-quad-pattern-query": "^0.2.0",
     "@comunica/actor-extract-links-tree": "^0.2.0",
-    "@comunica/actor-init-query": "^2.9.0",
+    "@comunica/actor-init-query-topology": "^0.2.0",
     "@comunica/actor-optimize-query-operation-set-seed-sources-quadpattern-iris": "^0.2.0",
     "@comunica/actor-rdf-join-entries-sort-traversal-zero-knowledge": "^0.2.0",
     "@comunica/actor-rdf-metadata-extract-traverse": "^0.2.0",

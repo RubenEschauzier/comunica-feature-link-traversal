@@ -1,7 +1,7 @@
 import { ActionContextKey } from '@comunica/core';
 import type { IDataDestination } from '@comunica/types';
 import type { AnnotateSourcesType } from '@comunica/types-link-traversal';
-
+import type { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology'
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
  * ActorIniQueryBase in @comunica/actor-init-query if it makes sense to use this entry externally.
@@ -36,3 +36,11 @@ export const KeysRdfJoin = {
    */
   skipAdaptiveJoin: new ActionContextKey<IDataDestination>('@comunica/bus-rdf-join:skipAdaptiveJoin'),
 };
+
+export const KeysTraversedTopology = {
+  /**
+   * The mediator to call to construct traversed topology
+   */
+  mediatorConstructTraversedTopology: new ActionContextKey<MediatorConstructTraversedTopology>
+  ('@comunica/bus-construct-topology:MediatorConstructTopology')
+}

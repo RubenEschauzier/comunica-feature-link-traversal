@@ -1,7 +1,7 @@
 {
   "@context": [
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^2.0.0/components/context.jsonld",
-    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-init-query/^2.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-init-query-topology/^0.0.0/components/context.jsonld",
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^2.0.0/components/context.jsonld"
   ],
   "@id": "urn:comunica:default:Runner",
@@ -19,6 +19,7 @@
       "mediatorContextPreprocess": { "@id": "urn:comunica:default:context-preprocess/mediators#main" },
       "mediatorHttpInvalidate": { "@id": "urn:comunica:default:http-invalidate/mediators#main" },
       "mediatorMergeHandlers": { "@id": "urn:comunica:default:merge-binding-factory/mediators#main"},
+      "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" },
       "allowNoSources": true
     }
   ]

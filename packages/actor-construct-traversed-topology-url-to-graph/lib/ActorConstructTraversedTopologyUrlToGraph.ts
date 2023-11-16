@@ -22,40 +22,33 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
     return true;
   }
 
-  public dequeueAction(){
-
-  }
-
-  public runContinuousAction(){
-
-  }
-
   public async run(action: IActionConstructTraversedTopology): Promise<IActorConstructTraversedTopologyOutput> {
     if (action.setDereferenced == true){
       for (let i = 0; i < action.links.length; i++) {
         const metaData = this.traversedGraph.getMetaDataNode(action.links[i].url);
         metaData.dereferenced = true;
-        this.traversedGraph.setMetaDataNode(action.links[i].url, metaData);
+
+        this.traversedGraph.setMetaDataToDereferenced(action.links[i].url, metaData);
       }
       fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/metaDataTemp.txt', 
       JSON.stringify(this.traversedGraph.getMetaDataAll()));
-  
       return true;
     }
 
     for (let i = 0; i < action.links.length; i++) {
-      this.traversedGraph.addNode(action.links[i].url, action.parentUrl, action.metadata[i]);
+      this.traversedGraph.addNode(this.getStrippedURL(action.links[i].url), this.getStrippedURL(action.parentUrl), action.metadata[i]);
     }
     // Temp way to get data from graph
     fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/adjMatrixTemp.txt', 
     JSON.stringify(this.traversedGraph.getAdjacencyMatrix()));
     fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/metaDataTemp.txt', 
     JSON.stringify(this.traversedGraph.getMetaDataAll()));
-    console.log(this.traversedGraph.getMetaDataAll());
-    console.log(JSON.stringify(this.traversedGraph.getMetaDataAll()));
     fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/nodeToIndex.txt', 
     JSON.stringify(this.traversedGraph.getNodeToIndexes()));
-    
     return true;
   }
+
+  public getStrippedURL(url: string){
+      return url.split('#')[0];
+  }  
 }

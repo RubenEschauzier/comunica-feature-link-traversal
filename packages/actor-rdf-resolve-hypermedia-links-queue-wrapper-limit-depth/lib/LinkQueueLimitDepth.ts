@@ -8,12 +8,10 @@ import { ActionContext } from '@comunica/core';
  */
 export class LinkQueueLimitDepth extends LinkQueueWrapper {
   private readonly limit: number;
-  private readonly mediatorConstructTraversedTopology: MediatorConstructTraversedTopology
 
-  public constructor(linkQueue: ILinkQueue, limit: number, mediatorConstructTraversedTopology: MediatorConstructTraversedTopology) {
+  public constructor(linkQueue: ILinkQueue, limit: number) {
     super(linkQueue);
     this.limit = limit;
-    this.mediatorConstructTraversedTopology = mediatorConstructTraversedTopology;
   }
 
   public push(link: ILink, parent: ILink): boolean {
@@ -43,17 +41,6 @@ export class LinkQueueLimitDepth extends LinkQueueWrapper {
   
   public pop(): ILink | undefined {
     const link = super.pop();
-    if (link){
-      // For this we have to add new actor that only runs when updateMetaData = true, and add check for other actors to only run if updateMetaData = false
-      const action: IActionConstructTraversedTopology = {
-        parentUrl: '',
-        links: [link],
-        metadata: [{}],
-        context: new ActionContext({}),
-        setDereferenced: true
-      }  
-      this.mediatorConstructTraversedTopology.mediate(action);
-    }
     return link;
   }
 

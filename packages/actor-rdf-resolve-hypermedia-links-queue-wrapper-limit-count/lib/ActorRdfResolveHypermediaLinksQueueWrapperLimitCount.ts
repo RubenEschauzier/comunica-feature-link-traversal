@@ -7,6 +7,7 @@ import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
 import { ActionContextKey } from '@comunica/core';
 import { LinkQueueLimitCount } from './LinkQueueLimitCount';
 import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
+import { KeysTraversedTopology } from '@comunica/context-entries-link-traversal';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
@@ -32,7 +33,8 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitCount extends ActorR
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
-    return { linkQueue: new LinkQueueLimitCount(linkQueue, this.limit, this.mediatorConstructTraversedTopology) };
+
+    return { linkQueue: new LinkQueueLimitCount(linkQueue, this.limit) };
   }
 }
 

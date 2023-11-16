@@ -1,5 +1,5 @@
-import type { ActorInitQueryBase } from '@comunica/actor-init-query';
-import { QueryEngineBase } from '@comunica/actor-init-query';
+import type { ActorInitQueryBase } from '@comunica/actor-init-query-topology';
+import { QueryEngineBase } from '@comunica/actor-init-query-topology';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { MediatorHttp } from '@comunica/bus-http';
 import type { IActionRdfMetadataExtract, IActorRdfMetadataExtractOutput } from '@comunica/bus-rdf-metadata-extract';

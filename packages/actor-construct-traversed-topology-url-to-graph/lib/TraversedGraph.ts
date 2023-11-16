@@ -6,27 +6,32 @@ export class TraversedGraph {
   private nodeToIndex: Record<string, number>;
   private readonly adjacencyMatrix: number[][];
   private readonly metadataNode: Record<string, any>[];
+  private readonly traversalOrder: string[];
 
   public constructor() {
     this.nodeToIndex = {};
     this.adjacencyMatrix = [];
     this.metadataNode = [];
+    this.traversalOrder = [];
   }
 
   public addNode(node: string, parent: string, metadata: Record<string, any>) {
-    if (this.nodeToIndex[node]){
-      console.log("We are adding node that already exists");
-    }
     metadata.hasParent = true;
     if (this.nodeToIndex[parent] == undefined && !metadata.sourceNode) {
       console.warn('Adding node to traversed graph that has an unknown parent node')
       metadata.hasParent = false
-      // throw new Error('Adding node to traversed graph that has an unknown parent node');
     }
+    // If we find node already seen, we update the parent nodes if needed
+    if (node in this.nodeToIndex){
+      this.adjacencyMatrix[this.nodeToIndex[node]][this.nodeToIndex[parent]] = 1;
+      return false;
+    }
+
     // If we add first node we initialise the matrix
     if (this.adjacencyMatrix.length === 0) {
       this.adjacencyMatrix.push([ 1 ]);
     }
+
     // If matrix initialised we update it
     else {
       for (const matrixRow of this.adjacencyMatrix) {
@@ -44,6 +49,18 @@ export class TraversedGraph {
 
     // Add metadata to graph
     this.metadataNode.push(metadata);
+    return true;
+  }
+  /**
+   * Function that should only be called to update metadata of node to reflect 
+   * that the URL corresponding to the node has been traversed
+   * @param node 
+   * @param metadata 
+   */
+  public setMetaDataToDereferenced(node: string, metadata: Record<string, any>){
+    // We update traversal order when dereference event happens
+    this.traversalOrder.push(node);
+    this.metadataNode[this.nodeToIndex[node]] = metadata;
   }
 
   public setMetaDataNode(node: string, metadata: Record<string, any>) {

@@ -1,6 +1,8 @@
+import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { IActionExtractLinks, IActorExtractLinksArgs, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
-import type { IActorArgs, IActorTest } from '@comunica/core';
+import { KeysTraversedTopology } from '@comunica/context-entries-link-traversal';
+import type { IActorTest } from '@comunica/core';
 
 /**
  * A comunica Traverse Predicates RDF Metadata Extract Actor.
@@ -38,7 +40,10 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
       for (let i = 0; i<links.length; i++){
         metaData.push({linkSource: 'ExtractLinkPredicates', dereferenced: false, predicates: this.predicatesList})
       }
-      this.addLinksToGraph(action.url, links, metaData, action.context, false);
+      const mediatorConstructTopology = <MediatorConstructTraversedTopology> action.
+      context.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
+      
+      this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
     }
 
     return {

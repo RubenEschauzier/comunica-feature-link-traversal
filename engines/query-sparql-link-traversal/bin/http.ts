@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { HttpServiceSparqlEndpoint } from '@comunica/actor-init-query';
+import { HttpServiceSparqlEndpoint } from '@comunica/actor-init-query-topology';
 
 const defaultConfigPath = `${__dirname}/../config/config-default.json`;
 

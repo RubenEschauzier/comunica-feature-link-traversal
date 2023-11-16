@@ -1,11 +1,12 @@
-import { QueryEngineBase } from '@comunica/actor-init-query';
-import type { ActorInitQueryBase } from '@comunica/actor-init-query';
+import { QueryEngineBase } from '@comunica/actor-init-query-topology';
+import type { ActorInitQueryBase } from '@comunica/actor-init-query-topology';
+import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { IActionExtractLinks, IActorExtractLinksArgs, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import { KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
-import { KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
+import { KeysRdfJoin, KeysRdfResolveHypermediaLinks, KeysTraversedTopology } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, IActorTest } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
@@ -58,12 +59,13 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
       }
       return acc;
     }, {});
-    console.log(typeLinks);
 
     // Avoid further processing if no type index entries were discovered
     if (Object.keys(typeLinks).length === 0) {
       return { links: []};
     }
+    const mediatorConstructTopology = <MediatorConstructTraversedTopology> action.
+    context.get(KeysTraversedTopology.mediatorConstructTraversedTopology)
 
     // Different behaviour depending on whether or not we match type index entries with the current query.
     if (this.onlyMatchingTypes) {
@@ -78,7 +80,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
         for (let i = 0; i<links.length; i++){
           metaData.push({linkSource: 'TypeIndex', dereferenced: false})
         }
-        this.addLinksToGraph(action.url, links, metaData, action.context, false);
+        this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
       }
       // Filter out those links that match with the query
       return {
@@ -96,7 +98,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
       for (let i = 0; i<links.length; i++){
         metaData.push({linkSource: 'TypeIndex', dereferenced: false})
       }
-      this.addLinksToGraph(action.url, links, metaData, action.context, false);
+      this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
     }
 
     return { links };

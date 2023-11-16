@@ -1,6 +1,8 @@
+import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { IActionExtractLinks, IActorExtractLinksArgs, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysInitQuery } from '@comunica/context-entries';
+import { KeysTraversedTopology } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, IActorTest } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
 import { DataFactory } from 'rdf-data-factory';
@@ -105,11 +107,14 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
       }
     });
     if (links.length > 0){
+      const mediatorConstructTopology = <MediatorConstructTraversedTopology> action.
+      context.get(KeysTraversedTopology.mediatorConstructTraversedTopology)
+  
       const metaData: Record<string, any>[] = []
       for (let i = 0; i<links.length; i++){
         metaData.push({linkSource: 'cMatch', dereferenced: false})
       }
-      this.addLinksToGraph(action.url, links, metaData, action.context, false);
+      this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
     }
 
     return {

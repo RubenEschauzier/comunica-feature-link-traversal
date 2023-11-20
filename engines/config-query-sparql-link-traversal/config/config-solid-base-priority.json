@@ -50,7 +50,9 @@
 
     "ccqs:config/rdf-resolve-hypermedia-links/mediators.json",
 
-    "ccqs:config/rdf-resolve-hypermedia-links-queue/actors.json",
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/priority-queue.json",
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-limit-count.json",
+
     "ccqs:config/rdf-resolve-hypermedia-links-queue/mediators.json",
     
     "ccqslt:config/rdf-resolve-quad-pattern/actors.json",

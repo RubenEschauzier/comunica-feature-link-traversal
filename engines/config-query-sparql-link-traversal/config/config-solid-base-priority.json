@@ -48,12 +48,9 @@
     "ccqs:config/rdf-resolve-hypermedia-links/actors.json",
     "ccqslt:config/rdf-resolve-hypermedia-links/actors/traverse.json",
     "ccqs:config/rdf-resolve-hypermedia-links/mediators.json",
-
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/priority-queue.json",
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-limit-count.json",
-
     "ccqs:config/rdf-resolve-hypermedia-links-queue/mediators.json",
-    
     "ccqslt:config/rdf-resolve-quad-pattern/actors.json",
     "ccqs:config/rdf-resolve-quad-pattern/mediators.json",
     "ccqs:config/rdf-serialize/actors.json",

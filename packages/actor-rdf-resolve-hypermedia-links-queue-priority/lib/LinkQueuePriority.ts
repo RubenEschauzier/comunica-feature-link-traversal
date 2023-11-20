@@ -1,17 +1,13 @@
 import type { ILink, ILinkQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-// /**
-//  * A link queue in order of highest priority.
-//  */
-
-// IMPLEMENT DEPTH - BREATH FIRST BY CHECKING IF PARENT URL HAS BEEN IN QUEUE
-// IF YES TAKE PARENT PRIORITY += 1
-// ELSE PRIORITY = 0
-// DO THIS USING WRAPPER AROUND PRIORITY QUEUE LIKE IN LIMIT COUNT
+/**
+ * A link queue based on priority, using binary heap.
+ */
 export class LinkQueuePriority implements ILinkQueue {
   public readonly links: ILinkPriority[] = [];
-  // We stores the nodes in heap by reference
-  public readonly nodesInHeap: Record<string, ILinkPriority> = {};
 
+  /**
+   * Pushes element to heap by appending it to array and up-heaping the new element
+   */
   public push(link: ILinkPriority): boolean {
     this.links.push(link);
     const idx: number = this.links.length - 1;
@@ -19,6 +15,11 @@ export class LinkQueuePriority implements ILinkQueue {
     return true;
   }
 
+  /**
+   * Pops the highest priority link and returns it. Then it sets the last element as root and
+   * down-heaps it.
+   * @returns popped element
+   */
   public pop(): ILinkPriority {
     const max = this.links[0];
     const endArray = this.links.pop();
@@ -31,9 +32,9 @@ export class LinkQueuePriority implements ILinkQueue {
 
   /**
    * Function to increase priority of element of heap. First we increase priority using
-   * the by reference records. Then we reheap our array. This increases priority in log n
-   * time
+   * the given index. Then we reheap our array.
    */
+
   public increasePriority(idx: number, increaseBy: number): void {
     if (!this.links[idx] || this.links[idx].priority === undefined) {
       throw new Error(`Access invalid ILinkPriority in heap: ${this.links[idx]?.url}, ${this.links[idx]?.priority}`);
@@ -44,6 +45,11 @@ export class LinkQueuePriority implements ILinkQueue {
     this.links[idx].priority += increaseBy;
     this.upHeap(idx);
   }
+
+  /**
+   * Function to decrease priority of element of heap. First we decrease priority at the given index.
+   * Then we reheap our array.
+   */
 
   public decreasePriority(idx: number, decreaseBy: number): void {
     if (!this.links[idx] || this.links[idx].priority === undefined) {
@@ -56,6 +62,10 @@ export class LinkQueuePriority implements ILinkQueue {
     this.downHeap(idx);
   }
 
+  /**
+   * Bubbles up the element at index until the max-heap property is satifisfied
+   * @param idx Index of element to up-heap
+   */
   public upHeap(idx: number): void {
     if (idx < 0 || idx > this.links.length - 1) {
       throw new Error(`Invalid index passed to upheap in priority queue`);
@@ -71,7 +81,6 @@ export class LinkQueuePriority implements ILinkQueue {
         element.index = idx;
         break;
       }
-      // This might break due to by reference stuff, so check for it
       this.links[parentIdx] = element;
       // Update indices
       element.index = parentIdx;
@@ -81,6 +90,10 @@ export class LinkQueuePriority implements ILinkQueue {
     }
   }
 
+  /**
+   * Bubbles down the element at input index untill max-heap property is satisifed
+   * @param idx Index of element to down-heap
+   */
   public downHeap(idx: number): void {
     if (idx < 0 || idx > this.links.length - 1) {
       throw new Error(`Invalid index passed to upheap in priority queue`);

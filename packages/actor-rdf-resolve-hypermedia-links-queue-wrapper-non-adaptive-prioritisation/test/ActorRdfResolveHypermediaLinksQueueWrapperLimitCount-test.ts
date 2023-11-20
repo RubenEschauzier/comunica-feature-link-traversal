@@ -27,7 +27,7 @@ describe('ActorRdfResolveHypermediaLinksQueueWrapperLimitCount', () => {
         mediate: jest.fn(() => ({ linkQueue: 'inner' })),
       };
       actor = new ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationNonAdaptive(
-        { name: 'actor', bus, limit: 10, mediatorRdfResolveHypermediaLinksQueue },
+        { name: 'actor', bus, mediatorRdfResolveHypermediaLinksQueue },
       );
     });
 

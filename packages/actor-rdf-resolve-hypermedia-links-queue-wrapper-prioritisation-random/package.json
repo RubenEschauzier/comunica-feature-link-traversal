@@ -1,5 +1,5 @@
 {
-  "name": "@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-prioritisation-non-adaptive",
+  "name": "@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-prioritisation-random",
   "version": "0.2.0",
   "description": "A wrapper-prioritisation-non-adaptive rdf-resolve-hypermedia-links-queue actor",
   "lsd:module": true,

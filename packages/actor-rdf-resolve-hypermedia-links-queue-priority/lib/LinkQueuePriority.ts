@@ -22,10 +22,12 @@ export class LinkQueuePriority implements ILinkQueue {
    */
   public pop(): ILinkPriority {
     const max = this.links[0];
-    const endArray = this.links.pop();
-    if (this.links.length > 0) {
-      this.links[0] = endArray!;
-      this.downHeap(0);
+    if (max){
+      const endArray = this.links.pop();
+      if (this.links.length > 0) {
+        this.links[0] = endArray!;
+        this.downHeap(0);
+      }  
     }
     return max;
   }

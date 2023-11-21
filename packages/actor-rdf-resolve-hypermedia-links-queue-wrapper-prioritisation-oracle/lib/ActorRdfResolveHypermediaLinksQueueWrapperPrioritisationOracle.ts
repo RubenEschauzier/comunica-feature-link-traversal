@@ -5,19 +5,27 @@ import type {
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
 import { ActionContextKey } from '@comunica/core';
-import { LinkQueuePriorityNonAdaptive } from './LinkQueuePriorityNonAdaptive';
+import { LinkQueuePriorityOracle } from './LinkQueuePriorityOracle';
+import { promises as fs } from "fs";
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
  */
-export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationNonAdaptive extends
+export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle extends
   ActorRdfResolveHypermediaLinksQueue {
   private readonly mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
 
-  public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationNonAdaptive) {
+  public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle) {
     super(args);
+  }
+  public async readRccFile(){
+    const data = JSON.parse(await fs.readFile("../oracle/rcc.json", "utf-8")).catch(
+      (err: any) => {
+        throw new Error(err)
+      });
+    return data;
   }
 
   public async test(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorTest> {
@@ -30,11 +38,13 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationNonAdaptive
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
-    return { linkQueue: new LinkQueuePriorityNonAdaptive(linkQueue) };
+    // Load oracle scores
+    const rccScores = await this.readRccFile();
+    return { linkQueue: new LinkQueuePriorityOracle(linkQueue, rccScores) };
   }
 }
 
-export interface IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationNonAdaptive
+export interface IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,

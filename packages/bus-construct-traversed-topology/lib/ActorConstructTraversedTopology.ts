@@ -1,6 +1,7 @@
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { IAction, IActorArgs, IActorOutput, IActorTest, Mediate } from '@comunica/core';
 import { Actor } from '@comunica/core';
+import { TraversedGraph } from '@comunica/actor-construct-traversed-topology-url-to-graph/lib/TraversedGraph';
 /**
  * A comunica actor for construct-traversed-topology events.
  *
@@ -41,7 +42,7 @@ export interface IActionConstructTraversedTopology extends IAction {
 }
 
 export interface IActorConstructTraversedTopologyOutput extends IActorOutput {
-
+  topology: TraversedGraph
 }
 
 export type IActorConstructTraversedTopologyArgs = IActorArgs<

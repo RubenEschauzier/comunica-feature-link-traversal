@@ -1,5 +1,6 @@
 import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links';
+import { KeysTraversedTopology } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, IActorOutput, IActorTest, Mediate, IAction } from '@comunica/core';
 import { Actor } from '@comunica/core';
 import { IActionContext } from '@comunica/types';
@@ -17,8 +18,6 @@ import type * as RDF from '@rdfjs/types';
  * @see IActorExtractLinksOutput
  */
 export abstract class ActorExtractLinks extends Actor<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
-  public readonly mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
-
   /**
    * @param args - @defaultNested {<default_bus> a <cc:components/Bus.jsonld#Bus>} bus
    */
@@ -46,6 +45,34 @@ export abstract class ActorExtractLinks extends Actor<IActionExtractLinks, IActo
       setDereferenced: setDereferenced,
     });
   }
+  public async updateTraversedTopology(
+    action: IActionExtractLinks, 
+    links: ILink[], 
+    linkSource: string, 
+    predicates?: string[]
+    )
+  {
+    const metadata: Record<string, any>[] = [];
+    for (let i = 0; i<links.length; i++){
+      if (predicates){
+        metadata.push({linkSource: linkSource, dereferenced: false, predicates: predicates})
+      }
+      else{
+        metadata.push({linkSource: linkSource, dereferenced: false})
+      }
+    }
+
+    const mediatorConstructTopology = <MediatorConstructTraversedTopology> action.
+    context.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
+    
+    await mediatorConstructTopology.mediate({
+      parentUrl: action.url,
+      links: links,
+      metadata: metadata,
+      context: action.context,
+      setDereferenced: false,
+    });
+  };
   
   
   /**
@@ -108,7 +135,6 @@ export interface IActorExtractLinksOutput extends IActorOutput {
 
 export interface IActorExtractLinksArgs
   extends IActorArgs<IActionExtractLinks, IActorTest, IActorExtractLinksOutput> {
-  mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
 }
 // export type IActorExtractLinksArgs = IActorArgs<
 // IActionExtractLinks, IActorTest, IActorExtractLinksOutput>;

@@ -106,15 +106,9 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
         }
       }
     });
+    // TODO add flag check
     if (links.length > 0){
-      const mediatorConstructTopology = <MediatorConstructTraversedTopology> action.
-      context.get(KeysTraversedTopology.mediatorConstructTraversedTopology)
-  
-      const metaData: Record<string, any>[] = []
-      for (let i = 0; i<links.length; i++){
-        metaData.push({linkSource: 'cMatch', dereferenced: false})
-      }
-      this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
+      await this.updateTraversedTopology(action, links, "cMatch")
     }
 
     return {

@@ -18,6 +18,7 @@ import type { AsyncIterator } from 'asynciterator';
 import type { Algebra } from 'sparqlalgebrajs';
 import type { ActorInitQueryBase } from './ActorInitQueryBase';
 import { MemoryPhysicalQueryPlanLogger } from './MemoryPhysicalQueryPlanLogger';
+import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 
 /**
  * Base implementation of a Comunica query engine.
@@ -232,7 +233,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
         if (typeof seedURLs[i] == 'string'){
           const baseSeedUrl = (<string>seedURLs[i]).split('#')[0];
           links.push({url: baseSeedUrl});
-          metaData.push({linkSource: 'seedURL', dereferenced: false})
+          metaData.push({linkSource: 'seedURL', dereferenced: true})
         }
       }
       this.actorInitQuery.mediatorConstructTraversedTopology.mediate({
@@ -250,8 +251,19 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
       operation,
     });
     output.context = actionContext;
-
     const finalOutput = QueryEngineBase.internalToFinalResult(output);
+    if (actionContext.get(KeysTraversedTopology.constructTopology)){
+      const mediatorConstructToplogy = <MediatorConstructTraversedTopology>
+      actionContext.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
+      const topology = await mediatorConstructToplogy.mediate(
+        {
+          parentUrl: "",
+          links: [],
+          metadata: [{}],
+          setDereferenced: false,
+          context: new ActionContext()
+      });
+    }
 
     // Output physical query plan after query exec if needed
     if (physicalQueryPlanLogger) {

@@ -10,7 +10,6 @@
     {
       "@id": "urn:comunica:default:extract-links/actors#predicates-common",
       "@type": "ActorExtractLinksPredicates",
-      "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" },
       "checkSubject": false,
       "predicateRegexes": [
         "http://www.w3.org/2000/01/rdf-schema#seeAlso",

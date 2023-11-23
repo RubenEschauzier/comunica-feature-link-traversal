@@ -26,7 +26,6 @@ export class TraversedGraph {
       this.adjacencyMatrix[this.nodeToIndex[node]][this.nodeToIndex[parent]] = 1;
       return false;
     }
-
     // If we add first node we initialise the matrix
     if (this.adjacencyMatrix.length === 0) {
       this.adjacencyMatrix.push([ 1 ]);

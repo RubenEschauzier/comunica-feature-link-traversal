@@ -10,7 +10,6 @@
     {
       "@id": "urn:comunica:default:extract-links/actors#quad-pattern",
       "@type": "ActorExtractLinksQuadPattern",
-      "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" }
     }
   ]
 }

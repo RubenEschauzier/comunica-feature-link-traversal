@@ -10,7 +10,6 @@
     {
       "@id": "urn:comunica:default:extract-links/actors#content-policies-conditional",
       "@type": "ActorExtractLinksContentPolicies",
-      "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" },
       "traverseConditional": true
     }
   ]

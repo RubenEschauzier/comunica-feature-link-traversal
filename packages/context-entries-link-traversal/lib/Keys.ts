@@ -42,5 +42,9 @@ export const KeysTraversedTopology = {
    * The mediator to call to construct traversed topology
    */
   mediatorConstructTraversedTopology: new ActionContextKey<MediatorConstructTraversedTopology>
-  ('@comunica/bus-construct-topology:MediatorConstructTopology')
+  ('@comunica/bus-construct-topology:MediatorConstructTopology'),
+  /**
+   * Whether the engine should construct a topology (and return it in metadata)
+   */
+  constructTopology: new ActionContextKey<boolean>('@comunica/bus-construct-topology:constructTopology')
 }

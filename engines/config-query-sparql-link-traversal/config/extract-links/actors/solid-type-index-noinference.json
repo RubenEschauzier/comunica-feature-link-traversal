@@ -12,7 +12,6 @@
       "@type": "ActorExtractLinksSolidTypeIndex",
       "inference": false,
       "mediatorDereferenceRdf": { "@id": "urn:comunica:default:dereference-rdf/mediators#main" },
-      "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" }
     }
   ]
 }

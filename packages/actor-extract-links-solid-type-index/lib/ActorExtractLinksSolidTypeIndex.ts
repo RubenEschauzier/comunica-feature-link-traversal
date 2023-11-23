@@ -76,11 +76,12 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
       );
 
       if (links.length > 0){
-        const metaData: Record<string, any>[] = []
-        for (let i = 0; i<links.length; i++){
-          metaData.push({linkSource: 'TypeIndex', dereferenced: false})
-        }
-        this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
+        this.updateTraversedTopology(action, links, "TypeIndex");
+        // const metaData: Record<string, any>[] = []
+        // for (let i = 0; i<links.length; i++){
+        //   metaData.push({linkSource: 'TypeIndex', dereferenced: false})
+        // }
+        // this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
       }
       // Filter out those links that match with the query
       return {
@@ -94,11 +95,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
       links.push(...linksInner);
     }
     if (links.length > 0){
-      const metaData: Record<string, any>[] = []
-      for (let i = 0; i<links.length; i++){
-        metaData.push({linkSource: 'TypeIndex', dereferenced: false})
-      }
-      this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
+      await this.updateTraversedTopology(action, links, "TypeIndex")
     }
 
     return { links };

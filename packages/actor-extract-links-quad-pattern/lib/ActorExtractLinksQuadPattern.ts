@@ -60,14 +60,7 @@ export class ActorExtractLinksQuadPattern extends ActorExtractLinks {
     });
 
     if (links.length > 0){
-      const mediatorConstructTopology = <MediatorConstructTraversedTopology> action.
-      context.get(KeysTraversedTopology.mediatorConstructTraversedTopology)
-  
-      const metaData: Record<string, any>[] = [];
-      for (let i = 0; i<links.length; i++){
-        metaData.push({linkSource: 'ExtractLinksQuadPattern', dereferenced: false});
-      }
-      this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
+      this.updateTraversedTopology(action, links, "ExtractLinksQuadPattern")
     }
 
 

@@ -36,14 +36,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
     });
     // If we found links we add to the traversed graph
     if (links.length > 0){
-      const metaData: Record<string, any>[] = []
-      for (let i = 0; i<links.length; i++){
-        metaData.push({linkSource: 'ExtractLinkPredicates', dereferenced: false, predicates: this.predicatesList})
-      }
-      const mediatorConstructTopology = <MediatorConstructTraversedTopology> action.
-      context.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
-      
-      this.addLinksToGraph(mediatorConstructTopology, action.url, links, metaData, action.context, false);
+      await this.updateTraversedTopology(action, links, "ExtractLinkPredicates", this.predicatesList)
     }
 
     return {

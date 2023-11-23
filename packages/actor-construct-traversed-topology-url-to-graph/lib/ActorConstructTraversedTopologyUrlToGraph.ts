@@ -32,7 +32,7 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
       }
       fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/metaDataTemp.txt', 
       JSON.stringify(this.traversedGraph.getMetaDataAll()));
-      return true;
+      return {topology: this.traversedGraph}
     }
 
     for (let i = 0; i < action.links.length; i++) {
@@ -45,7 +45,7 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
     JSON.stringify(this.traversedGraph.getMetaDataAll()));
     fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/nodeToIndex.txt', 
     JSON.stringify(this.traversedGraph.getNodeToIndexes()));
-    return true;
+    return {topology: this.traversedGraph}
   }
 
   public getStrippedURL(url: string){

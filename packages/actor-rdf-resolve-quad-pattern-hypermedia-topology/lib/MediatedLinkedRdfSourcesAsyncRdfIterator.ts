@@ -14,6 +14,8 @@ import { Readable } from 'readable-stream';
 import type { ISourceState } from './LinkedRdfSourcesAsyncRdfIterator';
 import { LinkedRdfSourcesAsyncRdfIterator } from './LinkedRdfSourcesAsyncRdfIterator';
 import { KeysTraversedTopology } from '@comunica/context-entries-link-traversal';
+import { ActionContext } from '@comunica/core';
+import { IActionConstructTraversedTopology, MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 
 const DF = new DataFactory();
 
@@ -204,6 +206,18 @@ export class MediatedLinkedRdfSourcesAsyncRdfIterator extends LinkedRdfSourcesAs
       };
       metadata = {};
     }
+    // Update the weights of traversedGraph with http request time
+    const mediatorConstructTraversedTopology = <MediatorConstructTraversedTopology> 
+    this.context.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
+    const action: IActionConstructTraversedTopology = {
+      parentUrl: '',
+      links: [link],
+      metadata: [{weight: metadata.requestTime}],
+      context: new ActionContext({}),
+      setDereferenced: true
+    }  
+    await mediatorConstructTraversedTopology.mediate(action);
+
 
     // Aggregate all discovered quads into a store.
     this.aggregatedStore?.setBaseMetadata(<MetadataQuads> metadata, false);

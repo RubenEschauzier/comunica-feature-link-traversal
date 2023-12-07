@@ -64,6 +64,13 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     return this.queryOfType<QueryFormatTypeInner, RDF.QueryVoid>(query, context, 'void');
   }
 
+  // public async queryTopology<QueryFormatTypeInner extends QueryFormatType>(
+  //   query: QueryFormatTypeInner,
+  //   context?: QueryFormatTypeInner extends string ? QueryStringContextInner : QueryAlgebraContextInner,
+  // ): Promise<IQueryTopologyOutput> {
+  //   return this.queryOfType<QueryFormatTypeInner, IQueryBindingsTopology>(query, context, 'topology');
+  // }
+
   protected async queryOfType<QueryFormatTypeInner extends QueryFormatType, QueryTypeOut extends QueryEnhanced>(
     query: QueryFormatTypeInner,
     context: undefined | (QueryFormatTypeInner extends string ?
@@ -418,4 +425,34 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
         };
     }
   }
+}
+
+
+// /**
+//  * Query object that bindings and traversed topology
+//  */
+// export interface QueryTopology{
+//   resultType: 'topology';
+//   execute(): Promise<topologyQueryResult>;
+// }
+
+// /**
+//  * Interface that is the output type of topology query
+//  */
+// export interface topologyQueryResult{
+//   bindingStream: BindingsStream
+//   topologyMediator: MediatorConstructTraversedTopology
+// }
+
+
+export interface IQueryTopologyOutput{
+  bindingsStream: BindingsStream
+  topologyMediator: MediatorConstructTraversedTopology
+}
+/**
+ * 
+ */
+export interface IQueryBindingsTopology {
+  resultType: 'topology';
+  execute: (opts?: RDF.QueryExecuteOptions<RDF.Variable>) => Promise<IQueryTopologyOutput>;
 }

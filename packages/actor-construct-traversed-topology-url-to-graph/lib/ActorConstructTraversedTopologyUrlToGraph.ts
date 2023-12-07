@@ -27,24 +27,20 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
       for (let i = 0; i < action.links.length; i++) {
         const metaData = this.traversedGraph.getMetaDataNode(action.links[i].url);
         metaData.dereferenced = true;
+        if (action.metadata[i].weight){
+          metaData.weight = action.metadata[i].weight;
+        }
 
-        this.traversedGraph.setMetaDataToDereferenced(action.links[i].url, metaData);
+        this.traversedGraph.updateMetaDataToDereferenced(action.links[i].url, metaData);
       }
-      fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/metaDataTemp.txt', 
-      JSON.stringify(this.traversedGraph.getMetaDataAll()));
+
       return {topology: this.traversedGraph}
     }
 
     for (let i = 0; i < action.links.length; i++) {
-      this.traversedGraph.addNode(this.getStrippedURL(action.links[i].url), this.getStrippedURL(action.parentUrl), action.metadata[i]);
+      this.traversedGraph.addEdge(this.getStrippedURL(action.links[i].url), this.getStrippedURL(action.parentUrl), action.metadata[i]);
     }
-    // Temp way to get data from graph
-    fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/adjMatrixTemp.txt', 
-    JSON.stringify(this.traversedGraph.getAdjacencyMatrix()));
-    fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/metaDataTemp.txt', 
-    JSON.stringify(this.traversedGraph.getMetaDataAll()));
-    fs.writeFileSync('/home/reschauz/projects/experiments-comunica/comunica-experiment-performance-metric/nodeToIndex.txt', 
-    JSON.stringify(this.traversedGraph.getNodeToIndexes()));
+    
     return {topology: this.traversedGraph}
   }
 

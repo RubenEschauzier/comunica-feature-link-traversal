@@ -284,7 +284,7 @@ export abstract class LinkedRdfSourcesAsyncRdfIterator extends BufferedIterator<
         // Create as many new iterators as possible
         while (this.canStartNewIterator() && this.isRunning()) {
           const nextLink = linkQueue.pop();
-          // After popping a link we set it to dereferenced = true in topology
+          // After popping a link we set it to dereferenced = true in topology (we should include a flag to not track topology?)
           if (nextLink){
             const action: IActionConstructTraversedTopology = {
               parentUrl: '',

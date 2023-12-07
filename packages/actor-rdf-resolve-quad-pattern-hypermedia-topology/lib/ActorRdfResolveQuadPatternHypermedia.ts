@@ -70,6 +70,7 @@ export class ActorRdfResolveQuadPatternHypermedia extends ActorRdfResolveQuadPat
   protected getSource(context: IActionContext, operation: Algebra.Pattern): Promise<IQuadSource> {
     const contextSource = getContextSource(context)!;
     const url = getContextSourceUrl(contextSource)!;
+
     let source: MediatedQuadSource;
 
     // Try to read from cache

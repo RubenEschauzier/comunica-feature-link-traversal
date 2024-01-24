@@ -1,4 +1,4 @@
-import { ILinkPriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
+import type { ILinkPriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 import type { ILinkQueue, ILink } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 
@@ -7,7 +7,7 @@ import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-que
  */
 export class LinkQueuePriorityBreadthFirst extends LinkQueueWrapper {
   public readonly linksPreviouslyAdded: Record<string, number>;
-  
+
   public constructor(linkQueue: ILinkQueue) {
     super(linkQueue);
     this.linksPreviouslyAdded = {};
@@ -21,7 +21,7 @@ export class LinkQueuePriorityBreadthFirst extends LinkQueueWrapper {
 
     const linkPriority: ILinkPriority = <ILinkPriority> link;
     linkPriority.priority = priority;
-    
+
     return super.push(link, parent);
   }
 }

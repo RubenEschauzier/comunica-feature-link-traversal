@@ -1,4 +1,4 @@
-import { ILinkPriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
+import type { ILinkPriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 import type { ILinkQueue, ILink } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 

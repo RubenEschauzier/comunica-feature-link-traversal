@@ -1,3 +1,4 @@
+import { promises as fs } from 'fs';
 import type {
   IActionRdfResolveHypermediaLinksQueue,
   IActorRdfResolveHypermediaLinksQueueOutput,
@@ -6,7 +7,6 @@ import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-h
 import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
 import { ActionContextKey } from '@comunica/core';
 import { LinkQueuePriorityOracle } from './LinkQueuePriorityOracle';
-import { promises as fs } from "fs";
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
@@ -20,11 +20,13 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle exte
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle) {
     super(args);
   }
-  public async readRccFile(){
-    const data = JSON.parse(await fs.readFile("../oracle/rcc.json", "utf-8")).catch(
-      (err: any) => {
-        throw new Error(err)
-      });
+
+  public async readRccFile() {
+    const data = JSON.parse(await fs.readFile('../oracle/rcc.json', 'utf-8')).catch(
+      (error: any) => {
+        throw new Error(error);
+      },
+    );
     return data;
   }
 

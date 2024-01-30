@@ -2,6 +2,7 @@ import { IActionConstructTraversedTopology, MediatorConstructTraversedTopology }
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { ILinkQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import type { IQuadSource } from '@comunica/bus-rdf-resolve-quad-pattern';
+import { RdfJsQuadSource } from "@comunica/actor-rdf-resolve-quad-pattern-rdfjs-source";
 import { ActionContext } from '@comunica/core';
 import { MetadataValidationState } from '@comunica/metadata';
 import type { MetadataQuads } from '@comunica/types';
@@ -199,6 +200,7 @@ export abstract class LinkedRdfSourcesAsyncRdfIterator extends BufferedIterator<
    */
   protected startIterator(startSource: ISourceState, firstPage: boolean): void {
     // Delegate the quad pattern query to the given source
+    // const sizeSource = (<RdfJsQuadSource> startSource.source!).source;
     const iterator = startSource.source!
       .match(this.subject, this.predicate, this.object, this.graph);
     this.currentIterators.push(iterator);

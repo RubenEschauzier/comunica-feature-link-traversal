@@ -27,8 +27,11 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
       for (let i = 0; i < action.links.length; i++) {
         const metaData = this.traversedGraph.getMetaDataNode(action.links[i].url);
         metaData.dereferenced = true;
-        if (action.metadata[i].weight){
-          metaData.weight = action.metadata[i].weight;
+        if (action.metadata[i].weightHTTP){
+          metaData.weightHTTP = action.metadata[i].weightHTTP;
+        }
+        if (action.metadata[i].weightDocumentSize){
+          metaData.weightDocumentSize = action.metadata[i].weightDocumentSize;
         }
 
         this.traversedGraph.updateMetaDataToDereferenced(action.links[i].url, metaData);

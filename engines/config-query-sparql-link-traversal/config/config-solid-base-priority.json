@@ -1,7 +1,8 @@
 {
   "@context": [
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^2.0.0/components/context.jsonld",
-    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-solid/^2.0.0/components/context.jsonld"
   ],
   "import": [
     "ccqs:config/context-preprocess/actors.json",
@@ -9,7 +10,7 @@
     "ccqslt:config/extract-links/mediators.json",
     "ccqs:config/hash-bindings/actors.json",
     "ccqs:config/hash-bindings/mediators.json",
-    "ccqs:config/http/actors.json",
+    "ccqss:config/http/actors.json",
     "ccqs:config/http/mediators.json",
     "ccqs:config/http-invalidate/actors.json",
     "ccqs:config/http-invalidate/mediators.json",
@@ -47,8 +48,9 @@
     "ccqs:config/rdf-resolve-hypermedia-links/actors.json",
     "ccqslt:config/rdf-resolve-hypermedia-links/actors/traverse.json",
     "ccqs:config/rdf-resolve-hypermedia-links/mediators.json",
-    "ccqs:config/rdf-resolve-hypermedia-links-queue/actors.json",
-    "ccqs:config/rdf-resolve-hypermedia-links-queue/mediators.json",    
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/priority-queue.json",
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-limit-count.json",
+    "ccqs:config/rdf-resolve-hypermedia-links-queue/mediators.json",
     "ccqslt:config/rdf-resolve-quad-pattern/actors.json",
     "ccqs:config/rdf-resolve-quad-pattern/mediators.json",
     "ccqs:config/rdf-serialize/actors.json",

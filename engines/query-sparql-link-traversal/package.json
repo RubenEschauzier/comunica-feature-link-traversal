@@ -61,8 +61,8 @@
     "@comunica/actor-rdf-resolve-hypermedia-links-traverse-replace-conditional": "^0.2.0",
     "@comunica/config-query-sparql-link-traversal": "^0.2.0",
     "@comunica/mediator-combine-array": "^0.2.0",
-    "@comunica/query-sparql": "^2.9.0",
-    "@comunica/runner-cli": "^2.8.2"
+    "@comunica/query-sparql": "^2.10.0",
+    "@comunica/runner-cli": "^2.10.0"
   },
   "scripts": {
     "build": "npm run build:ts",

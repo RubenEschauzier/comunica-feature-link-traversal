@@ -48,7 +48,7 @@
     "ccqslt:config/rdf-resolve-hypermedia-links/actors/traverse.json",
     "ccqs:config/rdf-resolve-hypermedia-links/mediators.json",
     "ccqs:config/rdf-resolve-hypermedia-links-queue/actors.json",
-    "ccqs:config/rdf-resolve-hypermedia-links-queue/mediators.json",    
+    "ccqs:config/rdf-resolve-hypermedia-links-queue/mediators.json",
     "ccqslt:config/rdf-resolve-quad-pattern/actors.json",
     "ccqs:config/rdf-resolve-quad-pattern/mediators.json",
     "ccqs:config/rdf-serialize/actors.json",

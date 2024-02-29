@@ -18,7 +18,6 @@
       "mediatorQueryResultSerializeMediaTypeFormatCombiner": { "@id": "urn:comunica:default:query-result-serialize/mediators#mediaTypeFormat" },
       "mediatorContextPreprocess": { "@id": "urn:comunica:default:context-preprocess/mediators#main" },
       "mediatorHttpInvalidate": { "@id": "urn:comunica:default:http-invalidate/mediators#main" },
-      "mediatorMergeHandlers": { "@id": "urn:comunica:default:merge-binding-factory/mediators#main"},
       "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" },
       "allowNoSources": true
     }

@@ -193,16 +193,12 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
 
     // Apply initial bindings in context
     if (actionContext.has(KeysInitQuery.initialBindings)) {
-      // Bindingsfactory with handlers
-      const BF = new BindingsFactory(
-        (await this.actorInitQuery.mediatorMergeHandlers.mediate({ context: actionContext })).mergeHandlers,
-      );
-      operation = materializeOperation(operation, actionContext.get(KeysInitQuery.initialBindings)!, BF);
+      operation = materializeOperation(operation, actionContext.get(KeysInitQuery.initialBindings)!);
 
       // Delete the query string from the context, since our initial query might have changed
       actionContext = actionContext.delete(KeysInitQuery.queryString);
     }
-
+    
     // Optimize the query operation
     const mediatorResult = await this.actorInitQuery.mediatorOptimizeQueryOperation
       .mediate({ context: actionContext, operation });

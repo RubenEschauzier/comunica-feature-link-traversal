@@ -31,7 +31,7 @@ export class StreamingStoreMetadata extends StreamingStore implements IAggregate
     super(store);
     this.metadataAccumulator = metadataAccumulator;
   }
-
+  
   public import(stream: RDF.Stream): EventEmitter {
     if (!this.ended) {
       super.import(stream);
@@ -49,6 +49,7 @@ export class StreamingStoreMetadata extends StreamingStore implements IAggregate
     object?: RDF.Term | null,
     graph?: RDF.Term | null,
   ): AsyncIterator<RDF.Quad> {
+    this.getStore()
     // Wrap the raw stream in an AsyncIterator
     const rawStream = super.match(subject, predicate, object, graph);
     const iterator = new ClosableTransformIterator<RDF.Quad, RDF.Quad>(

@@ -212,12 +212,11 @@ export class MediatedLinkedRdfSourcesAsyncRdfIterator extends LinkedRdfSourcesAs
     const action: IActionConstructTraversedTopology = {
       parentUrl: '',
       links: [link],
-      metadata: [{weight: metadata.requestTime}],
+      metadata: [{weightHTTP: metadata.requestTime}],
       context: new ActionContext({}),
       setDereferenced: true
     }  
     await mediatorConstructTraversedTopology.mediate(action);
-
 
     // Aggregate all discovered quads into a store.
     this.aggregatedStore?.setBaseMetadata(<MetadataQuads> metadata, false);

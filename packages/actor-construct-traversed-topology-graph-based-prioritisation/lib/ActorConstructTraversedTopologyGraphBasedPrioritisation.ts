@@ -1,7 +1,7 @@
 import type { IActionConstructTraversedTopology, IActorConstructTraversedTopologyOutput, IActorConstructTraversedTopologyArgs } from '@comunica/bus-construct-traversed-topology';
 import { ActorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { IActorTest } from '@comunica/core';
-import { TraversedGraph } from './TraversedGraph';
+import { EdgeListGraph } from './EdgeListGraph';
 
 import * as fs from 'fs'
 
@@ -9,12 +9,12 @@ import * as fs from 'fs'
  * A comunica Url To Graph Construct Traversed Topology Actor.
  */
 export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTraversedTopology {
-  public traversedGraph: TraversedGraph;
+  public traversedGraph: EdgeListGraph;
   public actionsQueue: IActionConstructTraversedTopology[];
 
   public constructor(args: IActorConstructTraversedTopologyArgs) {
     super(args);
-    this.traversedGraph = new TraversedGraph();
+    this.traversedGraph = new EdgeListGraph();
     this.actionsQueue = [];
   }
 

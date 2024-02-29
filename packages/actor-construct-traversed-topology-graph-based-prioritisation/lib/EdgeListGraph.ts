@@ -2,7 +2,7 @@
  * Data structure that denotes the traversed graph during link traversal. The graph stores an adjacency matrix,
  * the mapping between node index and url, and any metadata added for each node.
  */
-export class TraversedGraph {
+export class EdgeListGraph {
   // String to 0 indexed index of a node, used to retrieve metadata
   private nodeToIndex: Record<string, number>;
   // Left-over from adj matrix implementation, can be removed in final version

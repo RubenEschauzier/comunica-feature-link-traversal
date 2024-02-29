@@ -1,14 +1,14 @@
 {
-  "name": "@comunica/actor-construct-traversed-topology-url-to-graph",
+  "name": "@comunica/actor-construct-traversed-topology-graph-based-prioritisation",
   "version": "0.2.0",
-  "description": "A url-to-graph construct-traversed-topology actor",
+  "description": "A graph-based-prioritisation construct-traversed-topology actor",
   "lsd:module": true,
   "main": "lib/index.js",
   "typings": "lib/index",
   "repository": {
     "type": "git",
     "url": "https://github.com/comunica/comunica.git",
-    "directory": "packages/actor-construct-traversed-topology-url-to-graph"
+    "directory": "packages/actor-construct-traversed-topology-graph-based-prioritisation"
   },
   "publishConfig": {
     "access": "public"
@@ -18,7 +18,7 @@
     "comunica",
     "actor",
     "construct-traversed-topology",
-    "url-to-graph"
+    "graph-based-prioritisation"
   ],
   "license": "MIT",
   "bugs": {

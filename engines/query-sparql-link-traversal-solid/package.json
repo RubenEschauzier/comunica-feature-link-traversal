@@ -45,7 +45,7 @@
     "engine-default.js"
   ],
   "dependencies": {
-    "@comunica/actor-construct-traversed-topology-url-to-graph": "^0.2.0",
+    "@comunica/actor-construct-traversed-topology-graph-based-prioritisation": "^0.2.0",
     "@comunica/actor-extract-links-all": "^0.2.0",
     "@comunica/actor-extract-links-content-policies": "^0.2.0",
     "@comunica/actor-extract-links-predicates": "^0.2.0",

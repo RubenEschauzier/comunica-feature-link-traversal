@@ -1,7 +1,12 @@
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { IAction, IActorArgs, IActorOutput, IActorTest, Mediate } from '@comunica/core';
 import { Actor } from '@comunica/core';
-import { TraversedGraph } from '@comunica/actor-construct-traversed-topology-url-to-graph/lib/TraversedGraph';
+import { EdgeListGraph } from '@comunica/actor-construct-traversed-topology-graph-based-prioritisation/lib/EdgeListGraph';
+
+// TODO:
+// this is currently too tightly coupled with the actor implementation, instead this shoudl define 
+// an abstract class that represents tracked topology, this class should define methods like: putNode, updateNode, getNodes, getMetadata, etc
+
 /**
  * A comunica actor for construct-traversed-topology events.
  *
@@ -42,7 +47,7 @@ export interface IActionConstructTraversedTopology extends IAction {
 }
 
 export interface IActorConstructTraversedTopologyOutput extends IActorOutput {
-  topology: TraversedGraph
+  topology: EdgeListGraph
 }
 
 export type IActorConstructTraversedTopologyArgs = IActorArgs<

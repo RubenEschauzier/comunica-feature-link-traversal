@@ -25,7 +25,7 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
   public async run(action: IActionConstructTraversedTopology): Promise<IActorConstructTraversedTopologyOutput> {
     if (action.setDereferenced == true){
       for (let i = 0; i < action.links.length; i++) {
-        const metaData = this.traversedGraph.getMetaDataNode(action.links[i].url);
+        const metaData = this.traversedGraph.getMetaDataNode(action.links[i].url)!;
         metaData.dereferenced = true;
         if (action.metadata[i].weightHTTP){
           metaData.weightHTTP = action.metadata[i].weightHTTP;

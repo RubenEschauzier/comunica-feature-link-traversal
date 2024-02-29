@@ -118,7 +118,7 @@ export class TraversedGraph {
     this.metadataNode[this.nodeToIndex[node]] = metadata;
   }
 
-  public getMetaDataNode(node: string) {
+  public getMetaDataNode(node: string): Record<string, any> | undefined {
     return this.metadataNode[this.nodeToIndex[node]];
   }
 

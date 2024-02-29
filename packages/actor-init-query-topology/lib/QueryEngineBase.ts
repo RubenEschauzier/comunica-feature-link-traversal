@@ -195,7 +195,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     if (actionContext.has(KeysInitQuery.initialBindings)) {
       // Bindingsfactory with handlers
       const BF = new BindingsFactory(
-        (await this.actorInitQuery.mediatorMergeHandlers.mediate({ context: actionContext })).mergeHandlers,
+        (await this.actorInitQuery.mediatorMergeBindingsContext.mediate({ context: actionContext })).mergeHandlers,
       );
       operation = materializeOperation(operation, actionContext.get(KeysInitQuery.initialBindings)!, BF);
 

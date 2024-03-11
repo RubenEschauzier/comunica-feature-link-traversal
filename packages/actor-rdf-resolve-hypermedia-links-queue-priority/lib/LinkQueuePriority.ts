@@ -4,12 +4,15 @@ import type { ILink, ILinkQueue } from '@comunica/bus-rdf-resolve-hypermedia-lin
  */
 export class LinkQueuePriority implements ILinkQueue {
   public readonly links: ILinkPriority[] = [];
-
+  public readonly urlToLink: Record<string, ILinkPriority> = {};
   /**
    * Pushes element to heap by appending it to array and up-heaping the new element
    */
+  // QUESTION: Why does this not require a parent, while the ILinkQueue interface defines the need for a parent in the method?
   public push(link: ILinkPriority): boolean {
     this.links.push(link);
+    // Add to Records to allow fast updates in priority
+    this.urlToLink[link.url] = link;
     const idx: number = this.links.length - 1;
     this.upHeap(idx);
     return true;
@@ -23,13 +26,28 @@ export class LinkQueuePriority implements ILinkQueue {
   public pop(): ILinkPriority {
     const max = this.links[0];
     const endArray = this.links.pop();
-    if (this.links.length > 0) {
+    if (max){
+      delete this.urlToLink[max.url];
+    }
+    if (this.links.length > 0){
       this.links[0] = endArray!;
       this.downHeap(0);
     }
     return max;
   }
 
+  public updatePriority(nodeUrl: string, newValue: number){
+    if (this.urlToLink[nodeUrl]){
+      const link = this.urlToLink[nodeUrl];
+      if (!link.index){
+        throw new Error("Link in queue without an index");
+      }
+      const idx = link.index;
+      const previousPriority = link.priority;
+      const change = newValue - previousPriority;
+      change > 0 ? this.increasePriority(idx, change) : this.decreasePriority(idx, - change);
+    }
+  }
   /**
    * Function to increase priority of element of heap. First we increase priority using
    * the given index. Then we reheap our array.

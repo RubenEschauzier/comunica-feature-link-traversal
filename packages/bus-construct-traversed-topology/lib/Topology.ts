@@ -13,6 +13,13 @@ export interface Topology{
 
     getNodeToIndex: () => Record<string, number>;
 
+    getIndexToNode: () => Record<number, string>;
+
     // Function to get the underlying graph datastructure, this can be from edge list, adjacency matrix, adjacency list
     getGraphDataStructure: () => any;
+    /**
+     * Getter for the number of edges in Topology
+     * @returns number of edges in the topology
+     */
+    getNumEdges: () => number;
 }

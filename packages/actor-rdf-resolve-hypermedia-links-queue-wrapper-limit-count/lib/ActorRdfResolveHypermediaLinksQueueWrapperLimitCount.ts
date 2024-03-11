@@ -7,7 +7,6 @@ import type { Actor, IActorArgs, IActorTest, Mediator } from '@comunica/core';
 import { ActionContextKey } from '@comunica/core';
 import { LinkQueueLimitCount } from './LinkQueueLimitCount';
 import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
-import { KeysTraversedTopology } from '@comunica/context-entries-link-traversal';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
@@ -17,7 +16,6 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitCount extends ActorR
   private readonly mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
-  public readonly mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperLimitCountArgs) {
     super(args);
@@ -41,7 +39,6 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperLimitCount extends ActorR
 export interface IActorRdfResolveHypermediaLinksQueueWrapperLimitCountArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   limit: number;
-  mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
   mediatorRdfResolveHypermediaLinksQueue: Mediator<
   Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
   IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;

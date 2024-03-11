@@ -13,8 +13,7 @@
       "@type": "ActorRdfResolveHypermediaLinksQueueWrapperLimitCount",
       "beforeActors": { "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/actors#fifo" },
       "limit": 10000,
-      "mediatorRdfResolveHypermediaLinksQueue": { "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/mediators#main" },
-      "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" }
+      "mediatorRdfResolveHypermediaLinksQueue": { "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/mediators#main" }
     }
   ]
 }

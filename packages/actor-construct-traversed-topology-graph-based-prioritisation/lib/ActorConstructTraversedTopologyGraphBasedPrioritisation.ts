@@ -1,21 +1,19 @@
 import type { IActionConstructTraversedTopology, IActorConstructTraversedTopologyOutput, IActorConstructTraversedTopologyArgs } from '@comunica/bus-construct-traversed-topology';
 import { ActorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { IActorTest } from '@comunica/core';
-import { AdjacencyListGraph } from './EdgeListGraph';
+import { AdjacencyListGraph } from './AdjacencyListGraph';
 
 import * as fs from 'fs'
 
 /**
- * A comunica Url To Graph Construct Traversed Topology Actor.
+ * A comunica Graph-based-Prioritisation Construct Traversed Topology Actor.
  */
 export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTraversedTopology {
   public traversedGraph: AdjacencyListGraph;
-  public actionsQueue: IActionConstructTraversedTopology[];
 
   public constructor(args: IActorConstructTraversedTopologyArgs) {
     super(args);
     this.traversedGraph = new AdjacencyListGraph();
-    this.actionsQueue = [];
   }
 
   public async test(action: IActionConstructTraversedTopology): Promise<IActorTest> {
@@ -27,14 +25,7 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
       for (let i = 0; i < action.links.length; i++) {
         const metaData = this.traversedGraph.getMetaData(action.links[i].url)!;
         metaData.dereferenced = true;
-        if (action.metadata[i].weightHTTP){
-          metaData.weightHTTP = action.metadata[i].weightHTTP;
-        }
-        if (action.metadata[i].weightDocumentSize){
-          metaData.weightDocumentSize = action.metadata[i].weightDocumentSize;
-        }
-
-        this.traversedGraph.setMetaDataDereferenced(action.links[i].url, metaData);
+        this.traversedGraph.setMetaData(action.links[i].url, metaData);
       }
 
       return {topology: this.traversedGraph}
@@ -43,7 +34,6 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
     for (let i = 0; i < action.links.length; i++) {
       this.traversedGraph.set(this.getStrippedURL(action.links[i].url), this.getStrippedURL(action.parentUrl), action.metadata[i]);
     }
-    
     return {topology: this.traversedGraph}
   }
 

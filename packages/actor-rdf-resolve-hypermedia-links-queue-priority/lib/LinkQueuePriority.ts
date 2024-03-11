@@ -35,16 +35,31 @@ export class LinkQueuePriority implements ILinkQueue {
     }
     return max;
   }
+  /**
+   * Changes all priorities in queue in O(n + m*log m ) time, with n is size of urlPriorities entry 
+   * and m size of the queue. Will only update priorities of urls that are actually in queue.
+   * @param urlPriorities A record with url and new priority
+   */
+  updateAllPriority(urlPriorities: Record<string, number>){
+    for (const url in urlPriorities){
+      if (this.urlToLink[url]){
+        this.updatePriority(url, urlPriorities[url]);
+      }
+    }
+  }
 
   public updatePriority(nodeUrl: string, newValue: number){
     if (this.urlToLink[nodeUrl]){
       const link = this.urlToLink[nodeUrl];
-      if (!link.index){
+      if (link.index === undefined){
         throw new Error("Link in queue without an index");
       }
       const idx = link.index;
       const previousPriority = link.priority;
       const change = newValue - previousPriority;
+      if (change == 0){
+        return;
+      }
       change > 0 ? this.increasePriority(idx, change) : this.decreasePriority(idx, - change);
     }
   }

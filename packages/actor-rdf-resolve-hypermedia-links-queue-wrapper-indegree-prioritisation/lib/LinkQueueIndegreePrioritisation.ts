@@ -2,7 +2,7 @@ import { IActionConstructTraversedTopology, MediatorConstructTraversedTopology, 
 import type { ILinkQueue, ILink } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActionContext } from '@comunica/core';
-import { ILinkPriority, LinkQueuePriority } from '../../actor-rdf-resolve-hypermedia-links-queue-priority/lib';
+import { ILinkPriority, LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 
 /**
  * A link queue that changes priorities based on indegree of nodes.

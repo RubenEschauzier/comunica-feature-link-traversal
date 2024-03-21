@@ -15,4 +15,7 @@ export interface Topology{
 
     // Function to get the underlying graph datastructure, this can be from edge list, adjacency matrix, adjacency list
     getGraphDataStructure: () => any;
+    
+    // Reset topology to allow next query execution
+    resetTopology: () => void;
 }

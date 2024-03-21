@@ -2,7 +2,7 @@ import { KeysRdfResolveQuadPattern } from '@comunica/context-entries';
 import { KeysExtractLinksTree } from '@comunica/context-entries-link-traversal';
 import { ActionContext, Bus } from '@comunica/core';
 import { DataFactory } from 'rdf-data-factory';
-import type * as RDF from 'rdf-js';
+import type * as RDF from '@rdfjs/types';
 import { ActorExtractLinksTree } from '../lib/ActorExtractLinksTree';
 
 const stream = require('streamify-array');

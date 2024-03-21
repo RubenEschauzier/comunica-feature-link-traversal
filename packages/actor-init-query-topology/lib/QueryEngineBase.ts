@@ -251,7 +251,6 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
         context: actionContext
       })  
     };
-
     // Execute query
     const output = await this.actorInitQuery.mediatorQueryOperation.mediate({
       context: actionContext,

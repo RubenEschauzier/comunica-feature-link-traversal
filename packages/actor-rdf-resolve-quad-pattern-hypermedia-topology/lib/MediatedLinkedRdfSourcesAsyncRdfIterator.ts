@@ -196,6 +196,18 @@ export class MediatedLinkedRdfSourcesAsyncRdfIterator extends LinkedRdfSourcesAs
       if (link.transform) {
         quads = await link.transform(quads);
       }
+
+      const mediatorConstructTraversedTopology = <MediatorConstructTraversedTopology> 
+      this.context.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
+      const action: IActionConstructTraversedTopology = {
+        parentUrl: '',
+        links: [link],
+        metadata: [{weightHTTP: metadata.requestTime}],
+        context: new ActionContext({}),
+        setDereferenced: true
+      }  
+      await mediatorConstructTraversedTopology.mediate(action);
+  
     } catch (error: unknown) {
       // Make sure that dereference errors are only emitted once an actor really needs the read quads
       // This for example allows SPARQL endpoints that error on service description fetching to still be source-forcible
@@ -207,16 +219,6 @@ export class MediatedLinkedRdfSourcesAsyncRdfIterator extends LinkedRdfSourcesAs
       metadata = {};
     }
     // Update the weights of traversedGraph with http request time
-    const mediatorConstructTraversedTopology = <MediatorConstructTraversedTopology> 
-    this.context.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
-    const action: IActionConstructTraversedTopology = {
-      parentUrl: '',
-      links: [link],
-      metadata: [{weightHTTP: metadata.requestTime}],
-      context: new ActionContext({}),
-      setDereferenced: true
-    }  
-    await mediatorConstructTraversedTopology.mediate(action);
 
     // Aggregate all discovered quads into a store.
     this.aggregatedStore?.setBaseMetadata(<MetadataQuads> metadata, false);

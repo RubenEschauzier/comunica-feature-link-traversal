@@ -4,7 +4,7 @@ import type { EventEmitter } from 'events';
 import * as http from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import * as querystring from 'querystring';
-import type { Writable } from 'stream';
+import { Transform, type Writable } from 'stream';
 import * as url from 'url';
 import { KeysQueryOperation } from '@comunica/context-entries';
 import { ActionContext } from '@comunica/core';
@@ -20,6 +20,8 @@ import { QueryEngineBase, QueryEngineFactoryBase } from '..';
 
 import { CliArgsHandlerBase } from './cli/CliArgsHandlerBase';
 import { CliArgsHandlerHttp } from './cli/CliArgsHandlerHttp';
+import { IQueryTopologyOutput } from './QueryEngineBase';
+import { Topology } from '@comunica/bus-construct-traversed-topology';
 
 // Use require instead of import for default exports, to be compatible with variants of esModuleInterop in tsconfig.
 const clusterUntyped = require('cluster');
@@ -47,9 +49,12 @@ export class HttpServiceSparqlEndpoint {
   public readonly freshWorkerPerQuery: boolean;
   public readonly contextOverride: boolean;
 
+  public returnTopology: boolean;
+
   public lastQueryId = 0;
 
   public constructor(args: IHttpServiceSparqlEndpointArgs) {
+
     this.context = args.context || {};
     this.timeout = args.timeout ?? 60_000;
     this.port = args.port ?? 3_000;
@@ -57,6 +62,7 @@ export class HttpServiceSparqlEndpoint {
     this.invalidateCacheBeforeQuery = Boolean(args.invalidateCacheBeforeQuery);
     this.freshWorkerPerQuery = Boolean(args.freshWorkerPerQuery);
     this.contextOverride = Boolean(args.contextOverride);
+    this.returnTopology = Boolean(args.returnTopology)
 
     this.engine = new QueryEngineFactoryBase(
       args.moduleRootPath,
@@ -149,6 +155,7 @@ export class HttpServiceSparqlEndpoint {
     const port = args.port;
     const timeout = args.timeout * 1_000;
     const workers = args.workers;
+    const returnTopology = args.returnTopology;
     context[KeysQueryOperation.readOnly.name] = !args.u;
 
     const configPath = env.COMUNICA_CONFIG ? env.COMUNICA_CONFIG : defaultConfigPath;
@@ -165,6 +172,7 @@ export class HttpServiceSparqlEndpoint {
       port,
       timeout,
       workers,
+      returnTopology
     };
   }
 
@@ -445,9 +453,18 @@ export class HttpServiceSparqlEndpoint {
     }
 
     let result: QueryType;
-    try {
-      result = await engine.query(queryBody.value, context);
+    let topology: Topology;
 
+    try {
+      if (this.returnTopology){
+        const output = await engine.queryTopology(queryBody.value, context)
+        result = output.queryOutput;
+        topology = output.topology;
+      }
+      else{
+        result = await engine.query(queryBody.value, context);
+      }
+      
       // For update queries, also await the result
       if (result.resultType === 'void') {
         await result.execute();
@@ -474,7 +491,6 @@ export class HttpServiceSparqlEndpoint {
           break;
       }
     }
-
     // Write header of response
     response.writeHead(200, { 'content-type': mediaType, 'Access-Control-Allow-Origin': '*' });
     stdout.write(`      Resolved to result media type: ${mediaType}\n`);
@@ -484,18 +500,45 @@ export class HttpServiceSparqlEndpoint {
       response.end();
       return;
     }
-
+    let numResult = 0;
     let eventEmitter: EventEmitter | undefined;
     try {
       const { data } = await engine.resultToString(result, mediaType);
+      
       data.on('error', (error: Error) => {
         stdout.write(`[500] Server error in results: ${error.message} \n`);
         if (!response.writableEnded) {
           response.end('An internal server error occurred.\n');
         }
       });
-      data.pipe(response);
-      eventEmitter = data;
+      // OWN CODE
+      if (this.returnTopology){
+        const transformStream = new Transform({
+          transform(chunk, encoding, callback) {
+            try{
+              // Add tracked topology if our chunk is a binding
+              const binding = JSON.parse(chunk)
+              binding["_trackedTopology"] = { value: JSON.stringify(topology), type: 'literal'};
+              this.push( JSON.stringify(binding) );
+
+            }
+            catch{
+              this.push( chunk.toString() );
+            }
+            callback();
+          },
+          highWaterMark: 125_000_000 
+        });  
+        data.pipe(transformStream).pipe(response)
+        eventEmitter = transformStream;
+      }
+      
+      else{
+        data.pipe(response)
+        eventEmitter = data;
+      }
+      // END OWN CODE 
+            
     } catch {
       stdout.write('[400] Bad request, invalid media type\n');
       response.writeHead(400,
@@ -505,6 +548,7 @@ export class HttpServiceSparqlEndpoint {
 
     // Send message to master process to indicate the end of an execution
     response.on('close', () => {
+      numResult = 0;
       process.send!({ type: 'end', queryId });
     });
 
@@ -671,5 +715,6 @@ export interface IHttpServiceSparqlEndpointArgs extends IDynamicQueryEngineOptio
   contextOverride?: boolean;
   moduleRootPath: string;
   defaultConfigPath: string;
+  returnTopology: boolean;
 }
 /* eslint-enable import/no-nodejs-modules */

@@ -24,27 +24,7 @@ export abstract class ActorExtractLinks extends Actor<IActionExtractLinks, IActo
   public constructor(args: IActorExtractLinksArgs) {
     super(args);
   }
-
-  /**
-   * A function that calls mediator to add found links to graph
-   */
-  public addLinksToGraph(
-    mediatorConstructTraversedTopology: MediatorConstructTraversedTopology,
-    parentUrl: string,
-    foundLinks: ILink[],
-    metadata: Record<string, any>[],
-    context: IActionContext,
-    setDereferenced: boolean,
-  )
-  {
-    return mediatorConstructTraversedTopology.mediate({
-      parentUrl: parentUrl,
-      links: foundLinks,
-      metadata: metadata,
-      context: context,
-      setDereferenced: setDereferenced,
-    });
-  }
+  
   public async updateTraversedTopology(
     action: IActionExtractLinks, 
     links: ILink[], 

@@ -25,7 +25,6 @@ export class ActorRdfResolveHypermediaNone extends ActorRdfResolveHypermedia {
   public async run(action: IActionRdfResolveHypermedia): Promise<IActorRdfResolveHypermediaOutput> {
     this.logInfo(action.context, `Identified as file source: ${action.url}`);
     const source = <RdfStore> await storeStream(action.quads);
-    
     // Set size of source as weight in topology that tracks document size
     const mediatorConstructTraversedTopology = <MediatorConstructTraversedTopology> 
     action.context.get(KeysTraversedTopology.mediatorConstructTraversedTopology);

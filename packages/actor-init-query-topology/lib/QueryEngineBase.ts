@@ -18,7 +18,7 @@ import type { AsyncIterator } from 'asynciterator';
 import type { Algebra } from 'sparqlalgebrajs';
 import type { ActorInitQueryBase } from './ActorInitQueryBase';
 import { MemoryPhysicalQueryPlanLogger } from './MemoryPhysicalQueryPlanLogger';
-import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
+import { MediatorConstructTraversedTopology, Topology } from '@comunica/bus-construct-traversed-topology';
 
 /**
  * Base implementation of a Comunica query engine.
@@ -82,6 +82,35 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
       return <ReturnType<QueryTypeOut['execute']>> await result.execute();
     }
     throw new Error(`Query result type '${expectedType}' was expected, while '${result.resultType}' was found.`);
+  }
+  /**
+   * Execute query and return result + topology object that will be updated during query execution
+   * @param query 
+   * @param context 
+   * @returns 
+   */
+  public async queryTopology<QueryFormatTypeInner extends QueryFormatType>(
+    query: QueryFormatTypeInner,
+    context?: QueryFormatTypeInner extends string ? QueryStringContextInner : QueryAlgebraContextInner,
+  ): Promise<IQueryTopologyOutput> {
+    // Before we run the query, ensure that the topology is reset between executions.
+    // This can't be done in queryOrExplain as this is called several times during query execution for
+    // Typeindex discovery
+    const mediatorConstructToplogy = this.actorInitQuery.mediatorConstructTraversedTopology;
+    const actorOutput = await mediatorConstructToplogy.mediate(
+      {
+        parentUrl: "",
+        links: [],
+        metadata: [{}],
+        setDereferenced: false,
+        context: new ActionContext()
+    });
+    if (actorOutput.topology){
+      actorOutput.topology.resetTopology()
+    }
+    // Execute query and get topology
+    const queryOutput = await this.query(query, context);
+    return {queryOutput: queryOutput, topology: actorOutput.topology}
   }
 
   /**
@@ -258,19 +287,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     });
     output.context = actionContext;
     const finalOutput = QueryEngineBase.internalToFinalResult(output);
-    if (actionContext.get(KeysTraversedTopology.constructTopology)){
-      const mediatorConstructToplogy = <MediatorConstructTraversedTopology>
-      actionContext.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
-      const topology = await mediatorConstructToplogy.mediate(
-        {
-          parentUrl: "",
-          links: [],
-          metadata: [{}],
-          setDereferenced: false,
-          context: new ActionContext()
-      });
-    }
-
+ 
     // Output physical query plan after query exec if needed
     if (physicalQueryPlanLogger) {
       // Make sure the whole result is produced
@@ -427,31 +444,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
 }
 
 
-// /**
-//  * Query object that bindings and traversed topology
-//  */
-// export interface QueryTopology{
-//   resultType: 'topology';
-//   execute(): Promise<topologyQueryResult>;
-// }
-
-// /**
-//  * Interface that is the output type of topology query
-//  */
-// export interface topologyQueryResult{
-//   bindingStream: BindingsStream
-//   topologyMediator: MediatorConstructTraversedTopology
-// }
-
-
 export interface IQueryTopologyOutput{
-  bindingsStream: BindingsStream
-  topologyMediator: MediatorConstructTraversedTopology
-}
-/**
- * 
- */
-export interface IQueryBindingsTopology {
-  resultType: 'topology';
-  execute: (opts?: RDF.QueryExecuteOptions<RDF.Variable>) => Promise<IQueryTopologyOutput>;
+  queryOutput: QueryType
+  topology: Topology
 }

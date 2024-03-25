@@ -25,8 +25,10 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
   public async run(action: IActionConstructTraversedTopology): Promise<IActorConstructTraversedTopologyOutput> {
     if (action.setDereferenced == true){
       for (let i = 0; i < action.links.length; i++) {
-        const metaData = this.traversedGraph.getMetaData(action.links[i].url)!;
-        console.log(action.links[i].url)
+        const URI = decodeURI(this.getStrippedEncodedURL(action.links[i].url));
+        const metaData = this.traversedGraph.getMetaData(URI)!;
+        metaData.parent = decodeURI(metaData.parent);
+
         metaData.dereferenced = true;
         if (action.metadata[i].weightHTTP){
           metaData.weightHTTP = action.metadata[i].weightHTTP;
@@ -35,20 +37,22 @@ export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTra
           metaData.weightDocumentSize = action.metadata[i].weightDocumentSize;
         }
 
-        this.traversedGraph.setMetaDataDereferenced(action.links[i].url, metaData);
+        this.traversedGraph.setMetaDataDereferenced(URI, metaData);
       }
 
       return {topology: this.traversedGraph}
     }
 
     for (let i = 0; i < action.links.length; i++) {
-      this.traversedGraph.set(this.getStrippedURL(action.links[i].url), this.getStrippedURL(action.parentUrl), action.metadata[i]);
+      const URI = decodeURI(this.getStrippedEncodedURL(action.links[i].url));
+      const parentURI = decodeURI(this.getStrippedEncodedURL(action.parentUrl))
+      this.traversedGraph.set(URI, parentURI, action.metadata[i]);
     }
     
     return {topology: this.traversedGraph}
   }
 
-  public getStrippedURL(url: string){
+  public getStrippedEncodedURL(url: string){
       return url.split('#')[0];
   }  
 }

@@ -32,7 +32,8 @@ export class TraversedGraph implements Topology{
     this.edgesInGraph = {};
     this.metadataNode = [];
     this.traversalOrder = [];
-    this.traversalOrderEdges = [];  }
+    this.traversalOrderEdges = [];  
+  }
 
   public set(node: string, parent: string, metadata: Record<string, any>){
     // Self references edges are irrelevant

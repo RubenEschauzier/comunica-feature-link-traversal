@@ -22,6 +22,7 @@ import { CliArgsHandlerBase } from './cli/CliArgsHandlerBase';
 import { CliArgsHandlerHttp } from './cli/CliArgsHandlerHttp';
 import { IQueryTopologyOutput } from './QueryEngineBase';
 import { Topology } from '@comunica/bus-construct-traversed-topology';
+import { connect } from 'http2';
 
 // Use require instead of import for default exports, to be compatible with variants of esModuleInterop in tsconfig.
 const clusterUntyped = require('cluster');
@@ -457,6 +458,8 @@ export class HttpServiceSparqlEndpoint {
 
     try {
       if (this.returnTopology){
+        // Delete the logger as this makes the traversal order more random
+        delete context["log"];
         const output = await engine.queryTopology(queryBody.value, context)
         result = output.queryOutput;
         topology = output.topology;

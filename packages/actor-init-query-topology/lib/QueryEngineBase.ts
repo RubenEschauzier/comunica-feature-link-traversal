@@ -106,6 +106,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
         context: new ActionContext()
     });
     if (actorOutput.topology){
+      console.log(actorOutput.topology.getMetaDataAll.length);
       actorOutput.topology.resetTopology()
     }
     // Execute query and get topology
@@ -123,6 +124,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     query: QueryFormatTypeInner,
     context?: QueryFormatTypeInner extends string ? QueryStringContextInner : QueryAlgebraContextInner,
   ): Promise<QueryType> {
+    console.log(context)
     const output = await this.queryOrExplain(query, context);
     if ('explain' in output) {
       throw new Error(`Tried to explain a query when in query-only mode`);
@@ -272,6 +274,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
           metaData.push({linkSource: 'seedURL', dereferenced: true})
         }
       }
+
       this.actorInitQuery.mediatorConstructTraversedTopology.mediate({
         parentUrl: "", 
         links: links,

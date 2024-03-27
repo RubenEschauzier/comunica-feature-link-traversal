@@ -40,7 +40,7 @@ export class LinkQueuePriority implements ILinkQueue {
    * and m size of the queue. Will only update priorities of urls that are actually in queue.
    * @param urlPriorities A record with url and new priority
    */
-  updateAllPriority(urlPriorities: Record<string, number>){
+  public updateAllPriority(urlPriorities: Record<string, number>){
     for (const url in urlPriorities){
       if (this.urlToLink[url]){
         this.updatePriority(url, urlPriorities[url]);

@@ -49,7 +49,7 @@
     "ccqslt:config/rdf-resolve-hypermedia-links/actors/traverse.json",
     "ccqs:config/rdf-resolve-hypermedia-links/mediators.json",
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/priority-queue.json",
-    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-indegree-priority.json",
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-rcc1-priority.json",
     "ccqs:config/rdf-resolve-hypermedia-links-queue/mediators.json",
     "ccqslt:config/rdf-resolve-quad-pattern/actors.json",
     "ccqs:config/rdf-resolve-quad-pattern/mediators.json",
@@ -58,6 +58,8 @@
     "ccqs:config/rdf-update-hypermedia/actors.json",
     "ccqs:config/rdf-update-hypermedia/mediators.json",
     "ccqs:config/rdf-update-quads/actors.json",
-    "ccqs:config/rdf-update-quads/mediators.json"
+    "ccqs:config/rdf-update-quads/mediators.json",
+    "ccqs:config/merge-binding/actors.json",
+    "ccqs:config/merge-binding/mediators.json"
   ]
 }

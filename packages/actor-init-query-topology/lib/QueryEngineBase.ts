@@ -19,6 +19,8 @@ import type { Algebra } from 'sparqlalgebrajs';
 import type { ActorInitQueryBase } from './ActorInitQueryBase';
 import { MemoryPhysicalQueryPlanLogger } from './MemoryPhysicalQueryPlanLogger';
 import { MediatorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
+import { KeysBindingContext } from '@comunica/context-entries';
+import { AdjacencyListGraphRcc } from '@comunica/actor-construct-traversed-topology-graph-based-prioritisation';
 
 /**
  * Base implementation of a Comunica query engine.
@@ -64,13 +66,6 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     return this.queryOfType<QueryFormatTypeInner, RDF.QueryVoid>(query, context, 'void');
   }
 
-  // public async queryTopology<QueryFormatTypeInner extends QueryFormatType>(
-  //   query: QueryFormatTypeInner,
-  //   context?: QueryFormatTypeInner extends string ? QueryStringContextInner : QueryAlgebraContextInner,
-  // ): Promise<IQueryTopologyOutput> {
-  //   return this.queryOfType<QueryFormatTypeInner, IQueryBindingsTopology>(query, context, 'topology');
-  // }
-
   protected async queryOfType<QueryFormatTypeInner extends QueryFormatType, QueryTypeOut extends QueryEnhanced>(
     query: QueryFormatTypeInner,
     context: undefined | (QueryFormatTypeInner extends string ?
@@ -79,6 +74,34 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
   ): Promise<ReturnType<QueryTypeOut['execute']>> {
     const result = await this.query<QueryFormatTypeInner>(query, context);
     if (result.resultType === expectedType) {
+      // Here we clone bindingstream to hook into data generation of results and update priorities
+      if (result.resultType == 'bindings'){
+        const executedResult = await result.execute();
+        const outputGetTopology = await this.actorInitQuery.mediatorConstructTraversedTopology.mediate({
+          parentUrl: "", 
+          links: [],
+          metadata: [],
+          setDereferenced: false,
+          context: new ActionContext()
+        });
+        const topologyRcc = <AdjacencyListGraphRcc> outputGetTopology.topology;  
+  
+        const resultBs = executedResult.clone();
+        const updatePriorityBs = executedResult.clone();
+        // Listen for query results and adjust result contribution score of URLs needed for result
+        updatePriorityBs.on('data', (data) => {
+          const sources: string[] = data.context.get(KeysBindingContext.sourceBinding);
+          for (const source of sources){
+            // First few sources are empty due to recursive calls for typeindex dereferencing
+            if (source){
+              console.log("Increasing rcc")
+              topologyRcc.increaseRcc(source, 1);
+            }
+          }
+        });
+
+        return <ReturnType<QueryTypeOut['execute']>> resultBs;
+      }
       return <ReturnType<QueryTypeOut['execute']>> await result.execute();
     }
     throw new Error(`Query result type '${expectedType}' was expected, while '${result.resultType}' was found.`);
@@ -138,6 +161,7 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
         delete context[key];
       }
     }
+
     // Prepare context
     let actionContext: IActionContext = new ActionContext(context);
     let queryFormat: RDF.QueryFormat = { language: 'sparql', version: '1.1' };
@@ -193,12 +217,16 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
 
     // Apply initial bindings in context
     if (actionContext.has(KeysInitQuery.initialBindings)) {
-      operation = materializeOperation(operation, actionContext.get(KeysInitQuery.initialBindings)!);
+      // Bindingsfactory with handlers
+      const bindingsFactory = new BindingsFactory(
+        (await this.actorInitQuery.mediatorMergeBindingsContext.mediate({ context: actionContext })).mergeHandlers,
+      );
+      operation = materializeOperation(operation, actionContext.get(KeysInitQuery.initialBindings)!, bindingsFactory);
 
       // Delete the query string from the context, since our initial query might have changed
       actionContext = actionContext.delete(KeysInitQuery.queryString);
-    }
-    
+    }    
+
     // Optimize the query operation
     const mediatorResult = await this.actorInitQuery.mediatorOptimizeQueryOperation
       .mediate({ context: actionContext, operation });
@@ -255,19 +283,6 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     });
     output.context = actionContext;
     const finalOutput = QueryEngineBase.internalToFinalResult(output);
-    if (actionContext.get(KeysTraversedTopology.constructTopology)){
-      const mediatorConstructToplogy = <MediatorConstructTraversedTopology>
-      actionContext.get(KeysTraversedTopology.mediatorConstructTraversedTopology);
-      const topology = await mediatorConstructToplogy.mediate(
-        {
-          parentUrl: "",
-          links: [],
-          metadata: [{}],
-          setDereferenced: false,
-          context: new ActionContext()
-      });
-    }
-
     // Output physical query plan after query exec if needed
     if (physicalQueryPlanLogger) {
       // Make sure the whole result is produced
@@ -285,14 +300,12 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
           await finalOutput.execute();
           break;
       }
-
       return {
         explain: true,
         type: explainMode,
         data: physicalQueryPlanLogger.toJson(),
       };
     }
-
     return finalOutput;
   }
 

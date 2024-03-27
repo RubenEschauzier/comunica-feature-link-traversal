@@ -200,6 +200,7 @@ import type { MediatorQueryResultSerializeHandle,
   MediatorQueryResultSerializeMediaTypeFormats } from '@comunica/bus-query-result-serialize';
 import type { IActorTest } from '@comunica/core';
 import type { IQueryContextCommon, Logger } from '@comunica/types';
+import { MediatorMergeBindingsContext } from '@comunica/bus-merge-bindings-context';
 
 /**
  * A browser-safe comunica Query Init Actor.
@@ -215,6 +216,7 @@ export class ActorInitQueryBase<QueryContext extends IQueryContextCommon = IQuer
   public readonly mediatorContextPreprocess: MediatorContextPreprocess;
   public readonly mediatorHttpInvalidate: MediatorHttpInvalidate;
   public readonly mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
+  public readonly mediatorMergeBindingsContext: MediatorMergeBindingsContext;
 
   public readonly logger: Logger;
   public readonly queryString?: string;
@@ -291,7 +293,13 @@ export interface IActorInitQueryBaseArgs<QueryContext extends IQueryContextCommo
   /**
    * Mediator that constructs traversed topology during query execution
    */
-  mediatorConstructTraversedTopology: MediatorConstructTraversedTopology
+  mediatorConstructTraversedTopology: MediatorConstructTraversedTopology;
+
+  /**
+   * A mediator for creating binding context merge handlers
+   */
+  mediatorMergeBindingsContext: MediatorMergeBindingsContext;
+
   /**
    * The logger of this actor
    * @default {a <npmd:@comunica/logger-void/^2.0.0/components/LoggerVoid.jsonld#LoggerVoid>}
@@ -346,6 +354,7 @@ export interface IActorInitQueryBaseArgs<QueryContext extends IQueryContextCommo
    *   "explain": "@comunica/actor-init-query:explain",
    *   "unionDefaultGraph": "@comunica/bus-query-operation:unionDefaultGraph",
    *   "noCache": "@comunica/actor-init-query:noCache",
+   *   "sourceBinding": "@comunica/bus-merge-binding-factory:sourceBinding",
    *   "constructTopology": "@comunica/bus-construct-topology:constructTopology"
    * }}
    */

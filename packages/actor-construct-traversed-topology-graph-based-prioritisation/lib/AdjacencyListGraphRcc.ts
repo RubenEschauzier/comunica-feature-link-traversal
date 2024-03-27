@@ -1,17 +1,16 @@
 import { Topology } from "@comunica/bus-construct-traversed-topology";
 
-// TEST CASES SHOULD FOR SURE CONTAIN:
-// 1. NODE WITH MULTIPLE PARENTS (SHOULD CHANGE NUMEDGES)
-// 2. ADDING EDGE THAT ALREADY EXIST (SHOULD NOT CHANGE NUMEDGES)
-// USE THIS FOR PAGERANK: https://www.npmjs.com/package/pagerank-js
 /**
- * Data structure that denotes the traversed graph during link traversal. The graph stores an adjacency matrix,
- * the mapping between node index and url, and any metadata added for each node.
+ * Data structure that denotes the traversed graph during link traversal. It allows the engine to track the result contribution 
+ * score (rcc) for each node. This can be used for prioritisation
  */
-export class AdjacencyListGraph implements Topology {
-  // Adjacencylist with each list at index $i$ representing the outgoing edges of i
-  private readonly adjacencyListOutgoing: number[][];
+export class AdjacencyListGraphRcc implements Topology {
+  // Adjacencylist with each list at index $i$ representing the incoming edges of i, used to neighbourhood rcc score
   private readonly adjacencyListIncoming: number[][];
+  // Adjacencylist with each list at index $i$ representing the outgoing edges of i, used to determine what nodes score
+  // should be changed on change of rcc of node $i$
+  private readonly adjacencyListOutgoing: number[][];
+
   // 0 indexed list of all metadata associated with node, same order as nodeToIndex
   private readonly metadataNode: Record<string, any>[];
   // String to 0 indexed index of a node, used to retrieve metadata
@@ -19,23 +18,27 @@ export class AdjacencyListGraph implements Topology {
   private indexToNode: Record<number, string>;
   // Number of edges in the graph
   private numNodesMultipleParent: number;
+  // Nodes with changed rccs
+  private changedRccSinceLastPopEvent: Record<string, number>;
 
   public constructor() {
     this.nodeToIndex = {};
     this.indexToNode = {};
     this.metadataNode = [];
-    this.adjacencyListOutgoing = [];
     this.adjacencyListIncoming = [];
+    this.adjacencyListOutgoing = [];
+    this.changedRccSinceLastPopEvent = {};
+
     this.numNodesMultipleParent = 0;
   }
 
   public set(node: string, parent: string, metadata: Record<string, any>){
-    // TODO: When we call set, we should either calculate the metric here OR we should indicate that we changed the topology so
-    // the priority queue knows it should recalculate some priorities. Second is likely WAY better!
     // Self references edges are irrelevant
     if (node === parent){
       return true;
     }
+    // Set Rcc counter to 0, this will only have effect on new nodes
+    metadata['rcc'] = 0
 
     // Check if node is seedURL
     metadata.hasParent = true;
@@ -88,6 +91,18 @@ export class AdjacencyListGraph implements Topology {
     this.metadataNode[this.nodeToIndex[node]] = metadata;
   }
 
+  public increaseRcc(node: string, increase: number){
+    const nodeMetaData = this.metadataNode[this.nodeToIndex[node]];
+    nodeMetaData.rcc += increase;
+    // Indicate that result was output and rccs have changed
+    this.changedRccSinceLastPopEvent[node] ? 
+    this.changedRccSinceLastPopEvent[node] += 1 : this.changedRccSinceLastPopEvent[node] = 1;
+  }
+
+  public resetChangedRccNodes(){
+    this.changedRccSinceLastPopEvent = {};
+  }
+
   public getMetaData(node: string): Record<string, any> | undefined {
     return this.metadataNode[this.nodeToIndex[node]];
   }
@@ -112,7 +127,11 @@ export class AdjacencyListGraph implements Topology {
   }
 
   public getGraphDataStructure(){
-    return [this.adjacencyListOutgoing, this.adjacencyListIncoming];
+    return  [this.adjacencyListOutgoing, this.adjacencyListIncoming];
+  }
+
+  public getChangedRccNodes(){
+    return this.changedRccSinceLastPopEvent;
   }
 }
 

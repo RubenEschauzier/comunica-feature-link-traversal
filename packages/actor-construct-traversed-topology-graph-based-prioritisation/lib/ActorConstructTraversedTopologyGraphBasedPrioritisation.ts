@@ -1,7 +1,7 @@
 import type { IActionConstructTraversedTopology, IActorConstructTraversedTopologyOutput, IActorConstructTraversedTopologyArgs } from '@comunica/bus-construct-traversed-topology';
 import { ActorConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
 import type { IActorTest } from '@comunica/core';
-import { AdjacencyListGraph } from './AdjacencyListGraph';
+import { AdjacencyListGraphRcc } from './AdjacencyListGraphRcc';
 
 import * as fs from 'fs'
 
@@ -9,11 +9,11 @@ import * as fs from 'fs'
  * A comunica Graph-based-Prioritisation Construct Traversed Topology Actor.
  */
 export class ActorConstructTraversedTopologyUrlToGraph extends ActorConstructTraversedTopology {
-  public traversedGraph: AdjacencyListGraph;
+  public traversedGraph: AdjacencyListGraphRcc;
 
   public constructor(args: IActorConstructTraversedTopologyArgs) {
     super(args);
-    this.traversedGraph = new AdjacencyListGraph();
+    this.traversedGraph = new AdjacencyListGraphRcc();
   }
 
   public async test(action: IActionConstructTraversedTopology): Promise<IActorTest> {

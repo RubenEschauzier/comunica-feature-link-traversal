@@ -1,2 +1,2 @@
 export * from './ActorConstructTraversedTopologyGraphBasedPrioritisation';
-export * from './AdjacencyListGraph';
+export * from './AdjacencyListGraphRcc';

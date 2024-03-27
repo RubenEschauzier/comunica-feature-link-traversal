@@ -6,7 +6,7 @@ import { KeysTraversedTopology } from '@comunica/context-entries-link-traversal'
 import type { IActorArgs, IActorTest } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
 import { DataFactory } from 'rdf-data-factory';
-import type * as RDF from 'rdf-js';
+import type * as RDF from '@rdfjs/types';
 import type { QuadTermName } from 'rdf-terms';
 import { filterQuadTermNames, getNamedNodes, getTerms, matchPatternComplete } from 'rdf-terms';
 import type { Algebra } from 'sparqlalgebrajs';

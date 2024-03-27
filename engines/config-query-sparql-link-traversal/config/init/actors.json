@@ -19,6 +19,7 @@
       "mediatorContextPreprocess": { "@id": "urn:comunica:default:context-preprocess/mediators#main" },
       "mediatorHttpInvalidate": { "@id": "urn:comunica:default:http-invalidate/mediators#main" },
       "mediatorConstructTraversedTopology": { "@id": "urn:comunica:default:construct-topology/mediators#main" },
+      "mediatorMergeBindingsContext": { "@id": "urn:comunica:default:merge-bindings-context/mediators#main"},
       "allowNoSources": true
     }
   ]

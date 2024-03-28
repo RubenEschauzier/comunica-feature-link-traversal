@@ -26,29 +26,44 @@ export class LinkQueuePagerankPrioritisation extends LinkQueueWrapper<LinkQueueP
   public pop(): ILink | undefined {
     // Only recalculate whenever we actually pop a link
     if (super.getSize() > 0 ){
-      // pagerank here
-      const edgeListOutgoing = this.trackedTopologyDuringQuery.getGraphDataStructure()[0];
-      const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
-
-      try{
-        const rankings = pagerank(edgeListOutgoing, 0.85, 0.001, function(err: any, res:any) {
-            if (err) console.log(err)
-        });
-        const urlToPriority: Record<string, number> = {};
-
-        for (let i = 0; i < rankings.probabilityNodes.length; i++){
-            urlToPriority[indexToNode[i]] = rankings.probabilityNodes[i];
-        }
-
-        this.linkQueue.updateAllPriority(urlToPriority);
-      }
-      catch(err){
-        console.log(err)
-      }
+      this.calculatePrioritiesPagerank()
     }
 
     const link = super.pop();
 
     return link;
+  }
+
+  public peek(): ILink | undefined {
+    if (super.getSize() > 0 ){
+      this.calculatePrioritiesPagerank()
+    }
+
+    const link = super.peek();
+
+    return link;
+
+  }
+
+  public calculatePrioritiesPagerank(){
+    // pagerank here
+    const edgeListOutgoing = this.trackedTopologyDuringQuery.getGraphDataStructure()[0];
+    const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
+
+    try{
+      const rankings = pagerank(edgeListOutgoing, 0.85, 0.001, function(err: any, res:any) {
+          if (err) console.log(err)
+      });
+      const urlToPriority: Record<string, number> = {};
+
+      for (let i = 0; i < rankings.probabilityNodes.length; i++){
+          urlToPriority[indexToNode[i]] = rankings.probabilityNodes[i];
+      }
+
+      this.linkQueue.updateAllPriority(urlToPriority);
+    }
+    catch(err){
+      console.log(err)
+    }
   }
 }

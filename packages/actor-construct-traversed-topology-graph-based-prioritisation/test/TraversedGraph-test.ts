@@ -2,6 +2,7 @@ import type { IActionConstructTraversedTopology } from '@comunica/bus-construct-
 import { ActionContext } from '@comunica/core';
 import type { ActorConstructTraversedTopologyUrlToGraph } from '../lib/ActorConstructTraversedTopologyGraphBasedPrioritisation';
 import { AdjacencyListGraph } from '../lib/AdjacencyListGraph';
+import { assert } from 'console';
 
 describe('TraversedGraph', () => {
   let traversedGraph: AdjacencyListGraph;
@@ -10,70 +11,66 @@ describe('TraversedGraph', () => {
     traversedGraph = new AdjacencyListGraph();
   });
 
-  describe('An ActorConstructTraversedTopologyUrlToGraph instance', () => {
-    let actor: ActorConstructTraversedTopologyUrlToGraph;
-    let parentAction: IActionConstructTraversedTopology;
+  describe('An AdjacencyListGraph instance', () => {
+    let graph: AdjacencyListGraph
 
     beforeEach(() => {
-      parentAction =
-        {
-          parentUrl: 'null',
-          links: [{ url: 'L1' }],
-          metadata: [{ sourceNode: true }],
-          context: new ActionContext(),
-          setDereferenced: false
-        };
+      graph = new AdjacencyListGraph();
     });
 
-    // it('should run with parent node', () => {
-    //   traversedGraph.addNode(parentAction.links[0].url, parentAction.parentUrl, parentAction.metadata[0]);
-    //   return expect(traversedGraph.getAdjacencyMatrix()).toEqual([[ 1 ]]);
-    // });
+    it('should add nodes correctly', () => {
+      /**
+       *          A -> B --|
+       *            -> C   ->D
+       *            -------|  
+       */
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('C', 'A', {});
+      graph.set('D', 'A', {});
+      graph.set('D', 'B', {});
+      expect(graph.getGraphDataStructure()[0]).toEqual([[1,2,3],[3],[],[]]);
+      expect(graph.getGraphDataStructure()[1]).toEqual([[], [0], [0], [0,1]]);
+      expect(graph.getIndexToNode()).toEqual({0: 'A', 1: 'B', 2: 'C', 3: 'D'});
+      expect(graph.getNodeToIndex()).toEqual({'A': 0, 'B': 1, 'C': 2, 'D': 3});
+      expect(graph.getNumEdges()).toEqual(1);
 
-    // it('should run with non-parent node', () => {
-    //   const traversalActionA: IActionConstructTraversedTopology =
-    //   {
-    //     parentUrl: 'L1',
-    //     links: [{ url: 'L2' }, { url: 'L3' }, { url: 'L4' }],
-    //     metadata: [{ sourceNode: false }, { sourceNode: false }, { sourceNode: false }],
-    //     context: new ActionContext(),
-    //     setDereferenced: false
-    //   };
-    //   traversedGraph.addNode(parentAction.links[0].url, parentAction.parentUrl, parentAction.metadata[0]);
-    //   for (let i = 0; i < traversalActionA.links.length; i++) {
-    //     traversedGraph.addNode(traversalActionA.links[i].url, traversalActionA.parentUrl, traversalActionA.metadata[i]);
-    //   }
-    //   return expect(traversedGraph.getAdjacencyMatrix()).toEqual([[ 1, 0, 0, 0 ], [ 1, 1, 0, 0 ], [ 1, 0, 1, 0 ], [ 1, 0, 0, 1 ]]);
-    // });
+    });
 
-    // it('should correctly store metadata', () => {
-    //   const traversalActionB: IActionConstructTraversedTopology = { 
-    //     parentUrl: 'null',
-    //     links: [{ url: 'L1' }],
-    //     metadata: [{ sourceNode: true, testMetaData: 'test' }],
-    //     context: new ActionContext(),
-    //     setDereferenced: false
-    //   };
 
-    //   traversedGraph.addNode(traversalActionB.links[0].url, traversalActionB.parentUrl, traversalActionB.metadata[0]);
-    //   return expect(traversedGraph.getMetaDataNode('L1')).toEqual({ sourceNode: true, testMetaData: 'test' });
-    // });
+    it('should not add edges already in graph', () => {
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('B', 'A', {});
+      graph.set('B', 'A', {});
+      expect(graph.getNodeToIndex()).toEqual({'A': 0, 'B': 1})
+      expect(graph.getGraphDataStructure()).toEqual([ [[1], []], [[], [0]]]);
+    });
 
-    // it('should correctly store node indexes', () => {
-    //   const traversalActionA: IActionConstructTraversedTopology =
-    //     {
-    //       parentUrl: 'L1',
-    //       links: [{ url: 'L2' }, { url: 'L3' }, { url: 'L4' }],
-    //       metadata: [{ sourceNode: false }, { sourceNode: false }, { sourceNode: false }],
-    //       context: new ActionContext(),
-    //       setDereferenced: false
-    //     };
-    //   traversedGraph.addNode(parentAction.links[0].url, parentAction.parentUrl, parentAction.metadata[0]);
-    //   for (let i = 0; i < traversalActionA.links.length; i++) {
-    //     traversedGraph.addNode(traversalActionA.links[i].url, traversalActionA.parentUrl, traversalActionA.metadata[i]);
-    //   }
-    //   return expect(traversedGraph.getNodeToIndexes()).toEqual({ L1: 0, L2: 1, L3: 2, L4: 3 });
-    // });
+    it('should not add self-edges', () => {
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('A', 'A', {});
+      expect(graph.getGraphDataStructure()).toEqual([ [[1], []], [[], [0]]] );
+    });
+
+    it('should correctly track number of times a existing node was used as parent', () => {
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('C', 'A', {});
+      graph.set('D', 'A', {});
+      graph.set('D', 'B', {});
+      graph.set('D', 'C', {});
+      graph.set('E', 'D', {});
+      graph.set('E', 'B', {});
+      graph.set('F', 'A', {});
+      graph.set('F', 'C', {});
+      expect(graph.getNumEdges()).toEqual(4)
+    })
+
+    it('should correctly set metadata', () => {
+      
+    })
   });
 });
 

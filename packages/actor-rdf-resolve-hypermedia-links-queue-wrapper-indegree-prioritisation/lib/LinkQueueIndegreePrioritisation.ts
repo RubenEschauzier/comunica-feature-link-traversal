@@ -40,30 +40,39 @@ export class LinkQueueIndegreePrioritisation extends LinkQueueWrapper<LinkQueueP
     // Topology also has map with indegree > 1
     // This means the indegree
     if (this.trackedTopologyDuringQuery.getNumEdges() !== this.numNodesMultipleParentPreviousPop){
-      // Hardcoded and specific to implementation, not super happy with it ...
-      const incomingEdges = this.trackedTopologyDuringQuery.getGraphDataStructure()[1];
-      const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
-      const newIndegrees: Record<number, number> = {};
-
-      // Get indegrees, very inefficient I guess...
-      for (let i = 0; i < incomingEdges.length; i++){
-        if (incomingEdges[i].length > 1){
-          newIndegrees[i] = incomingEdges[i].length;
-        }
-      }
-
-      for (const nodeId in newIndegrees){
-        if (!(nodeId in this.previousIndegrees) || this.previousIndegrees[nodeId] !== newIndegrees[nodeId] ){
-          this.linkQueue.updatePriority(indexToNode[nodeId], newIndegrees[nodeId]);
-        }
-      }
-
-      this.numNodesMultipleParentPreviousPop = this.trackedTopologyDuringQuery.getNumEdges();
-      this.previousIndegrees = newIndegrees;
+      this.updateIndegrees();
     }
 
     const link = super.pop();
 
     return link;
+  }
+  public peek(): ILink | undefined {
+    if (this.trackedTopologyDuringQuery.getNumEdges() !== this.numNodesMultipleParentPreviousPop){
+      this.updateIndegrees();
+    }
+    return super.peek();
+  }
+
+  public updateIndegrees(){
+    const incomingEdges = this.trackedTopologyDuringQuery.getGraphDataStructure()[1];
+    const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
+    const newIndegrees: Record<number, number> = {};
+
+    // Get indegrees, very inefficient I guess...
+    for (let i = 0; i < incomingEdges.length; i++){
+      if (incomingEdges[i].length > 1){
+        newIndegrees[i] = incomingEdges[i].length;
+      }
+    }
+
+    for (const nodeId in newIndegrees){
+      if (!(nodeId in this.previousIndegrees) || this.previousIndegrees[nodeId] !== newIndegrees[nodeId] ){
+        this.linkQueue.updatePriority(indexToNode[nodeId], newIndegrees[nodeId]);
+      }
+    }
+
+    this.numNodesMultipleParentPreviousPop = this.trackedTopologyDuringQuery.getNumEdges();
+    this.previousIndegrees = newIndegrees;
   }
 }

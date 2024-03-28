@@ -30,8 +30,6 @@ export class AdjacencyListGraph implements Topology {
   }
 
   public set(node: string, parent: string, metadata: Record<string, any>){
-    // TODO: When we call set, we should either calculate the metric here OR we should indicate that we changed the topology so
-    // the priority queue knows it should recalculate some priorities. Second is likely WAY better!
     // Self references edges are irrelevant
     if (node === parent){
       return true;
@@ -44,30 +42,38 @@ export class AdjacencyListGraph implements Topology {
       metadata.hasParent = false;
     }
 
+    if (this.nodeToIndex[node] && this.adjacencyListIncoming[this.nodeToIndex[node]].includes(this.nodeToIndex[parent])){
+      return;
+    }
+
     // If target node already exists and parent node not yet in incoming then we add incoming edge to target node
     if (this.nodeToIndex[node] && !this.adjacencyListIncoming[this.nodeToIndex[node]].includes(this.nodeToIndex[parent])){
       this.adjacencyListIncoming[this.nodeToIndex[node]].push(this.nodeToIndex[parent]);
       // If we are here, this means one node will have more than one parent. This is used for indegree based prioritisation.
       this.numNodesMultipleParent += 1;
     }
+    // If target node exists and parent node already in incoming the edge is already in graph
 
     // Unseen nodes get registered and entry into incoming edge added
     if (!(node in this.nodeToIndex)){
       this.nodeToIndex[node] = Object.keys(this.nodeToIndex).length;
       this.indexToNode[Object.keys(this.nodeToIndex).length-1] = node;
       this.metadataNode.push(metadata);
-      this.adjacencyListIncoming.push([this.nodeToIndex[parent]]);
+      // If not in node index we add new entries for adjacency list
+      this.adjacencyListOutgoing.push([]);
+      if (!(this.nodeToIndex[parent] == undefined)){
+        this.adjacencyListIncoming.push([this.nodeToIndex[parent]]);
+      }
+      else{
+        this.adjacencyListIncoming.push([]);
+      }
     }
-    
-    // If we have no parent, then there is also no edge to add
-    if (metadata.hasParent === false){
-      return true;
-    }
+        
     // Add the discovered node to adjacency list without self reference.
-    this.adjacencyListOutgoing.push([]);
 
     // Add outgoing edge to parent node if it isn't already in the list
-    if (!this.adjacencyListOutgoing[this.nodeToIndex[parent]].includes(this.nodeToIndex[node])){
+    if (this.adjacencyListOutgoing[this.nodeToIndex[parent]] && !this.adjacencyListOutgoing[this.nodeToIndex[parent]].includes(this.nodeToIndex[node])
+    ){
       this.adjacencyListOutgoing[this.nodeToIndex[parent]].push(this.nodeToIndex[node]);
     }
     return true;

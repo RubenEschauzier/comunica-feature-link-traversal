@@ -61,7 +61,9 @@ export class LinkQueuePriority implements ILinkQueue {
         return;
       }
       change > 0 ? this.increasePriority(idx, change) : this.decreasePriority(idx, - change);
+      return true;
     }
+    return false;
   }
   /**
    * Function to increase priority of element of heap. First we increase priority using

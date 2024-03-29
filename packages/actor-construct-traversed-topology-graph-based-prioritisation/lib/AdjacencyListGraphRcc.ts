@@ -16,64 +16,72 @@ export class AdjacencyListGraphRcc implements Topology {
   // String to 0 indexed index of a node, used to retrieve metadata
   private nodeToIndex: Record<string, number>;
   private indexToNode: Record<number, string>;
-  // Number of edges in the graph
-  private numNodesMultipleParent: number;
-  // Nodes with changed rccs
-  private changedRccSinceLastPopEvent: Record<string, number>;
+  // Nodes with changed rccs, with node string and increase in rcc
+  private prioritiesToRecomputeFirstDegree: Set<number>;
+  private prioritiesToRecomputeSecondDegree: Set<number>;
 
   public constructor() {
     this.nodeToIndex = {};
     this.indexToNode = {};
+
     this.metadataNode = [];
     this.adjacencyListIncoming = [];
     this.adjacencyListOutgoing = [];
-    this.changedRccSinceLastPopEvent = {};
 
-    this.numNodesMultipleParent = 0;
+    this.prioritiesToRecomputeFirstDegree = new Set();
+    this.prioritiesToRecomputeSecondDegree = new Set()
   }
 
   public set(node: string, parent: string, metadata: Record<string, any>){
-    // Self references edges are irrelevant
-    if (node === parent){
+      // Self references edges are irrelevant
+      if (node === parent){
+        return true;
+      }
+
+      // Set Rcc counter to 0, this will only have effect on new nodes
+      metadata['rcc'] = 0
+
+      // Check if node is seedURL
+      metadata.hasParent = true;
+      if (this.nodeToIndex[parent] == undefined && !metadata.sourceNode) {
+        console.warn('Adding node to traversed graph that has an unknown parent node')
+        metadata.hasParent = false;
+      }
+      // If edge already exists do not add to graph
+      if (this.nodeToIndex[node] && this.adjacencyListIncoming[this.nodeToIndex[node]].includes(this.nodeToIndex[parent])){
+        return;
+      }
+  
+      // If target node already exists and parent node not yet in incoming then we add incoming edge to target node
+      if (this.nodeToIndex[node] && !this.adjacencyListIncoming[this.nodeToIndex[node]].includes(this.nodeToIndex[parent])){
+        this.adjacencyListIncoming[this.nodeToIndex[node]].push(this.nodeToIndex[parent]);
+      }
+  
+      // Unseen nodes get registered and entry into incoming edge added
+      if (!(node in this.nodeToIndex)){
+        this.nodeToIndex[node] = Object.keys(this.nodeToIndex).length;
+        this.indexToNode[Object.keys(this.nodeToIndex).length-1] = node;
+        this.metadataNode.push(metadata);
+        // If not in node index we add new entries for adjacency list
+        this.adjacencyListOutgoing.push([]);
+        if (!(this.nodeToIndex[parent] == undefined)){
+          this.adjacencyListIncoming.push([this.nodeToIndex[parent]]);
+        }
+        else{
+          this.adjacencyListIncoming.push([]);
+        }
+      }
+      
+      // Add outgoing edge to parent node if it isn't already in the list
+      if (this.adjacencyListOutgoing[this.nodeToIndex[parent]] && 
+        !this.adjacencyListOutgoing[this.nodeToIndex[parent]].includes(this.nodeToIndex[node]))
+      {
+        this.adjacencyListOutgoing[this.nodeToIndex[parent]].push(this.nodeToIndex[node]);
+      }
+
+      // New node / edge means target node priority should be recomputed
+      this.prioritiesToRecomputeFirstDegree.add(this.nodeToIndex[node]);
       return true;
-    }
-    // Set Rcc counter to 0, this will only have effect on new nodes
-    metadata['rcc'] = 0
-
-    // Check if node is seedURL
-    metadata.hasParent = true;
-    if (this.nodeToIndex[parent] == undefined && !metadata.sourceNode) {
-      console.warn('Adding node to traversed graph that has an unknown parent node')
-      metadata.hasParent = false;
-    }
-
-    // If target node already exists and parent node not yet in incoming then we add incoming edge to target node
-    if (this.nodeToIndex[node] && !this.adjacencyListIncoming[this.nodeToIndex[node]].includes(this.nodeToIndex[parent])){
-      this.adjacencyListIncoming[this.nodeToIndex[node]].push(this.nodeToIndex[parent]);
-      // If we are here, this means one node will have more than one parent. This is used for indegree based prioritisation.
-      this.numNodesMultipleParent += 1;
-    }
-
-    // Unseen nodes get registered and entry into incoming edge added
-    if (!(node in this.nodeToIndex)){
-      this.nodeToIndex[node] = Object.keys(this.nodeToIndex).length;
-      this.indexToNode[Object.keys(this.nodeToIndex).length-1] = node;
-      this.metadataNode.push(metadata);
-      this.adjacencyListIncoming.push([this.nodeToIndex[parent]]);
-    }
-    
-    // If we have no parent, then there is also no edge to add
-    if (metadata.hasParent === false){
-      return true;
-    }
-    // Add the discovered node to adjacency list without self reference.
-    this.adjacencyListOutgoing.push([]);
-
-    // Add outgoing edge to parent node if it isn't already in the list
-    if (!this.adjacencyListOutgoing[this.nodeToIndex[parent]].includes(this.nodeToIndex[node])){
-      this.adjacencyListOutgoing[this.nodeToIndex[parent]].push(this.nodeToIndex[node]);
-    }
-    return true;
   }
 
   /**
@@ -93,14 +101,24 @@ export class AdjacencyListGraphRcc implements Topology {
 
   public increaseRcc(node: string, increase: number){
     const nodeMetaData = this.metadataNode[this.nodeToIndex[node]];
+    if (!nodeMetaData){
+      throw new Error('Tried to increase rcc of node not in topology');
+    }
     nodeMetaData.rcc += increase;
-    // Indicate that result was output and rccs have changed
-    this.changedRccSinceLastPopEvent[node] ? 
-    this.changedRccSinceLastPopEvent[node] += 1 : this.changedRccSinceLastPopEvent[node] = 1;
+    // Determine neighbours that need to recompute their priorities due to change
+    for (const neighbourNode of this.adjacencyListOutgoing[this.nodeToIndex[node]]){
+      this.prioritiesToRecomputeFirstDegree.add(neighbourNode);
+      this.prioritiesToRecomputeSecondDegree.add(neighbourNode);
+
+      for (const secondDegreeNeighbour of this.adjacencyListOutgoing[neighbourNode]){
+        this.prioritiesToRecomputeSecondDegree.add(secondDegreeNeighbour)
+      }
+    }
   }
 
-  public resetChangedRccNodes(){
-    this.changedRccSinceLastPopEvent = {};
+  public resetPrioritiesToRecompute(){
+    this.prioritiesToRecomputeFirstDegree = new Set();
+    this.prioritiesToRecomputeSecondDegree = new Set();
   }
 
   public getMetaData(node: string): Record<string, any> | undefined {
@@ -123,15 +141,19 @@ export class AdjacencyListGraphRcc implements Topology {
    * @returns The number of nodes that have multiple parents
    */
   public getNumEdges() {
-    return this.numNodesMultipleParent;
+    return this.nodeToIndex.length;
   }
 
   public getGraphDataStructure(){
     return  [this.adjacencyListOutgoing, this.adjacencyListIncoming];
   }
 
-  public getChangedRccNodes(){
-    return this.changedRccSinceLastPopEvent;
+  public getPrioritiesToRecomputeFirstDegree(){
+    return this.prioritiesToRecomputeFirstDegree;
+  }
+  
+  public getPrioritiesToRecomputeSecondDegree(){
+    return this.prioritiesToRecomputeSecondDegree;
   }
 }
 

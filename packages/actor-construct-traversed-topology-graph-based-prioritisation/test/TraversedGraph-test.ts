@@ -1,79 +1,85 @@
-import type { IActionConstructTraversedTopology } from '@comunica/bus-construct-traversed-topology';
-import { ActionContext } from '@comunica/core';
-import type { ActorConstructTraversedTopologyUrlToGraph } from '../lib/ActorConstructTraversedTopologyGraphBasedPrioritisation';
-import { AdjacencyListGraph } from '../lib/AdjacencyListGraph';
+import { AdjacencyListGraphRcc } from '../lib/AdjacencyListGraphRcc';
 
 describe('TraversedGraph', () => {
-  let traversedGraph: AdjacencyListGraph;
+  let graph: AdjacencyListGraphRcc;
 
   beforeEach(() => {
-    traversedGraph = new AdjacencyListGraph();
+    graph = new AdjacencyListGraphRcc();
   });
 
-  describe('An ActorConstructTraversedTopologyUrlToGraph instance', () => {
-    let actor: ActorConstructTraversedTopologyUrlToGraph;
-    let parentAction: IActionConstructTraversedTopology;
+  describe('An AdjacencyListGraph instance', () => {
 
-    beforeEach(() => {
-      parentAction =
-        {
-          parentUrl: 'null',
-          links: [{ url: 'L1' }],
-          metadata: [{ sourceNode: true }],
-          context: new ActionContext(),
-          setDereferenced: false
-        };
+    it('should add nodes correctly', () => {
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('C', 'A', {});
+      graph.set('D', 'A', {});
+      graph.set('D', 'B', {});
+      expect(graph.getGraphDataStructure()[0]).toEqual([[1,2,3],[3],[],[]]);
+      expect(graph.getGraphDataStructure()[1]).toEqual([[], [0], [0], [0,1]]);
+      expect(graph.getIndexToNode()).toEqual({0: 'A', 1: 'B', 2: 'C', 3: 'D'});
+      expect(graph.getNodeToIndex()).toEqual({'A': 0, 'B': 1, 'C': 2, 'D': 3});
     });
 
-    // it('should run with parent node', () => {
-    //   traversedGraph.addNode(parentAction.links[0].url, parentAction.parentUrl, parentAction.metadata[0]);
-    //   return expect(traversedGraph.getAdjacencyMatrix()).toEqual([[ 1 ]]);
-    // });
 
-    // it('should run with non-parent node', () => {
-    //   const traversalActionA: IActionConstructTraversedTopology =
-    //   {
-    //     parentUrl: 'L1',
-    //     links: [{ url: 'L2' }, { url: 'L3' }, { url: 'L4' }],
-    //     metadata: [{ sourceNode: false }, { sourceNode: false }, { sourceNode: false }],
-    //     context: new ActionContext(),
-    //     setDereferenced: false
-    //   };
-    //   traversedGraph.addNode(parentAction.links[0].url, parentAction.parentUrl, parentAction.metadata[0]);
-    //   for (let i = 0; i < traversalActionA.links.length; i++) {
-    //     traversedGraph.addNode(traversalActionA.links[i].url, traversalActionA.parentUrl, traversalActionA.metadata[i]);
-    //   }
-    //   return expect(traversedGraph.getAdjacencyMatrix()).toEqual([[ 1, 0, 0, 0 ], [ 1, 1, 0, 0 ], [ 1, 0, 1, 0 ], [ 1, 0, 0, 1 ]]);
-    // });
+    it('should not add edges already in graph', () => {
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('B', 'A', {});
+      graph.set('B', 'A', {});
+      expect(graph.getNodeToIndex()).toEqual({'A': 0, 'B': 1})
+      expect(graph.getGraphDataStructure()).toEqual([ [[1], []], [[], [0]]]);
+    });
 
-    // it('should correctly store metadata', () => {
-    //   const traversalActionB: IActionConstructTraversedTopology = { 
-    //     parentUrl: 'null',
-    //     links: [{ url: 'L1' }],
-    //     metadata: [{ sourceNode: true, testMetaData: 'test' }],
-    //     context: new ActionContext(),
-    //     setDereferenced: false
-    //   };
+    it('should not add self-edges', () => {
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('A', 'A', {});
+      expect(graph.getGraphDataStructure()).toEqual([ [[1], []], [[], [0]]] );
+    });
 
-    //   traversedGraph.addNode(traversalActionB.links[0].url, traversalActionB.parentUrl, traversalActionB.metadata[0]);
-    //   return expect(traversedGraph.getMetaDataNode('L1')).toEqual({ sourceNode: true, testMetaData: 'test' });
-    // });
+  });
+  describe('A static graph to add RCC to', () => {
+    beforeEach(() => {
+      graph.set('A', '', {});
+      graph.set('B', 'A', {});
+      graph.set('C', 'A', {});
+      graph.set('D', 'A', {});
+      graph.set('D', 'B', {});      
+    });
+    it('should set rcc to 0 by default', () => {
+      expect(graph.getMetaData('A')).toBeDefined();
+      expect(graph.getMetaData('A')!['rcc']).toBeDefined();
+      expect(graph.getMetaData('A')!['rcc']).toEqual(0);
+    });
 
-    // it('should correctly store node indexes', () => {
-    //   const traversalActionA: IActionConstructTraversedTopology =
-    //     {
-    //       parentUrl: 'L1',
-    //       links: [{ url: 'L2' }, { url: 'L3' }, { url: 'L4' }],
-    //       metadata: [{ sourceNode: false }, { sourceNode: false }, { sourceNode: false }],
-    //       context: new ActionContext(),
-    //       setDereferenced: false
-    //     };
-    //   traversedGraph.addNode(parentAction.links[0].url, parentAction.parentUrl, parentAction.metadata[0]);
-    //   for (let i = 0; i < traversalActionA.links.length; i++) {
-    //     traversedGraph.addNode(traversalActionA.links[i].url, traversalActionA.parentUrl, traversalActionA.metadata[i]);
-    //   }
-    //   return expect(traversedGraph.getNodeToIndexes()).toEqual({ L1: 0, L2: 1, L3: 2, L4: 3 });
-    // });
+    it('should increase rcc', () => {
+      graph.increaseRcc('A', 2);
+      expect(graph.getMetaData('A')).toBeDefined();
+      expect(graph.getMetaData('A')!['rcc']).toEqual(2);
+    });
+
+    it("should throw when trying to set rcc of node that doesn't exist", () => {
+      expect(() => { graph.increaseRcc('DoesntExist', 2); }).toThrow("Tried to increase rcc of node not in topology");
+    });
+
+    it('should track changed rcc', () => {
+      graph.increaseRcc('A', 2);
+      graph.increaseRcc('A', 4);
+      graph.increaseRcc('C', 3);
+      expect(graph.getChangedRccNodes()).toEqual({
+        'A': 6,
+        'C': 3
+      })
+    });
+
+    it('should correctly reset tracked rcc', () => {
+      graph.increaseRcc('A', 2);
+      graph.increaseRcc('C', 3);
+      graph.resetChangedRccNodes();
+      expect(graph.getChangedRccNodes()).toEqual({});
+    });
+
   });
 });
 

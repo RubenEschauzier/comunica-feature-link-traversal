@@ -20,7 +20,12 @@ export class LinkQueueRcc1Prioritisation extends LinkQueueWrapper<LinkQueuePrior
 
   public push(link: ILink, parent: ILink): boolean {
     const priorityLink = <ILinkPriority> link;
-    priorityLink.priority = 0
+    priorityLink.priority = 0;
+    const nodeToIndex = this.trackedTopologyDuringQuery.getNodeToIndex();
+
+    if (nodeToIndex[link.url]){
+      this.trackedTopologyDuringQuery.addPriorityToRecompute(nodeToIndex[link.url]);
+    }
     
     return super.push(priorityLink, parent);
   }
@@ -34,7 +39,7 @@ export class LinkQueueRcc1Prioritisation extends LinkQueueWrapper<LinkQueuePrior
 
     return link;
   }
-  
+
   public peek(){
     const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeFirstDegree();
     if (!super.isEmpty() && toRecompute.size > 0){

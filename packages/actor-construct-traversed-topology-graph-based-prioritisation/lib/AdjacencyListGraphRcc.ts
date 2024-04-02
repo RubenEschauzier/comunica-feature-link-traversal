@@ -29,7 +29,7 @@ export class AdjacencyListGraphRcc implements Topology {
     this.adjacencyListOutgoing = [];
 
     this.prioritiesToRecomputeFirstDegree = new Set();
-    this.prioritiesToRecomputeSecondDegree = new Set()
+    this.prioritiesToRecomputeSecondDegree = new Set();
   }
 
   public set(node: string, parent: string, metadata: Record<string, any>){
@@ -114,6 +114,10 @@ export class AdjacencyListGraphRcc implements Topology {
         this.prioritiesToRecomputeSecondDegree.add(secondDegreeNeighbour)
       }
     }
+  }
+  public addPriorityToRecompute(node: number){
+    this.prioritiesToRecomputeFirstDegree.add(node);
+    this.prioritiesToRecomputeSecondDegree.add(node);
   }
 
   public resetPrioritiesToRecompute(){

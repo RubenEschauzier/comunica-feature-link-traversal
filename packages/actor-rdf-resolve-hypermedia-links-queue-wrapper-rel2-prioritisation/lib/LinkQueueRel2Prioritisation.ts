@@ -19,90 +19,68 @@ export class LinkQueueRel2Prioritisation extends LinkQueueWrapper<LinkQueuePrior
   }
 
   public push(link: ILink, parent: ILink): boolean {
-    // Calculate priority of new node by the number the 2 step in-neighbourhood rcc scores above one
     const priorityLink = <ILinkPriority> link;
-    const inEdges = this.trackedTopologyDuringQuery.getGraphDataStructure()[1];
+    priorityLink.priority = 0;
     const nodeToIndex = this.trackedTopologyDuringQuery.getNodeToIndex();
-    const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
-    const metadataParent = this.trackedTopologyDuringQuery.getMetaData(parent.url);
 
-    let priority = 0;
-
-    // Add parent rcc to new link
-    if (!metadataParent){
-      console.error(`Pushing link with parent that has unknown metadata: link: ${link.url}, parent link: ${parent.url}`);
-      throw new Error('Invalid parent url');
+    if (nodeToIndex[link.url]){
+      this.trackedTopologyDuringQuery.addPriorityToRecompute(nodeToIndex[link.url]);
     }
-
-    if (metadataParent['rcc'] > 0){
-      priority += 1;
-    }
-
-    // Add in neighbourhood of parent to to new link
-    for (const parentOfParent of inEdges[nodeToIndex[parent.url]]){
-      const metadataParentofParent = this.trackedTopologyDuringQuery.getMetaData(indexToNode[parentOfParent]);
-      if (!metadataParentofParent){
-        console.error(`Pushing link with parentOfParent that has unknown metadata: link: ${link.url}, parentOfParent link: ${indexToNode[parentOfParent]}`);
-        throw new Error('Invalid parentOfParent url');
-      }
-      if (metadataParentofParent['rcc'] > 0){
-        priority += 1;
-      }
-    }
-    priorityLink.priority = priority;
+    
     return super.push(priorityLink, parent);
   }
 
   public pop(): ILink | undefined {
-    // TODO: CHANGE THIS TO REL2
-    if (!this.linkQueue.isEmpty() && this.trackedTopologyDuringQuery.getChangedRccNodes().length > 0){
-      // Rcc changed for some nodes, so priorities will need to be recalculated
-      const rccNodeChanges = this.trackedTopologyDuringQuery.getChangedRccNodes();
-      const nodeToIndex = this.trackedTopologyDuringQuery.getNodeToIndex();
-      const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
-      const priorityQueueUrlToLink = this.linkQueue.urlToLink;
-      
-      for (const node in rccNodeChanges){
-        const rccDiff = rccNodeChanges[node];
-        const currentRcc = this.trackedTopologyDuringQuery.getMetaData(node)!['rcc'];
-        // If rcc > 0 for the first time
-        if (currentRcc - rccDiff == 0){
-          console.log(`Rcc increased to ${currentRcc} with diff ${rccDiff}`)
-          const indexNode = nodeToIndex[node];
-          const outgoingEdges = this.trackedTopologyDuringQuery.getGraphDataStructure()[0];
-          const outgoingEdgesNode = outgoingEdges[indexNode];
-
-          for (const indegreeNeighbour of outgoingEdgesNode){
-            const neighbourUrl = indexToNode[indegreeNeighbour];
-            // Shoddy workaround because priority queue implementation is lacking. 
-            // Should make a increasePriority and increasePriorityRaw function. Problem is current increasePriority
-            // requires the index of the link in the queue, and updatePriority requires overriding the value of priority,
-            // it cna't increase it
-            const linkInQueue = priorityQueueUrlToLink[neighbourUrl];
-            if (linkInQueue){
-              console.log("Actually increased a priority")
-              // Increase the priority of child nodes by one to reflect new node with rcc >= 1
-              this.linkQueue.updatePriority(neighbourUrl, linkInQueue.priority + 1)
-            }
-
-            // Update second degree neighbours
-            const outgoingEdgesNeighbour = outgoingEdges[indegreeNeighbour];
-            for (const indegreeSecondDegreeNeighbour of outgoingEdgesNeighbour){
-              const neighbourUrlSecondDegree = indexToNode[indegreeSecondDegreeNeighbour];
-              const linkInQueue = priorityQueueUrlToLink[neighbourUrlSecondDegree];
-
-              if (linkInQueue){
-                // Increase the priority of child nodes by the change in rcc score if node is yet to be dereferenced
-                this.linkQueue.updatePriority(neighbourUrlSecondDegree, linkInQueue.priority + 1)
-              }
-            }
-          }  
-        }
-      }
-      // After calculation we have updated priorities so we can empty the list of unaccounted for changes
-      this.trackedTopologyDuringQuery.resetChangedRccNodes()
+    const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeSecondDegree();
+    if (!super.isEmpty() && toRecompute.size > 0){
+      this.updatePrioritiesRel2()
     }
     const link = super.pop();
     return link;
+  }
+
+  public peek(){
+    const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeSecondDegree();
+    if (!super.isEmpty() && toRecompute.size > 0){
+      this.updatePrioritiesRel2()
+    }
+    return super.peek();
+  }
+
+
+  public updatePrioritiesRel2(){
+    const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeSecondDegree();
+    const incomingEdges = this.trackedTopologyDuringQuery.getGraphDataStructure()[1];
+    const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
+
+    for (const node of toRecompute){
+      const nodesVisited: Set<number> = new Set();
+      const incomingNodes = incomingEdges[node];
+      if (incomingNodes.length == 0){
+        continue;
+      }
+
+      let newPriority = 0;
+      for (const neighbourNode of incomingNodes){
+        if (!nodesVisited.has(neighbourNode)){
+          const neighbourMetadata = this.trackedTopologyDuringQuery.getMetaData(indexToNode[neighbourNode])!;
+          if (neighbourMetadata['rcc'] > 0){
+            newPriority += 1;
+          }
+          nodesVisited.add(neighbourNode);
+        }
+        for (const secondDegreeNeighbourNode of incomingEdges[neighbourNode]){
+          if (!nodesVisited.has(secondDegreeNeighbourNode)){
+            const secondDegreeNeighbourMetadata = this.trackedTopologyDuringQuery.getMetaData(indexToNode[secondDegreeNeighbourNode])!
+            if (secondDegreeNeighbourMetadata['rcc'] > 0){
+              newPriority += 1;
+            }
+            nodesVisited.add(secondDegreeNeighbourNode);  
+          }
+        }
+      }
+      this.linkQueue.updatePriority(indexToNode[node], newPriority);
+    }
+    this.trackedTopologyDuringQuery.resetPrioritiesToRecompute();
   }
 }

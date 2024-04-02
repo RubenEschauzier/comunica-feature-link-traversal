@@ -20,13 +20,18 @@ export class LinkQueueRcc2Prioritisation extends LinkQueueWrapper<LinkQueuePrior
 
   public push(link: ILink, parent: ILink): boolean {
     const priorityLink = <ILinkPriority> link;
-    priorityLink.priority = 0
+    priorityLink.priority = 0;
+    const nodeToIndex = this.trackedTopologyDuringQuery.getNodeToIndex();
+
+    if (nodeToIndex[link.url]){
+      this.trackedTopologyDuringQuery.addPriorityToRecompute(nodeToIndex[link.url]);
+    }
     
     return super.push(priorityLink, parent);
   }
 
   public pop(): ILink | undefined {
-    const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeFirstDegree();
+    const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeSecondDegree();
     if (!super.isEmpty() && toRecompute.size > 0){
       this.updatePrioritiesRcc2()
     }
@@ -35,7 +40,7 @@ export class LinkQueueRcc2Prioritisation extends LinkQueueWrapper<LinkQueuePrior
   }
 
   public peek(){
-    const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeFirstDegree();
+    const toRecompute = this.trackedTopologyDuringQuery.getPrioritiesToRecomputeSecondDegree();
     if (!super.isEmpty() && toRecompute.size > 0){
       this.updatePrioritiesRcc2()
     }
@@ -49,14 +54,25 @@ export class LinkQueueRcc2Prioritisation extends LinkQueueWrapper<LinkQueuePrior
     const indexToNode = this.trackedTopologyDuringQuery.getIndexToNode();
 
     for (const node of toRecompute){
+      const nodesVisited: Set<number> = new Set();
       const incomingNodes = incomingEdges[node];
+      if (incomingNodes.length == 0){
+        continue;
+      }
+
       let newPriority = 0;
       for (const neighbourNode of incomingNodes){
-        const neighbourMetadata = this.trackedTopologyDuringQuery.getMetaData(indexToNode[neighbourNode])!;
-        newPriority += neighbourMetadata['rcc'];
+        if (!nodesVisited.has(neighbourNode)){
+          const neighbourMetadata = this.trackedTopologyDuringQuery.getMetaData(indexToNode[neighbourNode])!;
+          newPriority += neighbourMetadata['rcc'];  
+          nodesVisited.add(neighbourNode);
+        }
         for (const secondDegreeNeighbourNode of incomingEdges[neighbourNode]){
-          const secondDegreeNeighbourMetadata = this.trackedTopologyDuringQuery.getMetaData(indexToNode[secondDegreeNeighbourNode])!
-          newPriority += secondDegreeNeighbourMetadata['rcc'];
+          if (!nodesVisited.has(secondDegreeNeighbourNode)){
+            const secondDegreeNeighbourMetadata = this.trackedTopologyDuringQuery.getMetaData(indexToNode[secondDegreeNeighbourNode])!
+            newPriority += secondDegreeNeighbourMetadata['rcc'];
+            nodesVisited.add(secondDegreeNeighbourNode);  
+          }
         }
       }
       this.linkQueue.updatePriority(indexToNode[node], newPriority);

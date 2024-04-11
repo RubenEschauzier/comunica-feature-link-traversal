@@ -124,7 +124,6 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     query: QueryFormatTypeInner,
     context?: QueryFormatTypeInner extends string ? QueryStringContextInner : QueryAlgebraContextInner,
   ): Promise<QueryType> {
-    console.log(context)
     const output = await this.queryOrExplain(query, context);
     if ('explain' in output) {
       throw new Error(`Tried to explain a query when in query-only mode`);
@@ -290,7 +289,9 @@ implements IQueryEngine<QueryContext, QueryStringContextInner, QueryAlgebraConte
     });
     output.context = actionContext;
     const finalOutput = QueryEngineBase.internalToFinalResult(output);
- 
+    if (finalOutput.resultType == 'bindings'){
+      console.log(await (await finalOutput.execute()).toArray())
+    }
     // Output physical query plan after query exec if needed
     if (physicalQueryPlanLogger) {
       // Make sure the whole result is produced

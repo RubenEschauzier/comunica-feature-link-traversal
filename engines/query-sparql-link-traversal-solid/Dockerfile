@@ -11,6 +11,7 @@ COPY engine-default.js package.json ${dir}
 
 # Set the npm registry
 ARG NPM_REGISTRY=https://registry.npmjs.org/
+RUN echo $NPM_REGISTRY
 RUN npm config set @comunica:registry $NPM_REGISTRY
 
 # Install the node module

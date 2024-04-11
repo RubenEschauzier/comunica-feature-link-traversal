@@ -523,7 +523,6 @@ export class HttpServiceSparqlEndpoint {
               const binding = JSON.parse(chunk)
               binding["_trackedTopology"] = { value: JSON.stringify(topology), type: 'literal'};
               this.push( JSON.stringify(binding) );
-
             }
             catch{
               this.push( chunk.toString() );

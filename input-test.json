@@ -1,0 +1,5 @@
+{
+    "@comunica/bus-rdf-resolve-hypermedia-links:annotateSources": "graph", 
+    "constructTopology": true,
+    "unionDefaultGraph": true
+}

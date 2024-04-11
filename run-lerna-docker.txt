@@ -1,0 +1,1 @@
+lerna-docker comunica build test /home/reschauz/projects/comunica-binding-context-pr-with-source-attribution/

@@ -4,7 +4,10 @@
   "repository": "https://github.com/comunica/comunica-feature-link-traversal/",
   "workspaces": [
     "engines/*",
-    "packages/*"
+    "packages/*",
+    "../comunica-binding-context-pr-with-source-attribution/engines/*",
+    "../comunica-binding-context-pr-with-source-attribution/packages/*"
+
   ],
   "scripts": {
     "test-changed": "lerna run test --since HEAD",

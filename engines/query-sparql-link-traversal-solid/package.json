@@ -55,6 +55,7 @@
   },
   "dependencies": {
     "@comunica/actor-context-preprocess-set-defaults-link-traversal": "^0.5.0",
+    "@comunica/actor-context-preprocess-set-topology-tracking": "^0.5.0",
     "@comunica/actor-extract-links-all": "^0.5.0",
     "@comunica/actor-extract-links-content-policies": "^0.5.0",
     "@comunica/actor-extract-links-headers": "^0.5.0",

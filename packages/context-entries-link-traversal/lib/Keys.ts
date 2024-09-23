@@ -1,5 +1,6 @@
 import { ActionContextKey } from '@comunica/core';
-import type { IDataDestination } from '@comunica/types';
+import type { ITopologyUpdate } from '@comunica/statistic-traversal-topology';
+import type { IDataDestination, IStatisticBase } from '@comunica/types';
 import type { AnnotateSourcesType } from '@comunica/types-link-traversal';
 
 /**
@@ -32,4 +33,9 @@ export const KeysRdfJoin = {
    * If adaptive joining must not be done.
    */
   skipAdaptiveJoin: new ActionContextKey<IDataDestination>('@comunica/bus-rdf-join:skipAdaptiveJoin'),
+};
+
+export const KeysStatisticsTraversal = {
+  traversalTopology: new ActionContextKey<IStatisticBase<ITopologyUpdate>>
+  ('@comunica/statistic-traversal-topology:Tracked'),
 };

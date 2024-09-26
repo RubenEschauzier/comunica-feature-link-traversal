@@ -38,4 +38,5 @@ export const KeysRdfJoin = {
 export const KeysStatisticsTraversal = {
   traversalTopology: new ActionContextKey<IStatisticBase<ITopologyUpdate>>
   ('@comunica/statistic-traversal-topology:Tracked'),
+  writeToFile: new ActionContextKey<IStatisticBase<any>>('@comunica/statistic-write-to-file:Writer')
 };

@@ -56,6 +56,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
       const result = this.addEdge(child, parent);
       if (result) {
         this.emit({
+          updateType: update.type,
           adjacencyList: this.adjacencyList,
           traversalorder: this.traversalOrder,
           edges: this.edges,
@@ -67,6 +68,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
       const result = this.setDereferenced(update.data);
       if (result) {
         this.emit({
+          updateType: update.type,
           adjacencyList: this.adjacencyList,
           traversalorder: this.traversalOrder,
           edges: this.edges,
@@ -157,6 +159,10 @@ export type IDataTopologyUpdate = {
 };
 
 export interface ITopologyUpdate {
+  /**
+   * What type of update happened to the topology
+   */
+  updateType: 'discover' | 'dereference';
   /**
    * Main data structure showing the graph connections
    */

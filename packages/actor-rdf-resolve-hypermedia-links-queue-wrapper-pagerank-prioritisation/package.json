@@ -1,0 +1,44 @@
+{
+  "name": "@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-pagerank-prioritisation",
+  "version": "0.6.0",
+  "description": "A wrapper-pagerank-prioritisation rdf-resolve-hypermedia-links-queue actor",
+  "lsd:module": true,
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/comunica/comunica.git",
+    "directory": "packages/actor-rdf-resolve-hypermedia-links-queue-wrapper-pagerank-prioritisation"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "keywords": [
+    "comunica",
+    "actor",
+    "rdf-resolve-hypermedia-links-queue",
+    "wrapper-pagerank-prioritisation"
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/comunica/comunica/issues"
+  },
+  "homepage": "https://comunica.dev/",
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "dependencies": {
+    "@comunica/bus-rdf-resolve-hypermedia-links-queue": "^4.0.1",
+    "@comunica/core": "^4.0.1",
+    "pagerank-js": "^0.3.0"
+  },
+  "scripts": {
+    "build": "npm run build:ts && npm run build:components",
+    "build:ts": "node \"../../node_modules/typescript/bin/tsc\"",
+    "build:components": "componentsjs-generator"
+  }
+}

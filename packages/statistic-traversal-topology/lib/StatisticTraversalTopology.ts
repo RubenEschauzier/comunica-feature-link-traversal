@@ -40,6 +40,8 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     this.nodeToIndexDict = {};
     this.indexToNodeDict = {};
 
+    this.openNodes = [];
+
     statisticLinkDereference.on((data: ILink) => {
       this.updateStatistic({
         type: 'dereference',
@@ -66,13 +68,18 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
       };
       const result = this.addEdge(child, parent);
       if (result) {
+        if (Object.keys(this.nodeToIndexDict).length === 0){
+          console.log("ITS SUDDENLY GONE")
+        }
         this.emit({
           updateType: update.type,
           adjacencyListIn: this.adjacencyListIn,
           adjacencyListOut: this.adjacencyListOut,
           openNodes: this.openNodes,
           nodeToIndexDict: this.nodeToIndexDict,
-          indexToNodeDict: this.indexToNodeDict
+          indexToNodeDict: this.indexToNodeDict,
+          childNode: this.nodeToIndexDict[child.url],
+          parentNode: this.nodeToIndexDict[parent.url]
         });
       }
     } else if (update.type === 'dereference') {
@@ -84,7 +91,9 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
           adjacencyListOut: this.adjacencyListOut,
           openNodes: this.openNodes,
           nodeToIndexDict: this.nodeToIndexDict,
-          indexToNodeDict: this.indexToNodeDict
+          indexToNodeDict: this.indexToNodeDict,
+          childNode: this.nodeToIndexDict[update.data.url],
+          parentNode: this.nodeToIndexDict[update.data.url]
         });
       }
     } else {
@@ -111,9 +120,18 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenceOrder: -1,
       };
     }
+    // Whether the child node is new
+    let newNode: boolean = true;
+    if (this.nodeToIndexDict[child.url]){
+      newNode = false;
+    }
     const childId = this.nodeToId(child.url);
     const parentId = this.nodeToId(parent.url);
 
+    // If new node we add it as an open node
+    if (newNode){
+      this.openNodes.push(childId);
+    }
     // Also set reverse dictionary
     this.indexToNodeDict[childId] = child.url;
     this.indexToNodeDict[parentId] = parent.url;
@@ -201,6 +219,14 @@ export interface ITopologyUpdate {
    * Reverse mapping dict
    */
   indexToNodeDict: Record<number, string>;
+  /**
+   * Child node of new update (for dereference this is just the dereferenced node)
+   */
+  childNode: number;
+  /**
+   * Parent node of new update (for dereference this is just the dereferenced node)
+   */
+  parentNode: number;
 }
 
 export interface INodeMetadata {

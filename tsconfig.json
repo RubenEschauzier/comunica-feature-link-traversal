@@ -8,7 +8,7 @@
     ],
     "module": "commonjs",
     "resolveJsonModule": true,
-
+    "skipLibCheck": true, 
     "strict": true,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": false,

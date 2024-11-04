@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import type {
   IActionRdfResolveHypermediaLinksQueue,
   IActorRdfResolveHypermediaLinksQueueOutput,
+  MediatorRdfResolveHypermediaLinksQueue,
 } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import type { Actor, IActorArgs, IActorTest, Mediator, TestResult } from '@comunica/core';
@@ -14,9 +15,7 @@ import { LinkQueuePriorityOracle } from './LinkQueuePriorityOracle';
  */
 export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle extends
   ActorRdfResolveHypermediaLinksQueue {
-  private readonly mediatorRdfResolveHypermediaLinksQueue: Mediator<
-  Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
-  IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
+  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle) {
     super(args);
@@ -49,10 +48,8 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle exte
 
 export interface IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
-  mediatorRdfResolveHypermediaLinksQueue: Mediator<
-  Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
-  IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
-}
+    mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
+  }
 
 export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
   '@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-limit-count:wrapped',

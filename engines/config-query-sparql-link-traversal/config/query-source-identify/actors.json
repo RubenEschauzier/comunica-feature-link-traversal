@@ -4,7 +4,6 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/query-source-identify/actors/hypermedia.json",
     "ccqs:config/query-source-identify/actors/rdfjs.json",
     "ccqs:config/query-source-identify/actors/serialized.json"
   ]

@@ -7,7 +7,7 @@ const pagerank = require('pagerank-js');
 /**
  * A link queue that changes priorities based on indegree of nodes.
  */
-export class LinkQueuePagerankPrioritisation extends LinkQueueWrapper {
+export class LinkQueuePagerankPrioritisation extends LinkQueueWrapper<LinkQueuePriority> {
   // The object that tracks topology during query execution
   public adjacencyListIn: Record<number, number[]>;
   public adjacencyListOut: Record<number, number[]>;
@@ -72,7 +72,7 @@ export class LinkQueuePagerankPrioritisation extends LinkQueueWrapper {
           urlToPriority[this.indexToNode[i]] = rankings.probabilityNodes[i];
       }
 
-      this.linkQueue.updateAllPriority(urlToPriority);
+      this.linkQueue.setAllPriority(urlToPriority);
     }
   }
 

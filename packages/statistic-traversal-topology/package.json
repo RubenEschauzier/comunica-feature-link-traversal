@@ -1,7 +1,7 @@
 {
   "name": "@comunica/statistic-traversal-topology",
   "version": "0.6.0",
-  "description": "Comunica package that defines the statistic tracking dereference events",
+  "description": "Comunica package that defines the statistic tracking traversed topology during link traversal",
   "license": "MIT",
   "homepage": "https://comunica.dev/",
   "repository": {
@@ -15,7 +15,7 @@
   "keywords": [
     "comunica",
     "statistic",
-    "link dereference"
+    "traversal topology"
   ],
   "sideEffects": false,
   "main": "lib/index.js",

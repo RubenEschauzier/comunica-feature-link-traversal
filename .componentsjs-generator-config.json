@@ -3,7 +3,8 @@
   "ignorePackagePaths": [
     "engines/query-sparql-link-traversal",
     "engines/query-sparql-link-traversal-solid",
-    "packages/context-entries-link-traversal"
+    "packages/context-entries-link-traversal",
+    "packages/statistic-traversal-topology"
   ],
   "ignoreComponents": [
     "Headers",
@@ -12,7 +13,15 @@
     "ContentPolicy",
     "BindingsStreamAdaptiveDestroy",
     "MetadataValidationState",
-    "ILink"
+    "ILink",
+    "StatisticTraversalTopology",
+    "StatisticTraversalTopologyRcc",
+    "LinkQueueRcc1Prioritization",
+    "LinkQueueRcc2Prioritization",
+    "LinkQueueRel1Prioritization",
+    "LinkQueueRel2Prioritization",
+
+    "lru-cache"
   ],
   "modulePrefix": {}
 }

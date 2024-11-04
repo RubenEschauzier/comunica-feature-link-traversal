@@ -1,13 +1,12 @@
 import type { ILinkQueue, ILink } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { ActionContext } from '@comunica/core';
 import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 import { ITopologyUpdate, StatisticTraversalTopology } from '../../statistic-traversal-topology/lib';
 
 /**
  * A link queue that changes priorities based on indegree of nodes.
  */
-export class LinkQueueIndegreePrioritisation extends LinkQueueWrapper{
+export class LinkQueueIndegreePrioritisation extends LinkQueueWrapper<LinkQueuePriority>{
   public topologyStatistic: StatisticTraversalTopology;
 
   public adjacencyListIn: Record<number, number[]> = {};
@@ -54,7 +53,7 @@ export class LinkQueueIndegreePrioritisation extends LinkQueueWrapper{
 
     // Iterate over keys
     for (const nodeId in newIndegrees){
-        this.linkQueue.updatePriority(this.indexToNode[nodeId], newIndegrees[nodeId]);
+        this.linkQueue.setPriority(this.indexToNode[nodeId], newIndegrees[nodeId]);
     }
 
     this.updated = false;

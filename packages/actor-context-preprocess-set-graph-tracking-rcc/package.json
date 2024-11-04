@@ -1,0 +1,48 @@
+{
+  "name": "@comunica/actor-context-preprocess-set-graph-tracking-rcc",
+  "version": "0.6.0",
+  "description": "A set-graph-tracking-rcc context-preprocess actor",
+  "lsd:module": true,
+  "license": "MIT",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/comunica-association"
+  },
+  "homepage": "https://comunica.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/comunica/comunica-feature-link-traversal.git",
+    "directory": "packages/actor-context-preprocess-set-graph-tracking-rcc"
+  },
+  "bugs": {
+    "url": "https://github.com/comunica/comunica-feature-link-traversal/issues"
+  },
+  "keywords": [
+    "comunica",
+    "actor",
+    "context-preprocess",
+    "set-graph-tracking"
+  ],
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "scripts": {
+    "build": "yarn run build:ts && yarn run build:components",
+    "build:ts": "node \"../../node_modules/typescript/bin/tsc\"",
+    "build:components": "componentsjs-generator"
+  },
+  "dependencies": {
+    "@comunica/bus-context-preprocess": "^4.0.2",
+    "@comunica/context-entries": "^4.0.2",
+    "@comunica/core": "^4.0.2"
+  }
+}

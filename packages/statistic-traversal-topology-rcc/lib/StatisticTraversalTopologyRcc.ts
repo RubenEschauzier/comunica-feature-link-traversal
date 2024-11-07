@@ -1,13 +1,15 @@
+import { KeysMergeBindingsContext } from '@comunica/context-entries';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { ActionContextKey } from '@comunica/core';
 import { StatisticBase } from '@comunica/statistic-base';
-import { Bindings } from '@comunica/utils-bindings-factory';
-import type { IStatisticBase, PartialResult } from '@comunica/types';
-// import { Bindings } from '@comunica/utils-bindings-factory';
-import { ITopologyUpdate, StatisticTraversalTopology } from '@comunica/statistic-traversal-topology';
-import { StatisticIntermediateResults } from '@comunica/statistic-intermediate-results';
-import { KeysMergeBindingsContext } from '@comunica/context-entries';
+import type { StatisticIntermediateResults } from '@comunica/statistic-intermediate-results';
+import type { ITopologyUpdate, StatisticTraversalTopology } from '@comunica/statistic-traversal-topology';
+import type { IStatisticBase, LogicalJoinType, PartialResult } from '@comunica/types';
+import type { Bindings } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
+import { types } from 'sparqlalgebrajs/lib/algebra';
+
+// Import { Bindings } from '@comunica/utils-bindings-factory';
 
 export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateRccEmit> {
   public key: ActionContextKey<IStatisticBase<TopologyUpdateRccEmit>>;
@@ -20,50 +22,57 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
 
   public constructor(
     statisticTraversalTopology: StatisticTraversalTopology,
-    statisticIntermediateResults: StatisticIntermediateResults
+    statisticIntermediateResults: StatisticIntermediateResults,
   ) {
     super();
     this.key = KeysStatisticsTraversal.traversalTopologyRcc;
 
     // Dereference events on the topology are not interesting
     statisticTraversalTopology.on((data: ITopologyUpdate) => {
-      if (data.updateType === 'discover'){
-        const {updateType, ...topologyData} = data;
+      if (data.updateType === 'discover') {
+        const { updateType, ...topologyData } = data;
         this.updateStatistic({
-          updateType: "discover",
-          ...topologyData
-        });  
+          updateType: 'discover',
+          ...topologyData,
+        });
       }
     });
     // Currently only works for bindings
     statisticIntermediateResults.on((data: PartialResult) => {
-      if (data.type === 'bindings'){
+      if (data.type === 'bindings' &&
+        (data.metadata.operation === types.PROJECT 
+          || data.metadata.operation === types.DISTINCT 
+          || data.metadata.operation === 'inner')
+      ) {
+        // console.log(`Updating statistic with: ${data.metadata.operation}`)
+        // console.log('updating statistic on project or distinct output');
         this.updateStatistic({
-          updateType: "result",
-          binding: <Bindings> data.data
-        })
+          updateType: 'result',
+          resultType: data.metadata.operation,
+          binding: <Bindings> data.data,
+        });
       }
     });
   }
 
   public updateStatistic(update: ITopologyUpdate | IResultUpdate): boolean {
-    if (update.updateType === 'discover'){
-      const { updateType, ...topologyData} = update
+    if (update.updateType === 'discover') {
+      const { updateType, ...topologyData } = update;
       this.nodeToIndexDict = topologyData.nodeToIndexDict;
-      // Add this node and its result contribution if its new
-      if (!this.nodeResultContribution[update.childNode]){
-        this.nodeResultContribution[update.childNode] = 0;
-      }
+      // If any of the updated nodes don't have a nodeResultContribution, set to 0
+      this.nodeResultContribution[update.childNode] ??= 0;
+      this.nodeResultContribution[update.parentNode] ??= 0;
+
       // Discover event emits the underlying topology
       this.emit({
-        updateType: "discover",
+        updateType: 'discover',
         ...topologyData,
-        nodeResultContribution: this.nodeResultContribution
+        nodeResultContribution: this.nodeResultContribution,
       });
       return true;
     }
 
-    if (update.updateType === 'result'){
+    if (update.updateType === 'result') {
       const sources = update.binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream)!;
       const sourceQuadsProcessed = new Set();
       // Sources are streams of provenance quads (including possible duplicates)
@@ -71,15 +80,15 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
         // Provenance is on object
         const prov = data.object.value;
         // Filter duplicates
-        if(!sourceQuadsProcessed.has(prov)){
+        if (!sourceQuadsProcessed.has(prov)) {
           sourceQuadsProcessed.add(prov);
           const sourceId = this.nodeToIndexDict[prov];
           this.nodeResultContribution[sourceId]++;
           this.emit({
-            updateType: "result",
+            updateType: 'result',
             changedNode: sourceId,
-            nodeResultContribution: this.nodeResultContribution
-          })
+            nodeResultContribution: this.nodeResultContribution,
+          });
         }
       });
     }
@@ -87,23 +96,23 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
   }
 }
 
-
-export interface ITopologyUpdateRccUpdate extends Omit<ITopologyUpdate, "updateType"> {
-  updateType: "discover",
-  nodeResultContribution: Record<number, number>
+export interface ITopologyUpdateRccUpdate extends Omit<ITopologyUpdate, 'updateType'> {
+  updateType: 'discover';
+  nodeResultContribution: Record<number, number>;
 }
 
-export interface ITopologyUpdateRccResult{
-  updateType: "result";
+export interface ITopologyUpdateRccResult {
+  updateType: 'result';
   changedNode: number;
   nodeResultContribution: Record<number, number>;
 }
 
-export type TopologyUpdateRccEmit = 
+export type TopologyUpdateRccEmit =
   ITopologyUpdateRccUpdate | ITopologyUpdateRccResult;
 
 export interface IResultUpdate {
-  updateType: "result";
+  updateType: 'result';
+  resultType: LogicalJoinType | types;
   binding: Bindings;
 }
 

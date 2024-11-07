@@ -68,9 +68,6 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
       };
       const result = this.addEdge(child, parent);
       if (result) {
-        if (Object.keys(this.nodeToIndexDict).length === 0){
-          console.log("ITS SUDDENLY GONE")
-        }
         this.emit({
           updateType: update.type,
           adjacencyListIn: this.adjacencyListIn,
@@ -79,7 +76,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
           nodeToIndexDict: this.nodeToIndexDict,
           indexToNodeDict: this.indexToNodeDict,
           childNode: this.nodeToIndexDict[child.url],
-          parentNode: this.nodeToIndexDict[parent.url]
+          parentNode: this.nodeToIndexDict[parent.url],
         });
       }
     } else if (update.type === 'dereference') {
@@ -93,7 +90,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
           nodeToIndexDict: this.nodeToIndexDict,
           indexToNodeDict: this.indexToNodeDict,
           childNode: this.nodeToIndexDict[update.data.url],
-          parentNode: this.nodeToIndexDict[update.data.url]
+          parentNode: this.nodeToIndexDict[update.data.url],
         });
       }
     } else {
@@ -121,15 +118,15 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
       };
     }
     // Whether the child node is new
-    let newNode: boolean = true;
-    if (this.nodeToIndexDict[child.url]){
+    let newNode = true;
+    if (this.nodeToIndexDict[child.url]) {
       newNode = false;
     }
     const childId = this.nodeToId(child.url);
     const parentId = this.nodeToId(parent.url);
 
     // If new node we add it as an open node
-    if (newNode){
+    if (newNode) {
       this.openNodes.push(childId);
     }
     // Also set reverse dictionary
@@ -147,9 +144,8 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
 
     // Add to in adj list
     this.adjacencyListIn[childId] = this.adjacencyListIn[childId] ?
-    [ ...this.adjacencyListIn[childId], parentId ] :
-    [ parentId ];
-
+        [ ...this.adjacencyListIn[childId], parentId ] :
+        [ parentId ];
 
     // Add to edges
     this.edges.add(JSON.stringify([ parentId, childId ]));
@@ -174,7 +170,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
   private setDereferenced(link: ILink): boolean {
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
     // Remove dereferenced node from open nodes (TODO check correct implementation)
-    this.openNodes = this.openNodes.filter((val) => val != this.nodeToId(link.url));
+    this.openNodes = this.openNodes.filter(val => val != this.nodeToId(link.url));
     return true;
   }
 
@@ -204,10 +200,10 @@ export interface ITopologyUpdate {
    */
   adjacencyListIn: Record<number, number[]>;
   /**
- * Main data structure showing the graph connections
- */
+   * Main data structure showing the graph connections
+   */
   adjacencyListOut: Record<number, number[]>;
-  /** 
+  /**
    * What nodes haven't been dereferenced yet
    */
   openNodes: number[];

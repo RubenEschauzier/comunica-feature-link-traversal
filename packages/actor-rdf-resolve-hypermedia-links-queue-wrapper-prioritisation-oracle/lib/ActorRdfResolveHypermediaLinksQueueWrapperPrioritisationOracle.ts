@@ -1,12 +1,12 @@
 // eslint-disable-next-line import/no-nodejs-modules
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import type {
   IActionRdfResolveHypermediaLinksQueue,
   IActorRdfResolveHypermediaLinksQueueOutput,
   MediatorRdfResolveHypermediaLinksQueue,
 } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import type { Actor, IActorArgs, IActorTest, Mediator, TestResult } from '@comunica/core';
+import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import { LinkQueuePriorityOracle } from './LinkQueuePriorityOracle';
 
@@ -15,7 +15,7 @@ import { LinkQueuePriorityOracle } from './LinkQueuePriorityOracle';
  */
 export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle extends
   ActorRdfResolveHypermediaLinksQueue {
-  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue
+  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle) {
     super(args);
@@ -36,7 +36,7 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle exte
     }
     return passTestVoid();
   }
-  
+
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
@@ -48,8 +48,8 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle exte
 
 export interface IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
-    mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
-  }
+  mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
+}
 
 export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
   '@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-limit-count:wrapped',

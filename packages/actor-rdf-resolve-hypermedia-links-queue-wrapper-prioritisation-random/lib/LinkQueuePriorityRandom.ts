@@ -10,7 +10,7 @@ export class LinkQueuePriorityRandom extends LinkQueueWrapper {
   }
 
   public override push(link: ILink, parent: ILink): boolean {
-    link.metadata = {...link.metadata, priority: this.randomInt(0, 10) };
+    link.metadata = { ...link.metadata, priority: this.randomInt(0, 10) };
     return super.push(link, parent);
   }
 
@@ -18,4 +18,3 @@ export class LinkQueuePriorityRandom extends LinkQueueWrapper {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 }
-

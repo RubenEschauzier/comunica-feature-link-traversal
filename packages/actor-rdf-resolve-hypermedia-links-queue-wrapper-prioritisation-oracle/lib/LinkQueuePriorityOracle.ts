@@ -14,8 +14,8 @@ export class LinkQueuePriorityOracle extends LinkQueueWrapper {
 
   public override push(link: ILink, parent: ILink): boolean {
     link.metadata = {
-      ...link.metadata, 
-      priority: this.RccScores[link.url] === undefined ? 0 : this.RccScores[link.url]
+      ...link.metadata,
+      priority: this.RccScores[link.url] === undefined ? 0 : this.RccScores[link.url],
     };
 
     return super.push(link, parent);

@@ -21,9 +21,8 @@ export class LinkQueuePriorityBreadthFirst extends LinkQueueWrapper {
       this.linksPreviouslyAdded[parent.url] - 1;
     this.linksPreviouslyAdded[link.url] = priority;
 
-    link.metadata = {...link.metadata, priority: priority}
+    link.metadata = { ...link.metadata, priority };
 
     return super.push(link, parent);
   }
 }
-

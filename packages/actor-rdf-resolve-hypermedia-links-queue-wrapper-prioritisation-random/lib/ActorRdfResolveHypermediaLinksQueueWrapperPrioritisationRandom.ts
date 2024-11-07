@@ -4,7 +4,7 @@ import type {
   MediatorRdfResolveHypermediaLinksQueue,
 } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import type { Actor, IActorArgs, IActorTest, Mediator, TestResult } from '@comunica/core';
+import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import { LinkQueuePriorityRandom } from './LinkQueuePriorityRandom';
 
@@ -13,7 +13,7 @@ import { LinkQueuePriorityRandom } from './LinkQueuePriorityRandom';
  */
 export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationRandom extends
   ActorRdfResolveHypermediaLinksQueue {
-  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue
+  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationRandom) {
     super(args);
@@ -25,7 +25,7 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationRandom exte
     }
     return passTestVoid();
   }
-  
+
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
@@ -35,8 +35,8 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationRandom exte
 
 export interface IActorRdfResolveHypermediaLinksQueueWrapperPrioritisationRandom
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
-    mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
-  }
+  mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
+}
 
 export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
   '@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-limit-count:wrapped',

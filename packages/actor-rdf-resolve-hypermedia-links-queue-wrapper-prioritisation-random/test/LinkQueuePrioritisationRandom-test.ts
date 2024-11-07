@@ -16,7 +16,7 @@ describe('LinkQueueLimitCount', () => {
     it('invokes the inner queue', () => {
       const randomIntMock = jest.spyOn(queue, 'randomInt').mockReturnValue(5);
       expect(queue.push({ url: 'a' }, { url: 'parent' })).toBeTruthy();
-      expect(inner.push).toHaveBeenCalledWith({ url: 'a', metadata: {priority: 5} }, { url: 'parent' });
+      expect(inner.push).toHaveBeenCalledWith({ url: 'a', metadata: { priority: 5 }}, { url: 'parent' });
     });
   });
 });

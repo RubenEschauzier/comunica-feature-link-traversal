@@ -1,2 +1,2 @@
 export * from './ActorRdfResolveHypermediaLinksQueueWrapperPagerankPrioritisation';
-export * from './LinkQueuePagerankPrioritisation'
+export * from './LinkQueuePagerankPrioritisation';

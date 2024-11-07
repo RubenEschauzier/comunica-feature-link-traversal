@@ -1,8 +1,8 @@
 import { ActionContextKey } from '@comunica/core';
+import type { ITopologyUpdate } from '@comunica/statistic-traversal-topology';
+import type { TopologyUpdateRccEmit } from '@comunica/statistic-traversal-topology-rcc';
+import type { IStatisticBase } from '@comunica/types';
 import type { AnnotateSourcesType } from '@comunica/types-link-traversal';
-import { ITopologyUpdate } from '@comunica/statistic-traversal-topology';
-import { IStatisticBase } from '@comunica/types';
-import { ITopologyUpdateRccUpdate, TopologyUpdateRccEmit } from '@comunica/statistic-traversal-topology-rcc';
 
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
@@ -36,12 +36,11 @@ export const KeysRdfJoin = {
   skipAdaptiveJoin: new ActionContextKey<boolean>('@comunica/bus-rdf-join:skipAdaptiveJoin'),
 };
 
-
 export const KeysStatisticsTraversal = {
   traversalTopology: new ActionContextKey<IStatisticBase<ITopologyUpdate>>
   ('@comunica/statistic-traversal-topology:Tracked'),
   traversalTopologyRcc: new ActionContextKey<IStatisticBase<TopologyUpdateRccEmit>>
   ('@comunica/statistic-traversal-topology-rcc:Tracked'),
 
-  writeToFile: new ActionContextKey<IStatisticBase<any>>('@comunica/statistic-write-to-file:Writer')
+  writeToFile: new ActionContextKey<IStatisticBase<any>>('@comunica/statistic-write-to-file:Writer'),
 };

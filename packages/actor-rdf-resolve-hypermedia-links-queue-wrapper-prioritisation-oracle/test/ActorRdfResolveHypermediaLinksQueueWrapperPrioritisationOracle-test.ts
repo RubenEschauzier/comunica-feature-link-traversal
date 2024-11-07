@@ -20,7 +20,10 @@ describe('ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle', () =>
     let actor: ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle;
     let mediatorRdfResolveHypermediaLinksQueue: Mediator<
     Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
-    IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
+    IActionRdfResolveHypermediaLinksQueue,
+IActorTest,
+IActorRdfResolveHypermediaLinksQueueOutput
+>;
 
     beforeEach(() => {
       mediatorRdfResolveHypermediaLinksQueue = <any> {
@@ -41,12 +44,12 @@ describe('ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationOracle', () =>
         context: new ActionContext({
           [KEY_CONTEXT_WRAPPED.name]: true,
         }),
-      })).rejects.toThrowError('Unable to wrap link queues multiple times');
+      })).rejects.toThrow('Unable to wrap link queues multiple times');
     });
 
     it('should run', async() => {
-      expect(await actor.run({ firstUrl: 'first', context: new ActionContext() })).toMatchObject({
-        linkQueue: new LinkQueuePriorityOracle(<any> 'inner', {'url': 5}),
+      await expect(actor.run({ firstUrl: 'first', context: new ActionContext() })).resolves.toMatchObject({
+        linkQueue: new LinkQueuePriorityOracle(<any> 'inner', { url: 5 }),
       });
       expect(mediatorRdfResolveHypermediaLinksQueue.mediate).toHaveBeenCalledWith({
         firstUrl: 'first',

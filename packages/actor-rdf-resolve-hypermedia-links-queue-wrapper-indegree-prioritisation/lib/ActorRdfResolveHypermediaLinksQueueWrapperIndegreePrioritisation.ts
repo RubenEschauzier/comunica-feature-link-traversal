@@ -1,15 +1,17 @@
-import { ActorRdfResolveHypermediaLinksQueue, IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, IActorRdfResolveHypermediaLinksQueueArgs, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { ActionContextKey, Actor, failTest, IActorArgs, IActorTest, Mediator, passTestVoid, TestResult } from '@comunica/core';
-import { LinkQueueIndegreePrioritisation } from './LinkQueueIndegreePrioritisation';
-import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
-import { StatisticTraversalTopology } from '@comunica/statistic-traversal-topology/lib';
+import type { IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
+import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
+import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
+import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
+import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
+import type { StatisticTraversalTopology } from '@comunica/statistic-traversal-topology/lib';
+import { LinkQueueIndegreePrioritisation } from './LinkQueueIndegreePrioritisation';
 
 /**
  * A comunica Wrapper Indegree Prioritisation RDF Resolve Hypermedia Links Queue Actor.
  */
 export class ActorRdfResolveHypermediaLinksQueueWrapperIndegreePrioritisation extends ActorRdfResolveHypermediaLinksQueue {
-  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue
+  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperIndegreePrioritisationArgs) {
     super(args);
@@ -22,19 +24,18 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperIndegreePrioritisation ex
     return passTestVoid();
   }
 
-
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
-    
+
     const topologyStatistic: StatisticTraversalTopology = <StatisticTraversalTopology>
       action.context.getSafe(
-      KeysStatisticsTraversal.traversalTopology
-    );
+        KeysStatisticsTraversal.traversalTopology,
+      );
 
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
 
-    if (! (linkQueue instanceof LinkQueuePriority)){
-      throw new Error("Tried to wrap a non-priority queue with a link prioritisation wrapper.")
+    if (!(linkQueue instanceof LinkQueuePriority)) {
+      throw new TypeError('Tried to wrap a non-priority queue with a link prioritisation wrapper.');
     }
     return { linkQueue: new LinkQueueIndegreePrioritisation(linkQueue, topologyStatistic) };
   }
@@ -46,6 +47,5 @@ export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
 
 export interface IActorRdfResolveHypermediaLinksQueueWrapperIndegreePrioritisationArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
-    mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
-  }
-
+  mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
+}

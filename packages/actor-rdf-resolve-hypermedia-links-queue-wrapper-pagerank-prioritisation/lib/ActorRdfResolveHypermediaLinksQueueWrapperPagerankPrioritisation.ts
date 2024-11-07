@@ -1,16 +1,17 @@
-import { ActorRdfResolveHypermediaLinksQueue, IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, IActorRdfResolveHypermediaLinksQueueArgs, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { failTest, IActorArgs, IActorTest, passTestVoid, TestResult } from '@comunica/core';
-import { ActionContext, ActionContextKey, Actor, Mediator } from '@comunica/core';
 import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
-import { LinkQueuePagerankPrioritisation } from './LinkQueuePagerankPrioritisation';
+import type { IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
+import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
-import { StatisticTraversalTopology } from '@comunica/statistic-traversal-topology/lib';
+import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
+import { failTest, passTestVoid, ActionContextKey } from '@comunica/core';
+import type { StatisticTraversalTopology } from '@comunica/statistic-traversal-topology/lib';
+import { LinkQueuePagerankPrioritisation } from './LinkQueuePagerankPrioritisation';
 
 /**
  * A comunica Wrapper Pagerank Prioritisation RDF Resolve Hypermedia Links Queue Actor.
  */
 export class ActorRdfResolveHypermediaLinksQueueWrapperPagerankPrioritisation extends ActorRdfResolveHypermediaLinksQueue {
-  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue
+  private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPageRankPriotisationArgs) {
     super(args);
@@ -28,19 +29,18 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperPagerankPrioritisation ex
 
     const topologyStatistic: StatisticTraversalTopology = <StatisticTraversalTopology>
       action.context.getSafe(
-        KeysStatisticsTraversal.traversalTopology
+        KeysStatisticsTraversal.traversalTopology,
       );
 
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
 
-    if (! (linkQueue instanceof LinkQueuePriority)){
-      throw new Error("Tried to wrap a non-priority queue with a link prioritisation wrapper.")
+    if (!(linkQueue instanceof LinkQueuePriority)) {
+      throw new TypeError('Tried to wrap a non-priority queue with a link prioritisation wrapper.');
     }
 
     return { linkQueue: new LinkQueuePagerankPrioritisation(linkQueue, topologyStatistic) };
-  }}
-
-
+  }
+}
 
 export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
   '@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-prioritisation:wrapped',
@@ -49,5 +49,4 @@ export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
 export interface IActorRdfResolveHypermediaLinksQueueWrapperPageRankPriotisationArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
-  }
-
+}

@@ -1,8 +1,10 @@
 import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
-import { ActorRdfResolveHypermediaLinksQueue, IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, IActorRdfResolveHypermediaLinksQueueArgs, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
+import type { IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
+import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
-import { ActionContextKey, Actor, failTest, IActorArgs, IActorTest, passTestVoid, TestResult } from '@comunica/core';
-import { StatisticTraversalTopologyRcc } from '@comunica/statistic-traversal-topology-rcc';
+import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
+import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
+import type { StatisticTraversalTopologyRcc } from '@comunica/statistic-traversal-topology-rcc';
 import { LinkQueueRcc1Prioritization } from './LinkQueueRcc1Prioritization';
 
 /**
@@ -15,26 +17,25 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperRcc1Prioritization extend
     super(args);
   }
 
-
   public async test(action: IActionRdfResolveHypermediaLinksQueue): Promise<TestResult<IActorTest>> {
     if (action.context.get(KEY_CONTEXT_WRAPPED)) {
       return failTest('Unable to wrap link queues multiple times');
     }
     return passTestVoid();
   }
-  
+
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
 
     const topologyStatistic: StatisticTraversalTopologyRcc = <StatisticTraversalTopologyRcc>
       action.context.getSafe(
-        KeysStatisticsTraversal.traversalTopologyRcc
+        KeysStatisticsTraversal.traversalTopologyRcc,
       );
 
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
 
-    if (! (linkQueue instanceof LinkQueuePriority)){
-      throw new Error("Tried to wrap a non-priority queue with a link prioritisation wrapper.")
+    if (!(linkQueue instanceof LinkQueuePriority)) {
+      throw new TypeError('Tried to wrap a non-priority queue with a link prioritisation wrapper.');
     }
 
     return { linkQueue: new LinkQueueRcc1Prioritization(linkQueue, topologyStatistic) };
@@ -48,5 +49,4 @@ export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
 export interface IActorRdfResolveHypermediaLinksQueueWrapperRcc1PrioritizationArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
-  }
-
+}

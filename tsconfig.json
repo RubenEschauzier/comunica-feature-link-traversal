@@ -8,7 +8,6 @@
     ],
     "module": "commonjs",
     "resolveJsonModule": true,
-    "skipLibCheck": true, 
     "strict": true,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": false,
@@ -19,7 +18,8 @@
     "preserveConstEnums": true,
     "removeComments": false,
     "sourceMap": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": [
     "engines/*/bin/**/*",

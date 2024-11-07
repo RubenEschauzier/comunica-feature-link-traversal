@@ -1,11 +1,11 @@
+import type { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 import type { ILink } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
-import { 
+import type {
   ITopologyUpdateRccResult,
-   ITopologyUpdateRccUpdate,
-    StatisticTraversalTopologyRcc, 
-    TopologyUpdateRccEmit 
+  ITopologyUpdateRccUpdate,
+  StatisticTraversalTopologyRcc,
+  TopologyUpdateRccEmit,
 } from '@comunica/statistic-traversal-topology-rcc';
 
 /**
@@ -29,54 +29,53 @@ export class LinkQueueRcc1Prioritization extends LinkQueueWrapper<LinkQueuePrior
 
   public override push(link: ILink, parent: ILink): boolean {
     link.metadata = {
-      ...link.metadata, 
-      priority: this.priorities[this.nodeToIndexDict[link.url]] ?? 0 
+      ...link.metadata,
+      priority: this.priorities[this.nodeToIndexDict[link.url]] ?? 0,
     };
     return super.push(link, parent);
   }
 
   public override pop(): ILink | undefined {
-    return super.pop();;
+    return super.pop(); ;
   }
 
-  public override peek(){
+  public override peek() {
     return super.peek();
   }
 
-  public processTopologyUpdate(data: TopologyUpdateRccEmit){
-    if(data.updateType == 'discover'){
+  public processTopologyUpdate(data: TopologyUpdateRccEmit) {
+    if (data.updateType == 'discover') {
       this.processDiscovery(data);
     }
-    if(data.updateType == 'result'){
+    if (data.updateType == 'result') {
       this.processResult(data);
     }
   }
 
-  public processDiscovery(data: ITopologyUpdateRccUpdate){
+  public processDiscovery(data: ITopologyUpdateRccUpdate) {
     this.adjacencyListOut = data.adjacencyListOut;
     this.adjacencyListIn = data.adjacencyListIn;
     this.indexToNodeDict = data.indexToNodeDict;
     this.nodeToIndexDict = data.nodeToIndexDict;
+    // If seed node we set rcc to zero to initialize
+    this.priorities[data.parentNode] ??= 0;
+    
     // On new discovery, we update child node with parent's rcc if its > 0
-    const parentRcc = data.nodeResultContribution[data.parentNode];
-    if (parentRcc > 0){
-      if (!this.priorities[data.childNode]){
-        this.priorities[data.childNode] = parentRcc;
-      }
-      else{
-        this.priorities[data.childNode] += parentRcc;
-      }
-      // Update the priority
+    this.priorities[data.childNode] = (this.priorities[data.childNode] ?? 0) 
+      + data.nodeResultContribution[data.parentNode];
+
+    // Update the priority
+    if (data.nodeResultContribution[data.parentNode] > 0) {
       this.linkQueue.setPriority(
-        this.indexToNodeDict[data.childNode], 
-        this.priorities[data.childNode]
-      );  
+        this.indexToNodeDict[data.childNode],
+        this.priorities[data.childNode],
+      );
     }
   }
 
-  public processResult(data: ITopologyUpdateRccResult){
+  public processResult(data: ITopologyUpdateRccResult) {
     const neighbours = this.adjacencyListOut[data.changedNode];
-    for (const neighbour of neighbours){
+    for (const neighbour of neighbours) {
       this.priorities[neighbour]++;
       this.linkQueue.setPriority(this.indexToNodeDict[neighbour], this.priorities[neighbour]);
     }

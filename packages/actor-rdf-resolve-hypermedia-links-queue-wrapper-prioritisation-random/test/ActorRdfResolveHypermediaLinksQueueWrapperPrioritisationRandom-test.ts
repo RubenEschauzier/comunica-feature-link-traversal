@@ -20,7 +20,10 @@ describe('ActorRdfResolveHypermediaLinksQueueWrapperLimitCount', () => {
     let actor: ActorRdfResolveHypermediaLinksQueueWrapperPrioritisationRandom;
     let mediatorRdfResolveHypermediaLinksQueue: Mediator<
     Actor<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>,
-    IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput>;
+    IActionRdfResolveHypermediaLinksQueue,
+IActorTest,
+IActorRdfResolveHypermediaLinksQueueOutput
+>;
 
     beforeEach(() => {
       mediatorRdfResolveHypermediaLinksQueue = <any> {
@@ -41,11 +44,11 @@ describe('ActorRdfResolveHypermediaLinksQueueWrapperLimitCount', () => {
         context: new ActionContext({
           [KEY_CONTEXT_WRAPPED.name]: true,
         }),
-      })).rejects.toThrowError('Unable to wrap link queues multiple times');
+      })).rejects.toThrow('Unable to wrap link queues multiple times');
     });
 
     it('should run', async() => {
-      expect(await actor.run({ firstUrl: 'first', context: new ActionContext() })).toMatchObject({
+      await expect(actor.run({ firstUrl: 'first', context: new ActionContext() })).resolves.toMatchObject({
         linkQueue: new LinkQueuePriorityRandom(<any> 'inner'),
       });
       expect(mediatorRdfResolveHypermediaLinksQueue.mediate).toHaveBeenCalledWith({

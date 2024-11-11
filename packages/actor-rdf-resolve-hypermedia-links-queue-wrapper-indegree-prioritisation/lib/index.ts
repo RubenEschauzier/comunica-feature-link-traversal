@@ -1,2 +1,2 @@
-export * from './ActorRdfResolveHypermediaLinksQueueWrapperIndegreePrioritisation';
-export * from './LinkQueueIndegreePrioritisation';
+export * from './ActorRdfResolveHypermediaLinksQueueWrapperIndegreePrioritization';
+export * from './LinkQueueIndegreePrioritization';

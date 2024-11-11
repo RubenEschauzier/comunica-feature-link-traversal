@@ -1,0 +1,18 @@
+{
+    "@context": [
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^4.0.0/components/context.jsonld",
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
+    ],
+    "import": [
+      "ccqslt:config/config-solid-base-graph-prioritization.json",
+      "ccqslt:config/extract-links/actors/predicates-common.json",
+      "ccqslt:config/extract-links/actors/predicates-ldp.json",
+      "ccqslt:config/extract-links/actors/links-describedby.json",
+      "ccqslt:config/extract-links/actors/predicates-solidstorage.json",
+      "ccqslt:config/extract-links/actors/quad-pattern-query.json",
+      "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
+  
+      "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/graph-based/wrapper-pagerank.json"
+    ]
+  }
+  

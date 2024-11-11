@@ -137,10 +137,14 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     if (this.edges.has(JSON.stringify([ parentId, childId ]))) {
       return false;
     }
+
     // Add to out adj list
     this.adjacencyListOut[parentId] = this.adjacencyListOut[parentId] ?
         [ ...this.adjacencyListOut[parentId], childId ] :
         [ childId ];
+
+    // Add empty out adj list entry for child if newly discovered
+    this.adjacencyListOut[childId] ??= [];
 
     // Add to in adj list
     this.adjacencyListIn[childId] = this.adjacencyListIn[childId] ?
@@ -171,6 +175,8 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
     // Remove dereferenced node from open nodes (TODO check correct implementation)
     this.openNodes = this.openNodes.filter(val => val != this.nodeToId(link.url));
+    console.log("OPEN NODES:")
+    console.log(this.openNodes)
     return true;
   }
 

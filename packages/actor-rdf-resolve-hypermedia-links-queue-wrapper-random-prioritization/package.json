@@ -1,14 +1,14 @@
 {
-  "name": "@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-indegree-prioritization",
+  "name": "@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-random-prioritization",
   "version": "0.6.0",
-  "description": "A wrapper-indegree-prioritization rdf-resolve-hypermedia-links-queue actor",
+  "description": "A wrapper-prioritisation-non-adaptive rdf-resolve-hypermedia-links-queue actor",
   "lsd:module": true,
   "license": "MIT",
   "homepage": "https://comunica.dev/",
   "repository": {
     "type": "git",
     "url": "https://github.com/comunica/comunica.git",
-    "directory": "packages/actor-rdf-resolve-hypermedia-links-queue-wrapper-indegree-prioritization"
+    "directory": "packages/actor-rdf-resolve-hypermedia-links-queue-wrapper-random-prioritization"
   },
   "bugs": {
     "url": "https://github.com/comunica/comunica/issues"
@@ -17,7 +17,7 @@
     "comunica",
     "actor",
     "rdf-resolve-hypermedia-links-queue",
-    "wrapper-indegree-prioritization"
+    "wrapper-random-prioritization"
   ],
   "sideEffects": false,
   "main": "lib/index.js",

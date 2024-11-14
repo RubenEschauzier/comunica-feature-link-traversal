@@ -24,6 +24,8 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
   public nodeToIndexDict: Record<string, number>;
   public indexToNodeDict: Record<number, string>;
 
+  public nDereferenced = 0;
+
   public constructor(
     statisticLinkDiscovery: StatisticLinkDiscovery,
     statisticLinkDereference: StatisticLinkDereference,
@@ -31,8 +33,8 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     super();
     this.key = KeysStatisticsTraversal.traversalTopology;
 
-    this.adjacencyListIn = [];
-    this.adjacencyListOut = [];
+    this.adjacencyListIn = {};
+    this.adjacencyListOut = {};
 
     this.edges = new Set();
 
@@ -99,7 +101,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     return true;
   }
 
-  private addEdge(child: ILink, parent: ILink): boolean {
+  public addEdge(child: ILink, parent: ILink): boolean {
     // Self references edges are irrelevant
     if (child.url === parent.url) {
       return false;
@@ -110,6 +112,8 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
      */
     if (this.nodeToIndexDict[parent.url] === undefined) {
       const seedParentId = this.nodeToId(parent.url);
+      // We also initialize an empty incoming adjacency list for completeness. 
+      this.adjacencyListIn[seedParentId] = [];
       this.nodeMetadata[seedParentId] = {
         seed: true,
         dereferenced: true,
@@ -171,12 +175,15 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     return true;
   }
 
-  private setDereferenced(link: ILink): boolean {
+  public setDereferenced(link: ILink): boolean {
+    if (this.nodeMetadata[this.nodeToId(link.url)].dereferenced === true){
+      return false;
+    }
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
+    this.nodeMetadata[this.nodeToId(link.url)].dereferenceOrder = this.nDereferenced;
     // Remove dereferenced node from open nodes (TODO check correct implementation)
     this.openNodes = this.openNodes.filter(val => val != this.nodeToId(link.url));
-    console.log("OPEN NODES:")
-    console.log(this.openNodes)
+    this.nDereferenced ++;
     return true;
   }
 

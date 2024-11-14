@@ -5,8 +5,8 @@
   "workspaces": [
     "engines/*",
     "packages/*",
-    "../comunica-quoted-triple-source-attribution/engines/*",
-    "../comunica-quoted-triple-source-attribution/packages/*"
+    "../comunica-source-attribution/engines/*",
+    "../comunica-source-attribution/packages/*"
   ],
   "scripts": {
     "test-changed": "lerna run test --since HEAD",

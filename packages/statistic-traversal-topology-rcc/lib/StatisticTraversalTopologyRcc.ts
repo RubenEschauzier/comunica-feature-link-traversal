@@ -44,8 +44,6 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
           || data.metadata.operation === types.DISTINCT 
           || data.metadata.operation === 'inner')
       ) {
-        // console.log(`Updating statistic with: ${data.metadata.operation}`)
-        // console.log('updating statistic on project or distinct output');
         this.updateStatistic({
           updateType: 'result',
           resultType: data.metadata.operation,
@@ -58,7 +56,7 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
   public updateStatistic(update: ITopologyUpdate | IResultUpdate): boolean {
     if (update.updateType === 'discover') {
       const { updateType, ...topologyData } = update;
-      this.nodeToIndexDict = topologyData.nodeToIndexDict;
+      this.nodeToIndexDict = update.nodeToIndexDict;
       // If any of the updated nodes don't have a nodeResultContribution, set to 0
       this.nodeResultContribution[update.childNode] ??= 0;
       this.nodeResultContribution[update.parentNode] ??= 0;

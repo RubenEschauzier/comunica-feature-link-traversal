@@ -1,4 +1,4 @@
-FROM node:22
+FROM node:18
 
 # Install location
 ENV dir /var/www/@comunica/query-sparql-link-traversal-solid/
@@ -14,7 +14,7 @@ ARG NPM_REGISTRY=https://registry.npmjs.org/
 RUN npm config set @comunica:registry $NPM_REGISTRY
 
 # Install the node module
-RUN cd ${dir} && npm install --only=production
+RUN cd ${dir} && npm install --only=production --verbose --ignore-engines
 
 # Run base binary (generated from package.json!bin)
 WORKDIR ${dir}

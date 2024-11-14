@@ -59,10 +59,10 @@ export class LinkQueueRel2Prioritization extends LinkQueueWrapper<LinkQueuePrior
     this.nodeToIndexDict = data.nodeToIndexDict;
     // On new discovery, we update child node with parent rcc and parents of parents rcc
     let twoStepRel = data.nodeResultContribution[data.parentNode] > 0 ? 1 : 0;
-    if (this.adjacencyListIn[data.parentNode]){
+    if (this.adjacencyListIn[data.parentNode]) {
       for (const secondDegreeNeighbor of this.adjacencyListIn[data.parentNode]) {
         twoStepRel += this.priorities[secondDegreeNeighbor] > 0 ? 1 : 0;
-      }  
+      }
     }
 
     this.priorities[data.childNode] = (this.priorities[data.childNode] ?? 0) + twoStepRel;

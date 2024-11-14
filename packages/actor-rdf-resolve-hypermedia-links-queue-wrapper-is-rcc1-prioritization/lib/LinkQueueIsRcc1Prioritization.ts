@@ -61,7 +61,7 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
     if (result.type === 'bindings' && result.metadata.operation === 'inner') {
       const resultSize = result.data.size;
       result.data.forEach((binding: RDF.Term, _) => {
-        if (binding.termType === 'NamedNode'){
+        if (binding.termType === 'NamedNode') {
           const url = new URL(binding.value);
           const normalized = url.origin + url.pathname;
           const id = this.nodeToIndexDict[normalized];
@@ -74,7 +74,7 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
           }
         }
       });
-    }    
+    }
   }
 
   public processTopologyUpdate(data: TopologyUpdateRccEmit) {
@@ -91,14 +91,14 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
     this.adjacencyListIn = data.adjacencyListIn;
     this.indexToNodeDict = data.indexToNodeDict;
     this.nodeToIndexDict = data.nodeToIndexDict;
-    
+
     // If seed node we set rcc to zero to initialize
     this.rcc1Scores[data.parentNode] ??= 0;
-    
+
     // On new discovery, we update child node with parent's rcc if its > 0
-    this.rcc1Scores[data.childNode] = (this.rcc1Scores[data.childNode] ?? 0) 
-      + data.nodeResultContribution[data.parentNode];
-      
+    this.rcc1Scores[data.childNode] = (this.rcc1Scores[data.childNode] ?? 0) +
+      data.nodeResultContribution[data.parentNode];
+
     // Update the priority
     if (data.nodeResultContribution[data.parentNode] > 0) {
       this.linkQueue.setPriority(

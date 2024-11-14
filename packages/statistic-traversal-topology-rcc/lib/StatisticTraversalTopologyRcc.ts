@@ -40,9 +40,9 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
     // Currently only works for bindings
     statisticIntermediateResults.on((data: PartialResult) => {
       if (data.type === 'bindings' &&
-        (data.metadata.operation === types.PROJECT 
-          || data.metadata.operation === types.DISTINCT 
-          || data.metadata.operation === 'inner')
+        (data.metadata.operation === types.PROJECT ||
+          data.metadata.operation === types.DISTINCT ||
+          data.metadata.operation === 'inner')
       ) {
         this.updateStatistic({
           updateType: 'result',

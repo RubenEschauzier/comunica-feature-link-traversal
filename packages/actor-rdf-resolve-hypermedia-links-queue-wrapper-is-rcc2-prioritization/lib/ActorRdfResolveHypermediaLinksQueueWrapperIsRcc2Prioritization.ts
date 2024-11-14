@@ -1,13 +1,13 @@
 import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 import type { IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
+import { KeysStatistics } from '@comunica/context-entries';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
+import type { StatisticIntermediateResults } from '@comunica/statistic-intermediate-results';
 import type { StatisticTraversalTopologyRcc } from '@comunica/statistic-traversal-topology-rcc';
 import { LinkQueueIsRcc2Prioritization } from './LinkQueueIsRcc2Prioritization';
-import { StatisticIntermediateResults } from '@comunica/statistic-intermediate-results';
-import { KeysStatistics } from '@comunica/context-entries';
 
 /**
  * A comunica Wrapper Is Rcc2 Prioritization RDF Resolve Hypermedia Links Queue Actor.
@@ -34,7 +34,7 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperIsRcc2Prioritization exte
         KeysStatisticsTraversal.traversalTopologyRcc,
       );
     const intermediateResults = <StatisticIntermediateResults> action.context.getSafe(
-        KeysStatistics.intermediateResults
+      KeysStatistics.intermediateResults,
     );
 
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
@@ -43,8 +43,8 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperIsRcc2Prioritization exte
       throw new TypeError('Tried to wrap a non-priority queue with a link prioritisation wrapper.');
     }
 
-    return { 
-      linkQueue: new LinkQueueIsRcc2Prioritization(linkQueue, topologyStatistic, intermediateResults) 
+    return {
+      linkQueue: new LinkQueueIsRcc2Prioritization(linkQueue, topologyStatistic, intermediateResults),
     };
   }
 }

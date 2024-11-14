@@ -61,7 +61,7 @@ export class LinkQueueIsRcc2Prioritization extends LinkQueueWrapper<LinkQueuePri
     if (result.type === 'bindings' && result.metadata.operation === 'inner') {
       const resultSize = result.data.size;
       result.data.forEach((binding: RDF.Term, _) => {
-        if (binding.termType === 'NamedNode'){
+        if (binding.termType === 'NamedNode') {
           const url = new URL(binding.value);
           const normalized = url.origin + url.pathname;
           const id = this.nodeToIndexDict[normalized];
@@ -74,7 +74,7 @@ export class LinkQueueIsRcc2Prioritization extends LinkQueueWrapper<LinkQueuePri
           }
         }
       });
-    }    
+    }
   }
 
   public processTopologyUpdate(data: TopologyUpdateRccEmit) {
@@ -91,18 +91,18 @@ export class LinkQueueIsRcc2Prioritization extends LinkQueueWrapper<LinkQueuePri
     this.adjacencyListIn = data.adjacencyListIn;
     this.indexToNodeDict = data.indexToNodeDict;
     this.nodeToIndexDict = data.nodeToIndexDict;
-    
+
     // If seed node we set rcc to zero to initialize
     this.rcc2Scores[data.parentNode] ??= 0;
-    
+
     // On new discovery, we update child node with parent rcc and parents of parents rcc
     let twoStepRcc = data.nodeResultContribution[data.parentNode];
     // Calculate second degree in-neighbourhood
-    if (this.adjacencyListIn[data.parentNode]){
+    if (this.adjacencyListIn[data.parentNode]) {
       for (const secondDegreeNeighbor of this.adjacencyListIn[data.parentNode]) {
         // Default to zero as the childNode is also a second degree neighbour and it doesnt
         twoStepRcc += data.nodeResultContribution[secondDegreeNeighbor];
-      }  
+      }
     }
     this.rcc2Scores[data.childNode] = (this.rcc2Scores[data.childNode] ?? 0) + twoStepRcc;
     // Update the priority
@@ -125,13 +125,13 @@ export class LinkQueueIsRcc2Prioritization extends LinkQueueWrapper<LinkQueuePri
       if (this.adjacencyListOut[neighbour]) {
         for (const secondDegreeNeighbor of this.adjacencyListOut[neighbour]) {
           this.rcc2Scores[secondDegreeNeighbor]++;
-          console.log(          this.rcc2Scores[secondDegreeNeighbor]++          )
+          console.log(this.rcc2Scores[secondDegreeNeighbor]++);
           this.linkQueue.setPriority(
-            this.indexToNodeDict[secondDegreeNeighbor], 
-            this.rcc2Scores[secondDegreeNeighbor] * (this.isScores[secondDegreeNeighbor] ?? 1)
+            this.indexToNodeDict[secondDegreeNeighbor],
+            this.rcc2Scores[secondDegreeNeighbor] * (this.isScores[secondDegreeNeighbor] ?? 1),
           );
         }
       }
     }
-  }  
+  }
 }

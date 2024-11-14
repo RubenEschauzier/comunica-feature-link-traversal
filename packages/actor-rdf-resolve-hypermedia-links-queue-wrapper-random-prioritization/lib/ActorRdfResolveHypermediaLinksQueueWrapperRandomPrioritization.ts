@@ -6,7 +6,7 @@ import type {
 import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
-import { LinkQueueRandomPrioritization} from './LinkQueueRandomPrioritization';
+import { LinkQueueRandomPrioritization } from './LinkQueueRandomPrioritization';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.

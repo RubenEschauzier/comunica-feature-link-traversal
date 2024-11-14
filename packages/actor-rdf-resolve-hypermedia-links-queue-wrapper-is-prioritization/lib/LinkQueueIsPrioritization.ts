@@ -36,10 +36,10 @@ export class LinkQueueIsPrioritization extends LinkQueueWrapper<LinkQueuePriorit
     if (result.type === 'bindings') {
       const resultSize = result.data.size;
       result.data.forEach((binding: RDF.Term, _: RDF.Variable) => {
-        if (binding.termType === 'NamedNode'){
+        if (binding.termType === 'NamedNode') {
           const url = new URL(binding.value);
           const normalized = url.origin + url.pathname;
-          if (!this.priorities[normalized] || resultSize > this.priorities[normalized]){
+          if (!this.priorities[normalized] || resultSize > this.priorities[normalized]) {
             this.priorities[normalized] = resultSize;
             this.linkQueue.setPriority(normalized, resultSize);
           }

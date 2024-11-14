@@ -112,7 +112,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
      */
     if (this.nodeToIndexDict[parent.url] === undefined) {
       const seedParentId = this.nodeToId(parent.url);
-      // We also initialize an empty incoming adjacency list for completeness. 
+      // We also initialize an empty incoming adjacency list for completeness.
       this.adjacencyListIn[seedParentId] = [];
       this.nodeMetadata[seedParentId] = {
         seed: true,
@@ -176,14 +176,14 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
   }
 
   public setDereferenced(link: ILink): boolean {
-    if (this.nodeMetadata[this.nodeToId(link.url)].dereferenced === true){
+    if (this.nodeMetadata[this.nodeToId(link.url)].dereferenced) {
       return false;
     }
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
     this.nodeMetadata[this.nodeToId(link.url)].dereferenceOrder = this.nDereferenced;
     // Remove dereferenced node from open nodes (TODO check correct implementation)
     this.openNodes = this.openNodes.filter(val => val != this.nodeToId(link.url));
-    this.nDereferenced ++;
+    this.nDereferenced++;
     return true;
   }
 

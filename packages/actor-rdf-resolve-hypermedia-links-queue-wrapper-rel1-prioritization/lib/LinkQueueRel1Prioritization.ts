@@ -59,13 +59,13 @@ export class LinkQueueRel1Prioritization extends LinkQueueWrapper<LinkQueuePrior
     this.nodeToIndexDict = data.nodeToIndexDict;
 
     // If seed node we set rcc to zero to initialize
-    if (this.priorities[data.parentNode] === undefined){
+    if (this.priorities[data.parentNode] === undefined) {
       this.priorities[data.parentNode] = 0;
     }
-    
+
     // On new discovery, we update child node with parent's rcc if its > 0
-    this.priorities[data.childNode] = (this.priorities[data.childNode] ?? 0) 
-      + (data.nodeResultContribution[data.parentNode] > 0 ? 1 : 0);
+    this.priorities[data.childNode] = (this.priorities[data.childNode] ?? 0) +
+      (data.nodeResultContribution[data.parentNode] > 0 ? 1 : 0);
 
     // Update the priority if it changed
     if (data.nodeResultContribution[data.parentNode] > 0) {

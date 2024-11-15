@@ -1,110 +1,158 @@
 import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
-import { LinkQueueIndegreePrioritisation } from '..';
-import { AdjacencyListGraph } from '../../actor-construct-traversed-topology-graph-based-prioritisation/lib/AdjacencyListGraph';
+import { LinkQueueIndegreePrioritization } from '../lib/LinkQueueIndegreePrioritization';
+import { StatisticTraversalTopology } from '@comunica/statistic-traversal-topology';
+import { StatisticLinkDiscovery } from '@comunica/statistic-link-discovery';
+import { StatisticLinkDereference } from '@comunica/statistic-link-dereference';
+import type {
+  BindingsStream,
+  FragmentSelectorShape,
+  IActionContext,
+  IQueryBindingsOptions,
+  IQuerySource,
+  QuerySourceReference,
+} from '@comunica/types';
+import type { Quad } from '@rdfjs/types';
+import type { AsyncIterator } from 'asynciterator';
+import type { Operation, Ask, Update } from 'sparqlalgebrajs/lib/algebra';
+
+class MockQuerySource implements IQuerySource {
+  public referenceValue: QuerySourceReference;
+
+  public constructor(referenceValue: QuerySourceReference) {
+    this.referenceValue = referenceValue;
+  }
+
+  public getSelectorShape: (context: IActionContext) => Promise<FragmentSelectorShape>;
+  public queryBindings: (operation: Operation, context: IActionContext, options?: IQueryBindingsOptions | undefined)
+  => BindingsStream;
+
+  public queryQuads: (operation: Operation, context: IActionContext) => AsyncIterator<Quad>;
+  public queryBoolean: (operation: Ask, context: IActionContext) => Promise<boolean>;
+  public queryVoid: (operation: Update, context: IActionContext) => Promise<void>;
+  public toString: () => string;
+}
+
 
 describe('LinkQueueIndegreePrioritisation', () => {
   let inner: LinkQueuePriority;
-  let queue: LinkQueueIndegreePrioritisation;
-
+  let queue: LinkQueueIndegreePrioritization;
   let mockedInner: LinkQueuePriority;
-  let mockedQueue: LinkQueueIndegreePrioritisation;
+  let mockedQueue: LinkQueueIndegreePrioritization;
 
-  let graph: AdjacencyListGraph;
+  let statisticDiscovery: StatisticLinkDiscovery
+  let statisticDereference: StatisticLinkDereference;
+  let statisticTraversalTopology: StatisticTraversalTopology;
 
   beforeEach(() => {
-    graph = new AdjacencyListGraph();
+    statisticDiscovery = new StatisticLinkDiscovery();
+    statisticDereference = new StatisticLinkDereference();
+    statisticTraversalTopology = 
+      new StatisticTraversalTopology(statisticDiscovery, statisticDereference);
 
     inner = new LinkQueuePriority();
-    queue = new LinkQueueIndegreePrioritisation(inner, graph);
+    queue = new LinkQueueIndegreePrioritization(inner, statisticTraversalTopology);
 
     mockedInner = <any> {
       push: jest.fn(() => true),
+      
     };
-
-    mockedQueue = new LinkQueueIndegreePrioritisation(mockedInner, graph);
+    mockedQueue = new LinkQueueIndegreePrioritization(mockedInner, statisticTraversalTopology);
   });
 
-  describe('Static graph', () => {
-    beforeEach(() => {
-      graph.set('A', '', {});
-      graph.set('B', 'A', {});
-      graph.set('C', 'A', {});
-      graph.set('D', 'A', {});
-      graph.set('D', 'B', {});
-      graph.set('E', 'A', {});
-      graph.set('E', 'B', {});
-      graph.set('E', 'C', {});
+  describe('updateIndegrees', () => {
+
+    it('should be called when calling pop after topology update', () => {
+      const updateIndegreesSpy = jest.spyOn(queue, 'updateIndegrees');
+      statisticDiscovery.updateStatistic({url: 'url1'}, {url: 'url2'});
+      queue.push({url: 'url1'}, {url: 'url2'})
+      queue.pop();
+      expect(updateIndegreesSpy).toHaveBeenCalledTimes(1);
+    });
+    it('should be called when calling peek after topology update', () => {
+      const updateIndegreesSpy = jest.spyOn(queue, 'updateIndegrees');
+      statisticDiscovery.updateStatistic({url: 'url1'}, {url: 'url2'});
+      queue.push({url: 'url1'}, {url: 'url2'})
+      queue.peek();
+      expect(updateIndegreesSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('invokes the inner queue', () => {
-      expect(mockedQueue.push({ url: 'A' }, { url: '' })).toBeTruthy();
-      expect(mockedInner.push).toHaveBeenCalledWith(
-        { url: 'A', priority: 0 },
-        { url: '' },
+    describe('an example topology', () => {
+      let setPrioritySpy;
+
+      beforeEach(() => {
+        setPrioritySpy = jest.spyOn(inner, 'setPriority');
+        statisticDiscovery.updateStatistic({url: 'B'}, {url: 'A'});
+        statisticDiscovery.updateStatistic({url: 'C'}, {url: 'A'});
+        statisticDiscovery.updateStatistic({url: 'C'}, {url: 'B'});
+        statisticDiscovery.updateStatistic({url: 'D'}, {url: 'B'});
+        statisticDiscovery.updateStatistic({url: 'D'}, {url: 'C'});
+        statisticDiscovery.updateStatistic({url: 'C'}, {url: 'D'});
+        queue.push({url: 'B'}, {url: 'A'});
+        queue.push({url: 'C'}, {url: 'A'});
+        queue.push({url: 'C'}, {url: 'B'});
+        queue.push({url: 'D'}, {url: 'B'});
+        queue.push({url: 'D'}, {url: 'C'});
+        queue.push({url: 'C'}, {url: 'D'});
+
+      })
+      it('should only set priorities for indegree > 1', () => {
+        queue.updateIndegrees();
+        expect(setPrioritySpy).toHaveBeenNthCalledWith(1, 'C', 3);
+        expect(setPrioritySpy).toHaveBeenNthCalledWith(2, 'D', 2)
+      });
+      it('should only set priorities for open nodes', () => {
+        statisticDereference.updateStatistic({url: 'C'}, new MockQuerySource('URL'));
+        queue.updateIndegrees();
+        expect(setPrioritySpy).toHaveBeenNthCalledWith(1, 'D', 2)
+      });
+      it('should correctly set priority on pop', () => {
+        const popped = queue.pop();
+        expect(popped).toEqual({url: 'C', metadata: {priority: 3, index: 0}});
+      });
+      it('should correctly set priority on peek', () => {
+        const peeked = queue.peek();
+        expect(peeked).toEqual({url: 'C', metadata: {priority: 3, index: 0}});
+      });
+    })
+  });
+
+  describe('push', () => {
+    it('should add new links with priority 0', () => {
+      mockedQueue.push({url: 'url1'}, {url: 'url2'});
+      expect(mockedInner.push).toHaveBeenCalledWith({url: 'url1', metadata: {priority: 0}},
+        {url: 'url2'}
       );
     });
+    it('should retain any existing metadata', () => {
+      mockedQueue.push({url: 'url1', metadata: {key: 'value'}}, {url: 'url2'});
+      expect(mockedInner.push).toHaveBeenCalledWith(
+        { url: 'url1', metadata: {priority: 0, key: 'value'}},
+        {url: 'url2'}
+      );
+    });  
+  });
 
-    it('push and pops single links', () => {
-      expect(queue.push({ url: 'a' }, { url: 'parent' })).toBeTruthy();
-      expect(queue.pop()).toEqual({ url: 'a', priority: 0, index: 0 });
-    });
-
-    it('push and pops single links for empty metadatas', () => {
-      expect(queue.push({ url: 'a', metadata: {}}, { url: 'parent', metadata: {}})).toBeTruthy();
-      expect(queue.pop()).toEqual({ url: 'a', metadata: {}, priority: 0, index: 0 });
-    });
-
-    it('assigns proper priority for URL in graph', () => {
-      expect(queue.push({ url: 'A' }, { url: '' })).toBeTruthy();
-      expect(queue.push({ url: 'B' }, { url: 'A' })).toBeTruthy();
-      expect(queue.push({ url: 'C' }, { url: 'A' })).toBeTruthy();
-      expect(queue.push({ url: 'D' }, { url: 'A' })).toBeTruthy();
-      expect(queue.push({ url: 'E' }, { url: 'A' })).toBeTruthy();
-
-      expect(queue.pop()).toEqual({ url: 'E', priority: 3, index: 0 });
-      expect(queue.pop()).toEqual({ url: 'D', priority: 2, index: 0 });
-      // While in this queue the order of equal priority elements is not guaranteed, it should in this case be B
-      expect(queue.pop()).toEqual({ url: 'B', priority: 0, index: 0 });
-    });
-    it('only calls updatePriority on pop when indegree has changed', () => {
-      const spy = jest.spyOn(inner, 'updatePriority');
-      queue.push({ url: 'A' }, { url: '' });
-      queue.push({ url: 'B' }, { url: 'A' });
-      queue.push({ url: 'C' }, { url: 'A' });
-      queue.push({ url: 'D' }, { url: 'A' });
-      queue.push({ url: 'E' }, { url: 'A' });
+  describe('pop', () => {
+    it('should not update if no topology updates occured', () => {
+      const updateIndegreesSpy = jest.spyOn(queue, 'updateIndegrees');
+      queue.push({url: 'url1'}, {url: 'url2'});
       queue.pop();
-      expect(spy.mock.calls).toEqual([[ 'D', 2 ], [ 'E', 3 ]]);
+      expect(updateIndegreesSpy).not.toHaveBeenCalled();
     });
+    it('should not update if the queue is empty', () => {
+      const updateIndegreesSpy = jest.spyOn(queue, 'updateIndegrees');
+      statisticDiscovery.updateStatistic({url: 'url1'}, {url: 'url2'});
+      queue.pop();
+      expect(updateIndegreesSpy).not.toHaveBeenCalled();
+    });  
   });
-  describe('Changing graph', () => {
-    beforeEach(() => {
-      graph.set('A', '', {});
-      graph.set('B', 'A', {});
-      graph.set('C', 'A', {});
-      graph.set('D', 'A', {});
-      graph.set('D', 'B', {});
-      queue.push({ url: 'A' }, { url: '' });
-      queue.push({ url: 'B' }, { url: 'A' });
-      queue.push({ url: 'C' }, { url: 'A' });
-      queue.push({ url: 'D' }, { url: 'A' });
-    });
-    it('assign correct priority to new link on peek and pop', () => {
-      graph.set('E', 'A', {});
-      graph.set('E', 'B', {});
-      graph.set('E', 'C', {});
 
-      queue.push({ url: 'E' }, { url: 'A' });
-      expect(queue.pop()).toEqual({ url: 'E', priority: 3, index: 0 });
-      expect(queue.peek()).toEqual({ url: 'D', priority: 2, index: 0 });
-      graph.set('F', 'B', {});
-      queue.push({ url: 'F' }, { url: 'B' });
-      expect(queue.peek()).toEqual({ url: 'D', priority: 2, index: 0 });
-      graph.set('F', 'A', {});
-      graph.set('F', 'C', {});
-      graph.set('F', 'D', {});
-      expect(queue.peek()).toEqual({ url: 'F', priority: 4, index: 0 });
-      expect(queue.pop()).toEqual({ url: 'F', priority: 4, index: 0 });
-    });
-  });
+  describe('peek', () => {
+    it('should not update if no topology updates occured', () => {
+      const updateIndegreesSpy = jest.spyOn(queue, 'updateIndegrees');
+      queue.push({url: 'url1'}, {url: 'url2'});
+      queue.peek();
+      expect(updateIndegreesSpy).not.toHaveBeenCalled();
+    });  
+  })
 });

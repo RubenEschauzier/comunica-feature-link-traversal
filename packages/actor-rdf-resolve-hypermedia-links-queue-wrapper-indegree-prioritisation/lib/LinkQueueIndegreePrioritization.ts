@@ -29,26 +29,26 @@ export class LinkQueueIndegreePrioritization extends LinkQueueWrapper<LinkQueueP
     if (!super.isEmpty() && this.updated) {
       this.updateIndegrees();
     }
-
     const link = super.pop();
-
     return link;
   }
 
   public override peek(): ILink | undefined {
-    if (!super.isEmpty() && this.updated) {
+    if (this.updated) {
       this.updateIndegrees();
     }
     return super.peek();
   }
 
   public updateIndegrees() {
+    console.log(this.adjacencyListIn)
     const newIndegrees: Record<number, number> = {};
     // Get indegrees of still open nodes
     for (let i = 0; i < this.openNodes.length; i++) {
       // Only interested in indegree > 1, as most nodes have indegree = 1
       if (this.adjacencyListIn[this.openNodes[i]].length > 1) {
-        newIndegrees[i] = this.adjacencyListIn[this.openNodes[i]].length;
+        console.log(this.openNodes[i]);
+        newIndegrees[this.openNodes[i]] = this.adjacencyListIn[this.openNodes[i]].length;
       }
     }
     // Iterate over keys

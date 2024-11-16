@@ -32,7 +32,7 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
       if (data.updateType === 'discover') {
         const { updateType, ...topologyData } = data;
         this.updateStatistic({
-          updateType: 'discover',
+          updateType,
           ...topologyData,
         });
       }

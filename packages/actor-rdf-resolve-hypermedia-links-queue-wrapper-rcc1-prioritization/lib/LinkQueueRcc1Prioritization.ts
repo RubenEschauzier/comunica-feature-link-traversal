@@ -30,7 +30,7 @@ export class LinkQueueRcc1Prioritization extends LinkQueueWrapper<LinkQueuePrior
   public override push(link: ILink, parent: ILink): boolean {
     link.metadata = {
       ...link.metadata,
-      priority: this.priorities[this.nodeToIndexDict[link.url]] ?? 0,
+      priority: 0,
     };
     return super.push(link, parent);
   }
@@ -44,10 +44,10 @@ export class LinkQueueRcc1Prioritization extends LinkQueueWrapper<LinkQueuePrior
   }
 
   public processTopologyUpdate(data: TopologyUpdateRccEmit) {
-    if (data.updateType == 'discover') {
+    if (data.updateType === 'discover') {
       this.processDiscovery(data);
     }
-    if (data.updateType == 'result') {
+    if (data.updateType === 'result') {
       this.processResult(data);
     }
   }
@@ -75,9 +75,11 @@ export class LinkQueueRcc1Prioritization extends LinkQueueWrapper<LinkQueuePrior
 
   public processResult(data: ITopologyUpdateRccResult) {
     const neighbours = this.adjacencyListOut[data.changedNode];
-    for (const neighbour of neighbours) {
-      this.priorities[neighbour]++;
-      this.linkQueue.setPriority(this.indexToNodeDict[neighbour], this.priorities[neighbour]);
+    if (neighbours) {
+      for (const neighbour of neighbours) {
+        this.priorities[neighbour]++;
+        this.linkQueue.setPriority(this.indexToNodeDict[neighbour], this.priorities[neighbour]);
+      }
     }
   }
 }

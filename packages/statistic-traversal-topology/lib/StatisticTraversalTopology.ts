@@ -182,7 +182,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
     this.nodeMetadata[this.nodeToId(link.url)].dereferenceOrder = this.nDereferenced;
     // Remove dereferenced node from open nodes (TODO check correct implementation)
-    this.openNodes = this.openNodes.filter(val => val != this.nodeToId(link.url));
+    this.openNodes = this.openNodes.filter(val => val !== this.nodeToId(link.url));
     this.nDereferenced++;
     return true;
   }

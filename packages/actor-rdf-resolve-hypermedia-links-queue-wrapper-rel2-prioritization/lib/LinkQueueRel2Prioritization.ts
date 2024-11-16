@@ -18,6 +18,7 @@ export class LinkQueueRel2Prioritization extends LinkQueueWrapper<LinkQueuePrior
   public adjacencyListIn: Record<number, number[]> = {};
 
   public priorities: Record<number, number> = {};
+  public inNeighbourHoodNodes: Map<number, Set<number>> = new Map();
 
   public indexToNodeDict: Record<number, string> = {};
   public nodeToIndexDict: Record<string, number> = {};
@@ -52,27 +53,52 @@ export class LinkQueueRel2Prioritization extends LinkQueueWrapper<LinkQueuePrior
     }
   }
 
-  public processDiscovery(data: ITopologyUpdateRccUpdate) {
-    this.adjacencyListOut = data.adjacencyListOut;
-    this.adjacencyListIn = data.adjacencyListIn;
-    this.indexToNodeDict = data.indexToNodeDict;
-    this.nodeToIndexDict = data.nodeToIndexDict;
-    // On new discovery, we update child node with parent rcc and parents of parents rcc
-    let twoStepRel = data.nodeResultContribution[data.parentNode] > 0 ? 1 : 0;
-    if (this.adjacencyListIn[data.parentNode]) {
-      for (const secondDegreeNeighbor of this.adjacencyListIn[data.parentNode]) {
-        twoStepRel += this.priorities[secondDegreeNeighbor] > 0 ? 1 : 0;
+  public processDiscovery(data: ITopologyUpdateRccUpdate): void {
+    // Update adjacency lists and mappings
+    Object.assign(this, {
+      adjacencyListOut: data.adjacencyListOut,
+      adjacencyListIn: data.adjacencyListIn,
+      indexToNodeDict: data.indexToNodeDict,
+      nodeToIndexDict: data.nodeToIndexDict,
+    });
+
+    // Ensure the parent node's priority is initialized
+    this.priorities[data.parentNode] ??= 0;
+
+    // Ensure in-neighborhood nodes are initialized
+    for (const node of [ data.parentNode, data.childNode ]) {
+      if (!this.inNeighbourHoodNodes.has(node)) {
+        this.inNeighbourHoodNodes.set(node, new Set());
       }
     }
 
-    this.priorities[data.childNode] = (this.priorities[data.childNode] ?? 0) + twoStepRel;
+    // Prevent double counting of nodes in second-degree in-neighborhood
+    const childInNeighbours = this.inNeighbourHoodNodes.get(data.childNode)!;
+    let twoStepRel = data.nodeResultContribution[data.parentNode] > 0 ? 1 : 0;
 
-    // Update the priority if it changed
+    // Add parent node to child's in-neighbors
+    childInNeighbours.add(data.parentNode);
+
+    // Process second-degree neighbors
+    const parentInNeighbours = this.adjacencyListIn[data.parentNode];
+    if (parentInNeighbours) {
+      for (const secondDegreeNeighbor of parentInNeighbours) {
+        if (!childInNeighbours.has(secondDegreeNeighbor)) {
+          if (data.nodeResultContribution[secondDegreeNeighbor] > 0) {
+            twoStepRel++;
+          }
+          childInNeighbours.add(secondDegreeNeighbor);
+        }
+      }
+    }
+
+    // Update child node's priority
+    const newPriority = (this.priorities[data.childNode] ?? 0) + twoStepRel;
+    this.priorities[data.childNode] = newPriority;
+
+    // Update priority in the link queue if it changed
     if (twoStepRel > 0) {
-      this.linkQueue.setPriority(
-        this.indexToNodeDict[data.childNode],
-        this.priorities[data.childNode],
-      );
+      this.linkQueue.setPriority(this.indexToNodeDict[data.childNode], newPriority);
     }
   }
 
@@ -85,17 +111,31 @@ export class LinkQueueRel2Prioritization extends LinkQueueWrapper<LinkQueuePrior
     // If node associated with result has a result contribution of one, it has increased from 0
     // so we update all priorities accordingly
     if (data.nodeResultContribution[data.changedNode] === 1) {
+      const incremented = new Set<number>();
       const neighbours = this.adjacencyListOut[data.changedNode];
-      for (const neighbour of neighbours) {
-        this.priorities[neighbour]++;
-        this.linkQueue.setPriority(this.indexToNodeDict[neighbour], this.priorities[neighbour]);
-        if (this.adjacencyListOut[neighbour]) {
-          for (const secondDegreeNeighbor of this.adjacencyListOut[neighbour]) {
-            this.priorities[secondDegreeNeighbor]++;
-            this.linkQueue.setPriority(this.indexToNodeDict[secondDegreeNeighbor], this.priorities[secondDegreeNeighbor]);
+      if (neighbours) {
+        for (const neighbour of neighbours) {
+          if (!incremented.has(neighbour)) {
+            this.incrementNode(neighbour);
+            incremented.add(neighbour);
+          }
+          // Second-degree neighbours (indirect neighbours)
+          const secondDegreeNeighbours = this.adjacencyListOut[neighbour];
+          if (secondDegreeNeighbours) {
+            for (const secondDegreeNeighbor of secondDegreeNeighbours) {
+              if (!incremented.has(secondDegreeNeighbor)) {
+                this.incrementNode(secondDegreeNeighbor);
+                incremented.add(secondDegreeNeighbor);
+              }
+            }
           }
         }
       }
     }
+  }
+
+  private incrementNode(node: number) {
+    this.priorities[node]++;
+    this.linkQueue.setPriority(this.indexToNodeDict[node], this.priorities[node]);
   }
 }

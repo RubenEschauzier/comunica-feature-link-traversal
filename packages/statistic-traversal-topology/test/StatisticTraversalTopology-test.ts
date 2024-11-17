@@ -70,11 +70,13 @@ describe('StatisticTraversalTopology', () => {
       testGraphEquality(statisticTraversalTopology, {
         adjacencyListIn: {},
         adjacencyListOut: {},
+        edgesInOrder: [],
         edges: new Set(),
         nodeMetadata: {},
         nodeToIndexDict: {},
         indexToNodeDict: {},
         openNodes: [],
+        dereferenceOrder: [],
       });
     });
 
@@ -85,6 +87,7 @@ describe('StatisticTraversalTopology', () => {
       testGraphEquality(statisticTraversalTopology, {
         adjacencyListIn: { 0: [], 1: [ 0 ]},
         adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[ 0, 1 ]],
         edges: new Set([ JSON.stringify([ 0, 1 ]) ]),
         nodeMetadata: { 0: {
           seed: true,
@@ -94,12 +97,13 @@ describe('StatisticTraversalTopology', () => {
         }, 1: {
           seed: false,
           dereferenced: false,
-          discoverOrder: [ 1 ],
+          discoverOrder: [ 0 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
         }},
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },
         openNodes: [ 1 ],
+        dereferenceOrder: [ ],
       });
     });
 
@@ -110,6 +114,7 @@ describe('StatisticTraversalTopology', () => {
       testGraphEquality(statisticTraversalTopology, {
         adjacencyListIn: { 0: [], 1: [ 0, 2 ], 2: []},
         adjacencyListOut: { 0: [ 1 ], 1: [], 2: [ 1 ]},
+        edgesInOrder: [[ 0, 1 ], [ 2, 1 ]],
         edges: new Set([ JSON.stringify([ 0, 1 ]), JSON.stringify([ 2, 1 ]) ]),
         nodeMetadata: { 0: {
           seed: true,
@@ -119,7 +124,7 @@ describe('StatisticTraversalTopology', () => {
         }, 1: {
           seed: false,
           dereferenced: false,
-          discoverOrder: [ 1, 2 ],
+          discoverOrder: [ 0, 1 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
         }, 2: {
           seed: true,
@@ -130,6 +135,7 @@ describe('StatisticTraversalTopology', () => {
         nodeToIndexDict: { url2: 0, url1: 1, url3: 2 },
         indexToNodeDict: { 0: 'url2', 1: 'url1', 2: 'url3' },
         openNodes: [ 1 ],
+        dereferenceOrder: [ ],
       });
     });
 
@@ -142,6 +148,7 @@ describe('StatisticTraversalTopology', () => {
       testGraphEquality(statisticTraversalTopology, {
         adjacencyListIn: { 0: [], 1: [ 0, 2 ], 2: [], 3: [ 1 ]},
         adjacencyListOut: { 0: [ 1 ], 1: [ 3 ], 2: [ 1 ], 3: []},
+        edgesInOrder: [[ 0, 1 ], [ 2, 1 ], [ 1, 3 ]],
         edges: new Set([ JSON.stringify([ 0, 1 ]), JSON.stringify([ 2, 1 ]), JSON.stringify([ 1, 3 ]) ]),
         nodeMetadata: { 0: {
           seed: true,
@@ -151,7 +158,7 @@ describe('StatisticTraversalTopology', () => {
         }, 1: {
           seed: false,
           dereferenced: false,
-          discoverOrder: [ 1, 2 ],
+          discoverOrder: [ 0, 1 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
         }, 2: {
           seed: true,
@@ -161,12 +168,13 @@ describe('StatisticTraversalTopology', () => {
         }, 3: {
           seed: false,
           dereferenced: false,
-          discoverOrder: [ 3 ],
+          discoverOrder: [ 2 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
         }},
         nodeToIndexDict: { url2: 0, url1: 1, url3: 2, url4: 3 },
         indexToNodeDict: { 0: 'url2', 1: 'url1', 2: 'url3', 3: 'url4' },
         openNodes: [ 1, 3 ],
+        dereferenceOrder: [ ],
       });
     });
 
@@ -179,6 +187,7 @@ describe('StatisticTraversalTopology', () => {
       testGraphEquality(statisticTraversalTopology, {
         adjacencyListIn: { 0: [], 1: [ 0 ]},
         adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[ 0, 1 ]],
         edges: new Set([ JSON.stringify([ 0, 1 ]) ]),
         nodeMetadata: { 0: {
           seed: true,
@@ -188,12 +197,13 @@ describe('StatisticTraversalTopology', () => {
         }, 1: {
           seed: false,
           dereferenced: false,
-          discoverOrder: [ 1 ],
+          discoverOrder: [ 0 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
         }},
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },
         openNodes: [ 1 ],
+        dereferenceOrder: [ ],
       });
     });
 
@@ -205,11 +215,13 @@ describe('StatisticTraversalTopology', () => {
           updateType: 'discover',
           adjacencyListIn: { 0: [], 1: [ 0 ]},
           adjacencyListOut: { 0: [ 1 ], 1: []},
+          edgesInOrder: [[ 0, 1 ]],
           openNodes: [ 1 ],
           nodeToIndexDict: { url2: 0, url1: 1 },
           indexToNodeDict: { 0: 'url2', 1: 'url1' },
           childNode: 1,
           parentNode: 0,
+          dereferenceOrder: [],
         },
       );
     });
@@ -227,6 +239,7 @@ describe('StatisticTraversalTopology', () => {
       testGraphEquality(statisticTraversalTopology, {
         adjacencyListIn: { 0: [], 1: [ 0 ]},
         adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[ 0, 1 ]],
         edges: new Set([ JSON.stringify([ 0, 1 ]) ]),
         nodeMetadata: { 0: {
           seed: true,
@@ -236,12 +249,13 @@ describe('StatisticTraversalTopology', () => {
         }, 1: {
           seed: false,
           dereferenced: true,
-          discoverOrder: [ 1 ],
+          discoverOrder: [ 0 ],
           dereferenceOrder: 0,
         }},
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },
         openNodes: [],
+        dereferenceOrder: [ 1 ],
       });
     });
 
@@ -253,6 +267,7 @@ describe('StatisticTraversalTopology', () => {
       testGraphEquality(statisticTraversalTopology, {
         adjacencyListIn: { 0: [], 1: [ 0 ]},
         adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[ 0, 1 ]],
         edges: new Set([ JSON.stringify([ 0, 1 ]) ]),
         nodeMetadata: { 0: {
           seed: true,
@@ -262,31 +277,45 @@ describe('StatisticTraversalTopology', () => {
         }, 1: {
           seed: false,
           dereferenced: true,
-          discoverOrder: [ 1 ],
+          discoverOrder: [ 0 ],
           dereferenceOrder: 0,
         }},
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },
         openNodes: [],
+        dereferenceOrder: [ 1 ],
       });
     });
 
     it('emit event on dereference update', () => {
       statisticTraversalTopology.on(cb);
       statisticDiscovery.updateStatistic({ url: 'url1', metadata: { key: 'value' }}, { url: 'url2' });
+      expect(cb).toHaveBeenNthCalledWith(1, {
+        updateType: 'discover',
+        adjacencyListIn: { 0: [], 1: [ 0 ]},
+        adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[ 0, 1 ]],
+        openNodes: [ 1 ],
+        nodeToIndexDict: { url2: 0, url1: 1 },
+        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        childNode: 1,
+        parentNode: 0,
+        dereferenceOrder: [ ],
+      });
       statisticDereference.updateStatistic({ url: 'url1' }, new MockQuerySource('source'));
-      expect(cb).toHaveBeenCalledWith(
-        {
-          updateType: 'discover',
-          adjacencyListIn: { 0: [], 1: [ 0 ]},
-          adjacencyListOut: { 0: [ 1 ], 1: []},
-          openNodes: [ 1 ],
-          nodeToIndexDict: { url2: 0, url1: 1 },
-          indexToNodeDict: { 0: 'url2', 1: 'url1' },
-          childNode: 1,
-          parentNode: 0,
-        },
-      );
+      expect(cb).toHaveBeenCalledTimes(2);
+      expect(cb).toHaveBeenNthCalledWith(2, {
+        updateType: 'dereference',
+        adjacencyListIn: { 0: [], 1: [ 0 ]},
+        adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[ 0, 1 ]],
+        openNodes: [ ],
+        nodeToIndexDict: { url2: 0, url1: 1 },
+        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        childNode: 1,
+        parentNode: 1,
+        dereferenceOrder: [ 1 ],
+      });
     });
   });
 
@@ -298,19 +327,23 @@ describe('StatisticTraversalTopology', () => {
 function testGraphEquality(statisticTraversalTopology, expectedValues: expectedTopologyValues) {
   expect(statisticTraversalTopology.adjacencyListIn).toEqual(expectedValues.adjacencyListIn);
   expect(statisticTraversalTopology.adjacencyListOut).toEqual(expectedValues.adjacencyListOut);
+  expect(statisticTraversalTopology.edgesInOrder).toEqual(expectedValues.edgesInOrder);
   expect(statisticTraversalTopology.edges).toEqual(expectedValues.edges);
   expect(statisticTraversalTopology.nodeMetadata).toEqual(expectedValues.nodeMetadata);
   expect(statisticTraversalTopology.indexToNodeDict).toEqual(expectedValues.indexToNodeDict);
   expect(statisticTraversalTopology.nodeToIndexDict).toEqual(expectedValues.nodeToIndexDict);
   expect(statisticTraversalTopology.openNodes).toEqual(expectedValues.openNodes);
+  expect(statisticTraversalTopology.dereferenceOrder).toEqual(expectedValues.dereferenceOrder);
 }
 
 interface expectedTopologyValues {
   adjacencyListIn: Record<number, number[]>;
   adjacencyListOut: Record<number, number[]>;
+  edgesInOrder: number[][];
   edges: Set<string>;
   nodeMetadata: Record<number, any>;
   nodeToIndexDict: Record<string, number>;
   indexToNodeDict: Record<number, string>;
   openNodes: number[];
+  dereferenceOrder: number[];
 }

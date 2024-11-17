@@ -11,20 +11,26 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
   /**
    * Incoming and outgoing edges of nodes
    */
-  public adjacencyListIn: Record<number, number[]>;
-  public adjacencyListOut: Record<number, number[]>;
+  public adjacencyListIn: Record<number, number[]> = {};
+  public adjacencyListOut: Record<number, number[]> = {};
 
   /**
    * Nodes that are not yet dereferenced
    */
-  public openNodes: number[];
-  public edges: Set<string>;
+  public openNodes: number[] = [];
+  public edges: Set<string> = new Set();
+  /**
+   * Used to determine traversal order
+   */
+  public edgesInOrder: number[][] = [];
 
-  public nodeMetadata: Record<number, INodeMetadata>;
-  public nodeToIndexDict: Record<string, number>;
-  public indexToNodeDict: Record<number, string>;
+  public nodeMetadata: Record<number, INodeMetadata> = {};
+  public nodeToIndexDict: Record<string, number> = {};
+  public indexToNodeDict: Record<number, string> = {};
 
+  public dereferenceOrder: number[] = [];
   public nDereferenced = 0;
+  public nDiscovered = 0;
 
   public constructor(
     statisticLinkDiscovery: StatisticLinkDiscovery,
@@ -32,18 +38,6 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
   ) {
     super();
     this.key = KeysStatisticsTraversal.traversalTopology;
-
-    this.adjacencyListIn = {};
-    this.adjacencyListOut = {};
-
-    this.edges = new Set();
-
-    this.nodeMetadata = {};
-    this.nodeToIndexDict = {};
-    this.indexToNodeDict = {};
-
-    this.openNodes = [];
-
     statisticLinkDereference.on((data: ILink) => {
       this.updateStatistic({
         type: 'dereference',
@@ -74,7 +68,9 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
           updateType: update.type,
           adjacencyListIn: this.adjacencyListIn,
           adjacencyListOut: this.adjacencyListOut,
+          edgesInOrder: this.edgesInOrder,
           openNodes: this.openNodes,
+          dereferenceOrder: this.dereferenceOrder,
           nodeToIndexDict: this.nodeToIndexDict,
           indexToNodeDict: this.indexToNodeDict,
           childNode: this.nodeToIndexDict[child.url],
@@ -88,7 +84,9 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
           updateType: update.type,
           adjacencyListIn: this.adjacencyListIn,
           adjacencyListOut: this.adjacencyListOut,
+          edgesInOrder: this.edgesInOrder,
           openNodes: this.openNodes,
+          dereferenceOrder: this.dereferenceOrder,
           nodeToIndexDict: this.nodeToIndexDict,
           indexToNodeDict: this.indexToNodeDict,
           childNode: this.nodeToIndexDict[update.data.url],
@@ -129,10 +127,6 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     const childId = this.nodeToId(child.url);
     const parentId = this.nodeToId(parent.url);
 
-    // If new node we add it as an open node
-    if (newNode) {
-      this.openNodes.push(childId);
-    }
     // Also set reverse dictionary
     this.indexToNodeDict[childId] = child.url;
     this.indexToNodeDict[parentId] = parent.url;
@@ -157,21 +151,27 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
 
     // Add to edges
     this.edges.add(JSON.stringify([ parentId, childId ]));
+    this.edgesInOrder.push([ parentId, childId ]);
 
     // Update metadata
     if (this.nodeMetadata[childId]) {
       const discoverOrder = this.nodeMetadata[childId].discoverOrder;
       this.nodeMetadata[childId].discoverOrder = discoverOrder ?
-          [ ...discoverOrder, this.edges.size ] :
-          [ this.edges.size ];
+          [ ...discoverOrder, this.nDiscovered ] :
+          [ this.nDiscovered ];
     } else {
       this.nodeMetadata[childId] = {
         seed: false,
         dereferenced: false,
-        discoverOrder: [ this.edges.size ],
+        discoverOrder: [ this.nDiscovered ],
         dereferenceOrder: Number.NEGATIVE_INFINITY,
       };
     }
+    // If new node we add it as an open node
+    if (newNode) {
+      this.openNodes.push(childId);
+    }
+    this.nDiscovered++;
     return true;
   }
 
@@ -181,6 +181,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     }
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
     this.nodeMetadata[this.nodeToId(link.url)].dereferenceOrder = this.nDereferenced;
+    this.dereferenceOrder.push(this.nodeToId(link.url));
     // Remove dereferenced node from open nodes (TODO check correct implementation)
     this.openNodes = this.openNodes.filter(val => val !== this.nodeToId(link.url));
     this.nDereferenced++;
@@ -217,9 +218,17 @@ export interface ITopologyUpdate {
    */
   adjacencyListOut: Record<number, number[]>;
   /**
+   * Order of edges added to graph
+   */
+  edgesInOrder: number[][];
+  /**
    * What nodes haven't been dereferenced yet
    */
   openNodes: number[];
+  /**
+   * Order of dereferencing
+   */
+  dereferenceOrder: number[];
   /**
    * Dictionary mapping URLs to node ids
    */

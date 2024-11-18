@@ -1,0 +1,16 @@
+{
+    "@context": [
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^4.0.0/components/context.jsonld",
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
+    ],
+    "import": [
+      "ccqslt:config/config-solid-default.json",
+      "ccqslt:config/context-preprocess/actor-track-r3-metric.json",
+  
+      "ccqs:config/iterator-transform/mediators.json",
+      "ccqs:config/rdf-join/actors-wrap-stream.json",
+      "ccqs:config/query-operation/actors/query/wrap-stream.json",
+      "ccqslt:config/iterator-transform/actor-record-solutions.json"
+    ]
+  }
+  

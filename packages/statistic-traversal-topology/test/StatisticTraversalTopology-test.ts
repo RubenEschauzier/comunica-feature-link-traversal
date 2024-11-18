@@ -178,7 +178,7 @@ describe('StatisticTraversalTopology', () => {
       });
     });
 
-    it('not add link metadata to topology metadata', () => {
+    it('add link metadata to topology metadata', () => {
       expect(statisticTraversalTopology.addEdge(
         { ...link1, metadata: { key: 'value' }},
         link2,
@@ -199,6 +199,7 @@ describe('StatisticTraversalTopology', () => {
           dereferenced: false,
           discoverOrder: [ 0 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
+          key: 'value'
         }},
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },

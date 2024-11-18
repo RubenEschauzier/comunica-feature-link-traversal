@@ -21,13 +21,23 @@ export class ActorContextPreprocessSetGraphTracking extends ActorContextPreproce
   }
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
-    const discovery: StatisticLinkDiscovery = new StatisticLinkDiscovery();
-    const dereference: StatisticLinkDereference = new StatisticLinkDereference();
-    const traversedTopology: StatisticTraversalTopology =
-      new StatisticTraversalTopology(discovery, dereference);
-    let context = action.context.set(KeysStatistics.discoveredLinks, discovery);
-    context = context.set(KeysStatistics.dereferencedLinks, dereference);
-    context = context.set(KeysStatisticsTraversal.traversalTopology, traversedTopology);
+    let context = action.context
+    let discovery = <StatisticLinkDiscovery> action.context.get(KeysStatistics.discoveredLinks); 
+    if (!discovery){
+      discovery = new StatisticLinkDiscovery();
+      context = action.context.set(KeysStatistics.discoveredLinks, discovery);   
+    }
+    let dereference = <StatisticLinkDereference> action.context.get(KeysStatistics.dereferencedLinks); 
+    if (!dereference){
+      dereference = new StatisticLinkDereference();
+      context = context.set(KeysStatistics.dereferencedLinks, dereference);
+    }
+    let traversedTopology = <StatisticTraversalTopology> 
+      action.context.get(KeysStatisticsTraversal.traversalTopology); 
+    if (!traversedTopology){
+      traversedTopology = new StatisticTraversalTopology(discovery, dereference);
+      context = context.set(KeysStatisticsTraversal.traversalTopology, traversedTopology);
+    }
     return { context };
   }
 }

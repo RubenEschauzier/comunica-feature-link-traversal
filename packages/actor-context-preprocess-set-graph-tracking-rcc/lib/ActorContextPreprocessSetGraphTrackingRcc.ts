@@ -23,13 +23,28 @@ export class ActorContextPreprocessSetGraphTrackingRcc extends ActorContextPrepr
   }
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
-    const discovery: StatisticLinkDiscovery = new StatisticLinkDiscovery();
-    const dereference: StatisticLinkDereference = new StatisticLinkDereference();
-    const intermediateResult: StatisticIntermediateResults = new StatisticIntermediateResults();
-    const traversedTopology: StatisticTraversalTopology =
-      new StatisticTraversalTopology(discovery, dereference);
+    let context = action.context
+    let discovery = <StatisticLinkDiscovery> action.context.get(KeysStatistics.discoveredLinks); 
+    if (!discovery){
+      discovery = new StatisticLinkDiscovery();
+    }
+    let dereference = <StatisticLinkDereference> action.context.get(KeysStatistics.dereferencedLinks); 
+    if (!dereference){
+      dereference = new StatisticLinkDereference();
+    }
+    let traversedTopology = <StatisticTraversalTopology> 
+      action.context.get(KeysStatisticsTraversal.traversalTopology); 
+    if (!traversedTopology){
+      traversedTopology = new StatisticTraversalTopology(discovery, dereference);
+    }
+    let intermediateResult = <StatisticIntermediateResults> action.context.get(
+      KeysStatistics.intermediateResults
+    );
+    if (intermediateResult){
+      intermediateResult = new StatisticIntermediateResults();
+    } 
     const traversedTopologyRcc = new StatisticTraversalTopologyRcc(traversedTopology, intermediateResult);
-    const context = action.context
+    context = action.context
       .set(KeysStatistics.discoveredLinks, discovery)
       .set(KeysStatistics.dereferencedLinks, dereference)
       .set(KeysStatistics.intermediateResults, intermediateResult)

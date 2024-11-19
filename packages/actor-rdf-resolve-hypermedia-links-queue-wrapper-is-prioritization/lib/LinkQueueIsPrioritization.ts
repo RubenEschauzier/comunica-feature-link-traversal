@@ -19,7 +19,7 @@ export class LinkQueueIsPrioritization extends LinkQueueWrapper<LinkQueuePriorit
   public override push(link: ILink, parent: ILink): boolean {
     link.metadata = {
       ...link.metadata,
-      priority: 0,
+      priority: this.priorities[link.url] ?? 0,
     };
     return super.push(link, parent);
   }
@@ -41,7 +41,6 @@ export class LinkQueueIsPrioritization extends LinkQueueWrapper<LinkQueuePriorit
           const url = new URL(binding.value);
           const normalized = url.origin + url.pathname;
           if (!this.priorities[normalized] || resultSize > this.priorities[normalized]) {
-            console.log("Setting priority")
             this.priorities[normalized] = resultSize;
             this.linkQueue.setPriority(normalized, resultSize);
           }

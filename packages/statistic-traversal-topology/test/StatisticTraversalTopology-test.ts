@@ -49,10 +49,10 @@ describe('StatisticTraversalTopology', () => {
     statisticDereference = new StatisticLinkDereference();
     statisticTraversalTopology = new StatisticTraversalTopology(statisticDiscovery, statisticDereference);
 
-    link1 = { url: 'url1' };
-    link2 = { url: 'url2' };
-    link3 = { url: 'url3' };
-    link4 = { url: 'url4' };
+    link1 = { url: 'http://url1' };
+    link2 = { url: 'http://url2' };
+    link3 = { url: 'http://url3' };
+    link4 = { url: 'http://url4' };
   });
 
   describe('An StatisticTraversalTopology instance should', () => {
@@ -100,8 +100,8 @@ describe('StatisticTraversalTopology', () => {
           discoverOrder: [ 0 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
         }},
-        nodeToIndexDict: { url2: 0, url1: 1 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        nodeToIndexDict: { 'http://url2': 0, 'http://url1': 1 },
+        indexToNodeDict: { 0: 'http://url2', 1: 'http://url1' },
         openNodes: [ 1 ],
         dereferenceOrder: [ ],
       });
@@ -132,8 +132,8 @@ describe('StatisticTraversalTopology', () => {
           discoverOrder: [ -1 ],
           dereferenceOrder: -1,
         }},
-        nodeToIndexDict: { url2: 0, url1: 1, url3: 2 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1', 2: 'url3' },
+        nodeToIndexDict: { 'http://url2': 0, 'http://url1': 1, 'http://url3': 2 },
+        indexToNodeDict: { 0: 'http://url2', 1: 'http://url1', 2: 'http://url3' },
         openNodes: [ 1 ],
         dereferenceOrder: [ ],
       });
@@ -171,8 +171,11 @@ describe('StatisticTraversalTopology', () => {
           discoverOrder: [ 2 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
         }},
-        nodeToIndexDict: { url2: 0, url1: 1, url3: 2, url4: 3 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1', 2: 'url3', 3: 'url4' },
+        nodeToIndexDict: { 'http://url2': 0, 'http://url1': 1, 'http://url3': 2, 
+          'http://url4': 3 },
+        indexToNodeDict: { 0: 'http://url2', 
+          1: 'http://url1', 2: 'http://url3', 3: 'http://url4' 
+        },
         openNodes: [ 1, 3 ],
         dereferenceOrder: [ ],
       });
@@ -199,10 +202,10 @@ describe('StatisticTraversalTopology', () => {
           dereferenced: false,
           discoverOrder: [ 0 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
-          key: 'value'
+          key: 'value',
         }},
-        nodeToIndexDict: { url2: 0, url1: 1 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        nodeToIndexDict: { 'http://url2': 0, 'http://url1': 1 },
+        indexToNodeDict: { 0: 'http://url2', 1: 'http://url1' },
         openNodes: [ 1 ],
         dereferenceOrder: [ ],
       });
@@ -210,7 +213,8 @@ describe('StatisticTraversalTopology', () => {
 
     it('emit event on discovery update', () => {
       statisticTraversalTopology.on(cb);
-      statisticDiscovery.updateStatistic({ url: 'url1', metadata: { key: 'value' }}, { url: 'url2' });
+      statisticDiscovery.updateStatistic({ url: 'http://url1',
+         metadata: { key: 'value' }}, { url: 'http://url2' });
       expect(cb).toHaveBeenCalledWith(
         {
           updateType: 'discover',
@@ -218,8 +222,8 @@ describe('StatisticTraversalTopology', () => {
           adjacencyListOut: { 0: [ 1 ], 1: []},
           edgesInOrder: [[ 0, 1 ]],
           openNodes: [ 1 ],
-          nodeToIndexDict: { url2: 0, url1: 1 },
-          indexToNodeDict: { 0: 'url2', 1: 'url1' },
+          nodeToIndexDict: { 'http://url2/': 0, 'http://url1/': 1 },
+          indexToNodeDict: { 0: 'http://url2/', 1: 'http://url1/' },
           childNode: 1,
           parentNode: 0,
           dereferenceOrder: [],
@@ -228,9 +232,11 @@ describe('StatisticTraversalTopology', () => {
     });
 
     it('not emit event on invalid discovery update', () => {
-      statisticDiscovery.updateStatistic({ url: 'url1' }, { url: 'url2' });
+      statisticDiscovery.updateStatistic({ url: 'http://url1' }, 
+        { url: 'http://url2' });
       statisticTraversalTopology.on(cb);
-      statisticDiscovery.updateStatistic({ url: 'url1' }, { url: 'url2' });
+      statisticDiscovery.updateStatistic({ url: 'http://url1' },
+         { url: 'http://url2' });
       expect(cb).not.toHaveBeenCalled();
     });
 
@@ -253,8 +259,8 @@ describe('StatisticTraversalTopology', () => {
           discoverOrder: [ 0 ],
           dereferenceOrder: 0,
         }},
-        nodeToIndexDict: { url2: 0, url1: 1 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        nodeToIndexDict: { 'http://url2': 0, 'http://url1': 1 },
+        indexToNodeDict: { 0: 'http://url2', 1: 'http://url1' },
         openNodes: [],
         dereferenceOrder: [ 1 ],
       });
@@ -281,8 +287,8 @@ describe('StatisticTraversalTopology', () => {
           discoverOrder: [ 0 ],
           dereferenceOrder: 0,
         }},
-        nodeToIndexDict: { url2: 0, url1: 1 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        nodeToIndexDict: { 'http://url2': 0, 'http://url1': 1 },
+        indexToNodeDict: { 0: 'http://url2', 1: 'http://url1' },
         openNodes: [],
         dereferenceOrder: [ 1 ],
       });
@@ -290,20 +296,23 @@ describe('StatisticTraversalTopology', () => {
 
     it('emit event on dereference update', () => {
       statisticTraversalTopology.on(cb);
-      statisticDiscovery.updateStatistic({ url: 'url1', metadata: { key: 'value' }}, { url: 'url2' });
+      statisticDiscovery.updateStatistic(
+        { url: 'http://url1', metadata: { key: 'value' }},
+         { url: 'http://url2' }
+        );
       expect(cb).toHaveBeenNthCalledWith(1, {
         updateType: 'discover',
         adjacencyListIn: { 0: [], 1: [ 0 ]},
         adjacencyListOut: { 0: [ 1 ], 1: []},
         edgesInOrder: [[ 0, 1 ]],
         openNodes: [ 1 ],
-        nodeToIndexDict: { url2: 0, url1: 1 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        nodeToIndexDict: { 'http://url2/': 0, 'http://url1/': 1 },
+        indexToNodeDict: { 0: 'http://url2/', 1: 'http://url1/' },
         childNode: 1,
         parentNode: 0,
         dereferenceOrder: [ ],
       });
-      statisticDereference.updateStatistic({ url: 'url1' }, new MockQuerySource('source'));
+      statisticDereference.updateStatistic({ url: 'http://url1' }, new MockQuerySource('source'));
       expect(cb).toHaveBeenCalledTimes(2);
       expect(cb).toHaveBeenNthCalledWith(2, {
         updateType: 'dereference',
@@ -311,8 +320,8 @@ describe('StatisticTraversalTopology', () => {
         adjacencyListOut: { 0: [ 1 ], 1: []},
         edgesInOrder: [[ 0, 1 ]],
         openNodes: [ ],
-        nodeToIndexDict: { url2: 0, url1: 1 },
-        indexToNodeDict: { 0: 'url2', 1: 'url1' },
+        nodeToIndexDict: { 'http://url2/': 0, 'http://url1/': 1 },
+        indexToNodeDict: { 0: 'http://url2/', 1: 'http://url1/' },
         childNode: 1,
         parentNode: 1,
         dereferenceOrder: [ 1 ],

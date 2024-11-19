@@ -18,11 +18,13 @@ export class LinkQueueIsdcrPrioritization extends LinkQueueWrapper<LinkQueuePrio
 
   public override push(link: ILink, parent: ILink): boolean {
     // Seed URLs without parent get priority zero
-    const priority = (this.priorities[parent.url] ?? 1) - 1;
-    this.priorities[link.url] = priority;
+    const parentPriority = (this.priorities[parent.url] ?? 1) - 1;
+    if (!this.priorities[link.url] || parentPriority > this.priorities[link.url]) {
+      this.priorities[link.url] = parentPriority;
+    }
     link.metadata = {
       ...link.metadata,
-      priority,
+      priority: this.priorities[link.url],
     };
     return super.push(link, parent);
   }

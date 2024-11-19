@@ -18,7 +18,7 @@ import { LinkQueueRcc2Prioritization } from '../lib/LinkQueueRcc2Prioritization'
 const DF = new DataFactory();
 const BF = new BindingsFactory(DF);
 
-describe('LinkQueueIndegreePrioritisation', () => {
+describe('LinkQueueRcc2Prioritization', () => {
   let inner: LinkQueuePriority;
   let queue: LinkQueueRcc2Prioritization;
 
@@ -41,7 +41,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
     inner = new LinkQueuePriority();
     queue = new LinkQueueRcc2Prioritization(inner, statisticTraversalTopologyRcc);
   });
-  describe('an dynamic example topology', () => {
+  describe('a dynamic example topology', () => {
     it('should correctly set priorities', (done) => {
       const attributionStream1 = new ArrayIterator([
         DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('A')),
@@ -92,7 +92,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
           attributionStream2.on('end', () => {
             try {
               expect(queue.priorities).toEqual(
-                { 0: 0, 1: 1, 2: 4, 3: 4 },
+                { 0: 0, 1: 1, 2: 5, 3: 5 },
               );
               expect(queue.peek()).toEqual({ url: 'C', metadata: { index: 0, priority: 4 }});
               done();

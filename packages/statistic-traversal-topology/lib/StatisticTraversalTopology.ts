@@ -54,12 +54,14 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
 
   public updateStatistic(update: IDataTopologyUpdate): boolean {
     if (update.type === 'discover') {
+      const childUrl = new URL(update.data.edge[1]);
+      const parentUrl = new URL(update.data.edge[0]);
       const child: ILink = {
-        url: update.data.edge[1],
+        url: childUrl.origin + childUrl.pathname,
         metadata: update.data.metadataChild,
       };
       const parent: ILink = {
-        url: update.data.edge[0],
+        url: parentUrl.origin + parentUrl.pathname,
         metadata: update.data.metadataParent,
       };
       const result = this.addEdge(child, parent);
@@ -78,6 +80,8 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         });
       }
     } else if (update.type === 'dereference') {
+      const url = new URL(update.data.url);
+      update.data.url = url.origin + url.pathname;
       const result = this.setDereferenced(update.data);
       if (result) {
         this.emit({
@@ -117,7 +121,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: true,
         discoverOrder: [ -1 ],
         dereferenceOrder: -1,
-        ...parent.metadata
+        ...parent.metadata,
       };
     }
     // Whether the child node is new
@@ -166,7 +170,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: false,
         discoverOrder: [ this.nDiscovered ],
         dereferenceOrder: Number.NEGATIVE_INFINITY,
-        ...child.metadata
+        ...child.metadata,
       };
     }
     // If new node we add it as an open node

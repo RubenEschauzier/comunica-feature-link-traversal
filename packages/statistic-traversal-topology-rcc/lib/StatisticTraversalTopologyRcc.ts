@@ -9,8 +9,6 @@ import type { Bindings } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
 import { types } from 'sparqlalgebrajs/lib/algebra';
 
-// Import { Bindings } from '@comunica/utils-bindings-factory';
-
 export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateRccEmit> {
   public key: ActionContextKey<IStatisticBase<TopologyUpdateRccEmit>>;
   /**
@@ -41,8 +39,7 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
     statisticIntermediateResults.on((data: PartialResult) => {
       if (data.type === 'bindings' &&
         (data.metadata.operation === types.PROJECT ||
-          data.metadata.operation === types.DISTINCT ||
-          data.metadata.operation === 'inner')
+          data.metadata.operation === types.DISTINCT)
       ) {
         this.updateStatistic({
           updateType: 'result',
@@ -60,7 +57,6 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
       // If any of the updated nodes don't have a nodeResultContribution, set to 0
       this.nodeResultContribution[update.childNode] ??= 0;
       this.nodeResultContribution[update.parentNode] ??= 0;
-
       // Discover event emits the underlying topology
       this.emit({
         updateType: 'discover',

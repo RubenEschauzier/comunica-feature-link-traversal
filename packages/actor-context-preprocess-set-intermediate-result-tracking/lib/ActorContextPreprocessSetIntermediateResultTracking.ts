@@ -20,11 +20,11 @@ export class ActorContextPreprocessSetIntermediateResultTracking extends ActorCo
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     let context = action.context;
     let intermediateResult = <StatisticIntermediateResults> action.context.get(
-      KeysStatistics.intermediateResults
+      KeysStatistics.intermediateResults,
     );
-    if (!intermediateResult){
+    if (!intermediateResult) {
       intermediateResult = new StatisticIntermediateResults();
-      context = context.set(KeysStatistics.intermediateResults, intermediateResult)
+      context = context.set(KeysStatistics.intermediateResults, intermediateResult);
     }
     return { context };
   }

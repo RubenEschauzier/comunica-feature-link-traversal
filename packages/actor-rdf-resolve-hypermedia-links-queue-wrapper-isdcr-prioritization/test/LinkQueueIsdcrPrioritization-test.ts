@@ -7,34 +7,47 @@ import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
 import { DataFactory } from 'rdf-data-factory';
 import { types } from 'sparqlalgebrajs/lib/algebra';
-import { LinkQueueIsPrioritization } from '../lib/LinkQueueIsPrioritization';
+import { LinkQueueIsdcrPrioritization } from '../lib/LinkQueueIsdcrPrioritization';
 
 const DF = new DataFactory();
 const BF = new BindingsFactory(DF);
 
-describe('LinkQueueIsPrioritisation', () => {
+describe('LinkQueueIsdcrPrioritisation', () => {
   let inner: LinkQueuePriority;
-  let queue: LinkQueueIsPrioritization;
+  let queue: LinkQueueIsdcrPrioritization;
 
   let statisticIntermediateResults: StatisticIntermediateResults;
   beforeEach(() => {
     statisticIntermediateResults = new StatisticIntermediateResults();
 
     inner = new LinkQueuePriority();
-    queue = new LinkQueueIsPrioritization(inner, statisticIntermediateResults);
+    queue = new LinkQueueIsdcrPrioritization(inner, statisticIntermediateResults);
   });
   describe('LinkQueueIsPrioritization', () => {
     it('should update priorities for new intermediate results', () => {
       queue.push({ url: 'http://example.com/resource' }, { url: 'v1' });
-      queue.push({ url: 'http://example.com/resource1' }, { url: 'v1' });
 
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: BF.fromRecord(
-          { v1: DF.namedNode('http://example.com/resource1') },
+          { v1: DF.namedNode('http://example.com/resource'), v2: DF.namedNode('http://example.com/resource') },
         ),
         metadata: { operation: types.PROJECT },
       });
+      queue.push({ url: 'http://example.com/resource1' }, { url: 'http://example.com/resource' });
+      expect(queue.priorities).toEqual({
+        'http://example.com/resource': 2,
+        'http://example.com/resource1': 1,
+      });
+      expect(queue.pop()).toEqual(
+        {
+          url: 'http://example.com/resource',
+          metadata: {
+            priority: 2,
+            index: 0,
+          },
+        },
+      );
       expect(queue.peek()).toEqual(
         {
           url: 'http://example.com/resource1',
@@ -44,19 +57,6 @@ describe('LinkQueueIsPrioritisation', () => {
           },
         },
       );
-      expect(queue.pop()).toEqual(
-        {
-          url: 'http://example.com/resource1',
-          metadata: {
-            priority: 1,
-            index: 0,
-          },
-        },
-      );
-
-      expect(queue.priorities).toEqual({
-        'http://example.com/resource1': 1,
-      });
     });
   });
 
@@ -126,21 +126,6 @@ describe('LinkQueueIsPrioritisation', () => {
         'http://example.com/resource': 3,
       });
     });
-    it('should be case insensitive', () => {
-        const bindingCase = BF.fromRecord({
-          v1: DF.namedNode('http://examPle.com/resource'),
-          v2: DF.namedNode('http://examplE.com/resource'),
-        });
-        queue.processIntermediateResult({
-          type: 'bindings',
-          data: bindingCase,
-          metadata: {},
-        });
-        expect(queue.priorities).toEqual({
-          'http://example.com/resource': 2,
-        });
-      });
-  
     it('should update priorities if priority is not yet set', () => {
       queue.processIntermediateResult({
         type: 'bindings',
@@ -195,12 +180,31 @@ describe('LinkQueueIsPrioritisation', () => {
   });
 
   describe('push', () => {
-    it('should add new unknown links with priority 0', () => {
+    it('should add new links with 0 priority parents with priority -1', () => {
       const pushSpy = jest.spyOn(inner, 'push');
-      queue.push({ url: 'http://url1' }, { url: 'http://url2' });
-      expect(pushSpy).toHaveBeenCalledWith({ url: 'http://url1', metadata: { priority: 0, index: 0 }}, { url: 'http://url2' });
+      queue.priorities.url2 = 0;
+      queue.push({ url: 'url1' }, { url: 'url2' });
+      expect(pushSpy).toHaveBeenCalledWith({ url: 'url1', metadata: { priority: -1, index: 0 }}, { url: 'url2' });
     });
-    it('should add links involved in bindings with priority equal to size bindings', () => {
+    it('should add new links with undefined priority parents with priority 0', () => {
+      const pushSpy = jest.spyOn(inner, 'push');
+      queue.push({ url: 'url1' }, { url: 'url2' });
+      expect(pushSpy).toHaveBeenCalledWith({ url: 'url1', metadata: { priority: 0, index: 0 }}, { url: 'url2' });
+    });
+    it('should add new links with priority equal to parent priority - 1', () => {
+      statisticIntermediateResults.updateStatistic({
+        type: 'bindings',
+        data: BF.fromRecord(
+          { v1: DF.namedNode('http://example.com/resource1'), v2: DF.namedNode('http://example.com/resource1'),
+          },
+        ),
+        metadata: { operation: types.PROJECT },
+      });
+      const pushSpy = jest.spyOn(inner, 'push');
+      queue.push({ url: 'http://example.com/resource' }, { url: 'http://example.com/resource1' });
+      expect(queue.priorities['http://example.com/resource']).toBe(1);
+    });
+    it('should push links involved in bindings with correct priority', () => {
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: BF.fromRecord(
@@ -208,19 +212,28 @@ describe('LinkQueueIsPrioritisation', () => {
         ),
         metadata: { operation: types.PROJECT },
       });
+      statisticIntermediateResults.updateStatistic({
+        type: 'bindings',
+        data: BF.fromRecord(
+          { v1: DF.namedNode('http://example.com/resource1'), v2: DF.namedNode('http://example.com/resource1'), v3: DF.namedNode('http://example.com/resource1') },
+        ),
+        metadata: { operation: types.PROJECT },
+      });
       const pushSpy = jest.spyOn(inner, 'push');
-      queue.push({ url: 'http://example.com/resource' }, { url: 'http://url2' });
-      expect(pushSpy).toHaveBeenCalledWith(
-        { url: 'http://example.com/resource', metadata: { priority: 1, index: 0 }},
-        { url: 'http://url2' },
-      );
+      queue.push({ url: 'http://example.com/resource' }, { url: 'http://example.com/resource1' });
+      expect(queue.priorities['http://example.com/resource']).toBe(2);
+      expect(pushSpy).toHaveBeenNthCalledWith(1, { url: 'http://example.com/resource', metadata: { priority: 2, index: 0 }}, { url: 'http://example.com/resource1' });
+      queue.push({ url: 'http://example.com/resource1' }, { url: 'http://example.com/resource' });
+      expect(queue.priorities['http://example.com/resource1']).toBe(3);
+      expect(pushSpy).toHaveBeenNthCalledWith(2, { url: 'http://example.com/resource1', metadata: { priority: 3, index: 0 }}, { url: 'http://example.com/resource' });
     });
+
     it('should retain any existing metadata', () => {
       const pushSpy = jest.spyOn(inner, 'push');
-      queue.push({ url: 'http://url1', metadata: { key: 'value' }}, { url: 'http://url2' });
+      queue.push({ url: 'url1', metadata: { key: 'value' }}, { url: 'url2' });
       expect(pushSpy).toHaveBeenCalledWith(
-        { url: 'http://url1', metadata: { priority: 0, index: 0, key: 'value' }},
-        { url: 'http://url2' },
+        { url: 'url1', metadata: { priority: 0, index: 0, key: 'value' }},
+        { url: 'url2' },
       );
     });
   });

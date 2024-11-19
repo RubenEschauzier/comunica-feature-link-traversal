@@ -28,10 +28,10 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
 
   public constructor(linkQueue: LinkQueuePriority, rccTopology: StatisticTraversalTopologyRcc, intermediateResults: StatisticIntermediateResults) {
     super(linkQueue);
-    rccTopology.on((update: TopologyUpdateRccEmit) => this.processTopologyUpdate(update));
-    intermediateResults.on((update: PartialResult) => {
-      this.processIntermediateResult(update);
-    });
+    rccTopology.on((update: TopologyUpdateRccEmit) =>
+      this.processTopologyUpdate(update));
+    intermediateResults.on((update: PartialResult) =>
+      this.processIntermediateResult(update));
   }
 
   public override push(link: ILink, parent: ILink): boolean {
@@ -40,7 +40,7 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
     let priority = 0;
     const id = this.nodeToIndexDict[link.url];
     if (this.rcc1Scores[id] || this.isScores[id]) {
-      priority = (this.rcc1Scores[id] ?? 1) * (this.isScores[id] ?? 1);
+      priority = (this.rcc1Scores[id] || 1) * (this.isScores[id] || 1);
     }
     link.metadata = {
       ...link.metadata,
@@ -103,19 +103,21 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
     if (data.nodeResultContribution[data.parentNode] > 0) {
       this.linkQueue.setPriority(
         this.indexToNodeDict[data.childNode],
-        this.rcc1Scores[data.childNode] * (this.isScores[data.childNode] ?? 1),
+        this.rcc1Scores[data.childNode] * (this.isScores[data.childNode] || 1),
       );
     }
   }
 
   public processResultUpdate(data: ITopologyUpdateRccResult) {
     const neighbours = this.adjacencyListOut[data.changedNode];
-    for (const neighbour of neighbours) {
-      this.rcc1Scores[neighbour]++;
-      this.linkQueue.setPriority(
-        this.indexToNodeDict[neighbour],
-        this.rcc1Scores[neighbour] * (this.isScores[neighbour] ?? 1),
-      );
+    if (neighbours) {
+      for (const neighbour of neighbours) {
+        this.rcc1Scores[neighbour]++;
+        this.linkQueue.setPriority(
+          this.indexToNodeDict[neighbour],
+          this.rcc1Scores[neighbour] * (this.isScores[neighbour] ?? 1),
+        );
+      }
     }
   }
 }

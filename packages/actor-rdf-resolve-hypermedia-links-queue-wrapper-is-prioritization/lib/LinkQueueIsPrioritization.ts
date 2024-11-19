@@ -37,9 +37,11 @@ export class LinkQueueIsPrioritization extends LinkQueueWrapper<LinkQueuePriorit
       const resultSize = result.data.size;
       result.data.forEach((binding: RDF.Term, _: RDF.Variable) => {
         if (binding.termType === 'NamedNode') {
+          // Note, this works for URIs, not IRI's. As non-ASCII are not accepted
           const url = new URL(binding.value);
           const normalized = url.origin + url.pathname;
           if (!this.priorities[normalized] || resultSize > this.priorities[normalized]) {
+            console.log("Setting priority")
             this.priorities[normalized] = resultSize;
             this.linkQueue.setPriority(normalized, resultSize);
           }

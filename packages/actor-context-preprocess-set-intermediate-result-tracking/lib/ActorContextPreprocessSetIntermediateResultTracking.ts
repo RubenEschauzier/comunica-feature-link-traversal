@@ -22,7 +22,7 @@ export class ActorContextPreprocessSetIntermediateResultTracking extends ActorCo
     let intermediateResult = <StatisticIntermediateResults> action.context.get(
       KeysStatistics.intermediateResults
     );
-    if (intermediateResult){
+    if (!intermediateResult){
       intermediateResult = new StatisticIntermediateResults();
       context = context.set(KeysStatistics.intermediateResults, intermediateResult)
     }

@@ -40,7 +40,7 @@ export class ActorContextPreprocessSetGraphTrackingRcc extends ActorContextPrepr
     let intermediateResult = <StatisticIntermediateResults> action.context.get(
       KeysStatistics.intermediateResults
     );
-    if (intermediateResult){
+    if (!intermediateResult){
       intermediateResult = new StatisticIntermediateResults();
     } 
     const traversedTopologyRcc = new StatisticTraversalTopologyRcc(traversedTopology, intermediateResult);

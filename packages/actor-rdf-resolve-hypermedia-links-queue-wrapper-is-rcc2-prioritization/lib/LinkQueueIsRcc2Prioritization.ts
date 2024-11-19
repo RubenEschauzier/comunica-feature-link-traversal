@@ -125,7 +125,6 @@ export class LinkQueueIsRcc2Prioritization extends LinkQueueWrapper<LinkQueuePri
       if (this.adjacencyListOut[neighbour]) {
         for (const secondDegreeNeighbor of this.adjacencyListOut[neighbour]) {
           this.rcc2Scores[secondDegreeNeighbor]++;
-          console.log(this.rcc2Scores[secondDegreeNeighbor]++);
           this.linkQueue.setPriority(
             this.indexToNodeDict[secondDegreeNeighbor],
             this.rcc2Scores[secondDegreeNeighbor] * (this.isScores[secondDegreeNeighbor] ?? 1),

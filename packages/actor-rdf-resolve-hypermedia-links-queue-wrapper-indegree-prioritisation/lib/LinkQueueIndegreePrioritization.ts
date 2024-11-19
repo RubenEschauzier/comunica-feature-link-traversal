@@ -41,13 +41,11 @@ export class LinkQueueIndegreePrioritization extends LinkQueueWrapper<LinkQueueP
   }
 
   public updateIndegrees() {
-    console.log(this.adjacencyListIn);
     const newIndegrees: Record<number, number> = {};
     // Get indegrees of still open nodes
     for (let i = 0; i < this.openNodes.length; i++) {
       // Only interested in indegree > 1, as most nodes have indegree = 1
       if (this.adjacencyListIn[this.openNodes[i]].length > 1) {
-        console.log(this.openNodes[i]);
         newIndegrees[this.openNodes[i]] = this.adjacencyListIn[this.openNodes[i]].length;
       }
     }

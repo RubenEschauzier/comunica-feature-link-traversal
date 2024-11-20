@@ -44,25 +44,25 @@ describe('LinkQueueIndegreePrioritisation', () => {
   describe('an dynamic example topology', () => {
     it('should correctly set priorities', (done) => {
       const attributionStream1 = new ArrayIterator([
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('A')),
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('C')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://A')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://C')),
       ]);
       const attributionStream2 = new ArrayIterator([
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('D')),
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://D')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
       ]);
       const bindingWithSource1 = BF.fromRecord({ v1: DF.namedNode('v1') })
         .setContextEntry(KeysMergeBindingsContext.sourcesBindingStream, attributionStream1);
       const bindingWithSource2 = BF.fromRecord({ v1: DF.namedNode('v1') })
         .setContextEntry(KeysMergeBindingsContext.sourcesBindingStream, attributionStream2);
 
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
-      statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'A' });
-      statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'B' });
-      queue.push({ url: 'B' }, { url: 'A' });
-      queue.push({ url: 'C' }, { url: 'A' });
-      queue.push({ url: 'C' }, { url: 'B' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
+      statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://A' });
+      statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://B' });
+      queue.push({ url: 'http://B' }, { url: 'http://A' });
+      queue.push({ url: 'http://C' }, { url: 'http://A' });
+      queue.push({ url: 'http://C' }, { url: 'http://B' });
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: bindingWithSource1,
@@ -73,13 +73,13 @@ describe('LinkQueueIndegreePrioritisation', () => {
           expect(queue.priorities).toEqual(
             { 0: 0, 1: 1, 2: 2 },
           );
-          expect(queue.peek()).toEqual({ url: 'C', metadata: { index: 0, priority: 2 }});
-          statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'B' });
-          statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'C' });
-          statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'D' });
-          queue.push({ url: 'D' }, { url: 'B' });
-          queue.push({ url: 'D' }, { url: 'C' });
-          queue.push({ url: 'C' }, { url: 'D' });
+          expect(queue.peek()).toEqual({ url: 'http://C', metadata: { index: 0, priority: 2 }});
+          statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://B' });
+          statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://C' });
+          statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://D' });
+          queue.push({ url: 'http://D' }, { url: 'http://B' });
+          queue.push({ url: 'http://D' }, { url: 'http://C' });
+          queue.push({ url: 'http://C' }, { url: 'http://D' });
           expect(queue.priorities).toEqual(
             { 0: 0, 1: 1, 2: 2, 3: 2 },
           );
@@ -93,7 +93,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
               expect(queue.priorities).toEqual(
                 { 0: 0, 1: 1, 2: 3, 3: 2 },
               );
-              expect(queue.peek()).toEqual({ url: 'C', metadata: { index: 0, priority: 3 }});
+              expect(queue.peek()).toEqual({ url: 'http://C', metadata: { index: 0, priority: 3 }});
               done();
             } catch (error) {
               done(error);
@@ -114,12 +114,12 @@ describe('LinkQueueIndegreePrioritisation', () => {
 
     beforeEach(() => {
       attributionStream1 = new ArrayIterator([
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('C')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://C')),
       ]);
       attributionStream2 = new ArrayIterator([
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('C')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://C')),
       ]);
 
       bindingWithSource1 = BF.fromRecord({ v1: DF.namedNode('v1') })
@@ -134,23 +134,23 @@ describe('LinkQueueIndegreePrioritisation', () => {
     });
 
     it('should initialize parent rcc if parent is seed node', () => {
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
       expect(queue.priorities[queue.nodeToIndexDict.A]).toBe(0);
     });
 
     it('should initialize child rcc if not yet initialized', () => {
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
       expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(0);
     });
 
     it('should not change child rcc if parent rcc = 0', () => {
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
-      statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'C' });
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'D' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
+      statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://C' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://D' });
       expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(0);
     });
     it('should update priority if parent rcc > 0 and new node', (done) => {
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: bindingWithSource1,
@@ -158,7 +158,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
       attributionStream1.on('end', () => {
         try {
-          statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'B' });
+          statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://B' });
           expect(queue.priorities[queue.nodeToIndexDict.C]).toBe(1);
           done();
         } catch (error) {
@@ -167,7 +167,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
     });
     it('should update priority if parent rcc > 1 and new node', (done) => {
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: bindingWithSource1,
@@ -180,7 +180,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
       attributionStream2.on('end', () => {
         try {
-          statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'B' });
+          statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://B' });
           // This should be true, but is a safety measure
           expect(attributionStream1.done).toBe(true);
           expect(queue.priorities[queue.nodeToIndexDict.C]).toBe(1);
@@ -191,7 +191,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
     });
     it('should update priority if parent rcc > 0 and existing node', (done) => {
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'C' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://C' });
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: bindingWithSource1,
@@ -199,7 +199,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
       attributionStream1.on('end', () => {
         try {
-          statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+          statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
           expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(1);
           done();
         } catch (error) {
@@ -208,7 +208,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
     });
     it('should update priority if parent rcc > 1 and existing node', (done) => {
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'C' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://C' });
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: bindingWithSource1,
@@ -221,7 +221,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
       attributionStream2.on('end', () => {
         try {
-          statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+          statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
           expect(attributionStream1.done).toBe(true);
           expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(1);
           done();
@@ -240,14 +240,14 @@ describe('LinkQueueIndegreePrioritisation', () => {
 
     beforeEach(() => {
       attributionStream1 = new ArrayIterator([
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('C')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://C')),
       ]);
       bindingWithSource1 = BF.fromRecord({ v1: DF.namedNode('v1') })
         .setContextEntry(KeysMergeBindingsContext.sourcesBindingStream, attributionStream1);
       attributionStream2 = new ArrayIterator([
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
-        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('C')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
+        DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://C')),
       ]);
       bindingWithSource2 = BF.fromRecord({ v1: DF.namedNode('v1') })
         .setContextEntry(KeysMergeBindingsContext.sourcesBindingStream, attributionStream2);
@@ -255,8 +255,8 @@ describe('LinkQueueIndegreePrioritisation', () => {
 
     it('should do nothing if the node has no outgoing edges', (done) => {
       const setPrioritySpy = jest.spyOn(inner, 'setPriority');
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
-      statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'A' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
+      statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://A' });
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: bindingWithSource1,
@@ -279,10 +279,10 @@ describe('LinkQueueIndegreePrioritisation', () => {
 
     it('should update all priorities of outgoing neighbours', (done) => {
       const setPrioritySpy = jest.spyOn(inner, 'setPriority');
-      statisticDiscovery.updateStatistic({ url: 'A' }, { url: 'B' });
-      statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'B' });
-      statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'C' });
-      statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'C' });
+      statisticDiscovery.updateStatistic({ url: 'http://A' }, { url: 'http://B' });
+      statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://B' });
+      statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://C' });
+      statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://C' });
       statisticIntermediateResults.updateStatistic({
         type: 'bindings',
         data: bindingWithSource1,
@@ -304,7 +304,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
             3: 0,
           });
           expect(setPrioritySpy.mock.calls).toEqual(
-            [[ 'A', 1 ], [ 'D', 1 ], [ 'D', 2 ], [ 'B', 1 ]],
+            [[ 'http://A', 1 ], [ 'http://D', 1 ], [ 'http://D', 2 ], [ 'http://B', 1 ]],
           );
           done();
         } catch (error) {

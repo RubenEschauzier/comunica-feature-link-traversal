@@ -120,8 +120,8 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //   let spySetPriority: any;
   //   beforeEach(() => {
   //     attributionStream = new ArrayIterator([
-  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
-  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('C')),
+  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
+  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://C')),
   //     ]);
   //     bindingWithSource = BF.fromRecord({ v1: DF.namedNode('v1') })
   //       .setContextEntry(KeysMergeBindingsContext.sourcesBindingStream, attributionStream);
@@ -134,23 +134,23 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //   });
 
   //   it('should initialize parent rcc if parent is seed node', () => {
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
   //     expect(queue.rcc2Scores[queue.nodeToIndexDict.A]).toBe(0);
   //   });
 
   //   it('should initialize child rcc if not yet initialized', () => {
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
   //     expect(queue.rcc2Scores[queue.nodeToIndexDict.B]).toBe(0);
   //   });
 
   //   it('should not change child rcc if parent rcc = 0', () => {
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
-  //     statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'C' });
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'D' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://C' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://D' });
   //     expect(queue.rcc2Scores[queue.nodeToIndexDict.B]).toBe(0);
   //   });
   //   it('should update priority if parent rcc > 0 and new node', (done) => {
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
   //     statisticIntermediateResults.updateStatistic({
   //       type: 'bindings',
   //       data: bindingWithSource,
@@ -158,7 +158,7 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //     });
   //     attributionStream.on('end', () => {
   //       try {
-  //         statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'B' });
+  //         statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://B' });
   //         expect(queue.rcc2Scores[queue.nodeToIndexDict.C]).toBe(1);
   //         done();
   //       } catch (error) {
@@ -167,7 +167,7 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //     });
   //   });
   //   it('should update priority if parent rcc > 0 and existing node', (done) => {
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'C' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://C' });
   //     statisticIntermediateResults.updateStatistic({
   //       type: 'bindings',
   //       data: bindingWithSource,
@@ -175,7 +175,7 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //     });
   //     attributionStream.on('end', () => {
   //       try {
-  //         statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+  //         statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
   //         expect(queue.rcc2Scores[queue.nodeToIndexDict.B]).toBe(1);
   //         done();
   //       } catch (error) {
@@ -184,7 +184,7 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //     });
   //   });
   //   it('should update priority if parent rcc > 0 and existing node with is-score > 0', (done) => {
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'C' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://C' });
   //     queue.isScores[1] = 3;
   //     statisticIntermediateResults.updateStatistic({
   //       type: 'bindings',
@@ -193,9 +193,9 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //     });
   //     attributionStream.on('end', () => {
   //       try {
-  //         statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
+  //         statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
   //         expect(queue.rcc2Scores[queue.nodeToIndexDict.B]).toBe(1);
-  //         expect(spySetPriority).toHaveBeenCalledWith('B', 3);
+  //         expect(spySetPriority).toHaveBeenCalledWith('http://B', 3);
   //         done();
   //       } catch (error) {
   //         done(error);
@@ -210,8 +210,8 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
 
   //   beforeEach(() => {
   //     attributionStream = new ArrayIterator([
-  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('B')),
-  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('C')),
+  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://B')),
+  //       DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('http://C')),
   //     ]);
   //     bindingWithSource = BF.fromRecord({ v1: DF.namedNode('v1') })
   //       .setContextEntry(KeysMergeBindingsContext.sourcesBindingStream, attributionStream);
@@ -219,8 +219,8 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
 
   //   it('should do nothing if the node has no outgoing edges', (done) => {
   //     const setPrioritySpy = jest.spyOn(inner, 'setPriority');
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'A' });
-  //     statisticDiscovery.updateStatistic({ url: 'C' }, { url: 'A' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://A' });
   //     statisticIntermediateResults.updateStatistic({
   //       type: 'bindings',
   //       data: bindingWithSource,
@@ -243,10 +243,10 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
 
   //   it('should update all priorities of outgoing neighbours', (done) => {
   //     const setPrioritySpy = jest.spyOn(inner, 'setPriority');
-  //     statisticDiscovery.updateStatistic({ url: 'A' }, { url: 'B' });
-  //     statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'B' });
-  //     statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'C' });
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'C' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://A' }, { url: 'http://B' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://B' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://C' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://C' });
   //     statisticIntermediateResults.updateStatistic({
   //       type: 'bindings',
   //       data: bindingWithSource,
@@ -261,7 +261,7 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //           3: 0,
   //         });
   //         expect(setPrioritySpy.mock.calls).toEqual(
-  //           [[ 'A', 1 ], [ 'D', 1 ], [ 'D', 2 ], [ 'B', 1 ], [ 'A', 2 ]],
+  //           [[ 'http://A', 1 ], [ 'http://D', 1 ], [ 'http://D', 2 ], [ 'http://B', 1 ], [ 'http://A', 2 ]],
   //         );
   //         done();
   //       } catch (error) {
@@ -271,10 +271,10 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //   });
   //   it('should update all priorities of outgoing neighbours with is > 1', (done) => {
   //     const setPrioritySpy = jest.spyOn(inner, 'setPriority');
-  //     statisticDiscovery.updateStatistic({ url: 'A' }, { url: 'B' });
-  //     statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'B' });
-  //     statisticDiscovery.updateStatistic({ url: 'D' }, { url: 'C' });
-  //     statisticDiscovery.updateStatistic({ url: 'B' }, { url: 'C' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://A' }, { url: 'http://B' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://B' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://C' });
+  //     statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://C' });
   //     queue.isScores[queue.nodeToIndexDict.D] = 2;
   //     statisticIntermediateResults.updateStatistic({
   //       type: 'bindings',
@@ -290,7 +290,7 @@ describe('LinkQueueIsRcc2Prioritisation', () => {
   //           3: 0,
   //         });
   //         expect(setPrioritySpy.mock.calls).toEqual(
-  //           [[ 'A', 1 ], [ 'D', 2 ], [ 'D', 4 ], [ 'B', 1 ], [ 'A', 2 ]],
+  //           [[ 'http://A', 1 ], [ 'http://D', 2 ], [ 'http://D', 4 ], [ 'http://B', 1 ], [ 'http://A', 2 ]],
   //         );
   //         done();
   //       } catch (error) {

@@ -19,7 +19,7 @@ import { LinkQueueIsRcc1Prioritization } from '../lib/LinkQueueIsRcc1Prioritizat
 const DF = new DataFactory();
 const BF = new BindingsFactory(DF);
 
-describe('LinkQueueIndegreePrioritisation', () => {
+describe('LinkQueueIsRcc1Prioritisation', () => {
   let inner: LinkQueuePriority;
   let queue: LinkQueueIsRcc1Prioritization;
 

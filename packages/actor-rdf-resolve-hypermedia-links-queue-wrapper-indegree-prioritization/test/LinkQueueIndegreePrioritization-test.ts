@@ -94,21 +94,21 @@ describe('LinkQueueIndegreePrioritisation', () => {
       });
       it('should only set priorities for indegree > 1', () => {
         queue.updateIndegrees();
-        expect(setPrioritySpy).toHaveBeenNthCalledWith(1, 'http://c/', 3);
-        expect(setPrioritySpy).toHaveBeenNthCalledWith(2, 'http://d/', 2);
+        expect(setPrioritySpy).toHaveBeenNthCalledWith(1, 'http://C', 3);
+        expect(setPrioritySpy).toHaveBeenNthCalledWith(2, 'http://D', 2);
       });
       it('should only set priorities for open nodes', () => {
-        statisticDereference.updateStatistic({ url: 'http://c/' }, new MockQuerySource('URL'));
+        statisticDereference.updateStatistic({ url: 'http://C' }, new MockQuerySource('URL'));
         queue.updateIndegrees();
-        expect(setPrioritySpy).toHaveBeenNthCalledWith(1, 'http://d/', 2);
+        expect(setPrioritySpy).toHaveBeenNthCalledWith(1, 'http://D', 2);
       });
       it('should correctly set priority on pop', () => {
         const popped = queue.pop();
-        expect(popped).toEqual({ url: 'http://c/', metadata: { priority: 3, index: 0 }});
+        expect(popped).toEqual({ url: 'http://C', metadata: { priority: 3, index: 0 }});
       });
       it('should correctly set priority on peek', () => {
         const peeked = queue.peek();
-        expect(peeked).toEqual({ url: 'http://c/', metadata: { priority: 3, index: 0 }});
+        expect(peeked).toEqual({ url: 'http://C', metadata: { priority: 3, index: 0 }});
       });
     });
   });

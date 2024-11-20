@@ -1,0 +1,45 @@
+{
+  "name": "@comunica/actor-context-preprocess-set-r3-metric-tracking",
+  "version": "0.6.0",
+  "description": "A set-r3-metric context-preprocess actor",
+  "lsd:module": true,
+  "license": "MIT",
+  "homepage": "https://comunica.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/comunica/comunica.git",
+    "directory": "packages/actor-context-preprocess-set-r3-metric-tracking"
+  },
+  "bugs": {
+    "url": "https://github.com/comunica/comunica/issues"
+  },
+  "keywords": [
+    "comunica",
+    "actor",
+    "context-preprocess",
+    "set-r3-metric-tracking"
+  ],
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "scripts": {
+    "build": "npm run build:ts && npm run build:components",
+    "build:ts": "node \"../../node_modules/typescript/bin/tsc\"",
+    "build:components": "componentsjs-generator"
+  },
+  "dependencies": {
+    "@comunica/bus-context-preprocess": "^4.0.1",
+    "@comunica/core": "^4.0.1",
+    "@comunica/statistic-link-dereference": "^4.0.1",
+    "@comunica/statistic-link-discovery": "^4.0.1"
+  }
+}

@@ -117,7 +117,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: true,
         discoverOrder: [ -1 ],
         dereferenceOrder: -1,
-        ...parent.metadata,
+        ...parent.metadata
       };
     }
     // Whether the child node is new
@@ -166,7 +166,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: false,
         discoverOrder: [ this.nDiscovered ],
         dereferenceOrder: Number.NEGATIVE_INFINITY,
-        ...child.metadata,
+        ...child.metadata
       };
     }
     // If new node we add it as an open node

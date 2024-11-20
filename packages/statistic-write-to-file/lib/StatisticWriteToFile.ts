@@ -11,12 +11,12 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   public logger: LoggerBunyan
   public key: ActionContextKey<IStatisticBase<PartialResult>>;
 
-  public constructor(fileLocation: string, statisticsToWrite: IStatisticBase<PartialResult>) {
+  public constructor(fileLocation: string, statisticsToWrite: IStatisticBase<PartialResult>, queryNum: number = 0) {
     super();
     const loggerOptions: ILoggerBunyanArgs = {
       name: 'comunica',
       streamProviders: [
-        new BunyanStreamProviderFile({ level: 'info', path: fileLocation })
+        new BunyanStreamProviderFile({ level: 'info', path: this.insertQueryNumber(fileLocation, queryNum) })
       ]
     };
     this.logger = new LoggerBunyan(loggerOptions)
@@ -37,5 +37,17 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
       return true;  
     }
     return false;
+  }
+  public insertQueryNumber(fileLocation: string, queryNum: number){
+    const lastDotIndex = fileLocation.lastIndexOf('.');
+    if (lastDotIndex === -1) {
+        // No extension found, append the queryNum at the end
+        return `${fileLocation}_${queryNum}`;
+    }
+    
+    const name = fileLocation.substring(0, lastDotIndex);
+    const extension = fileLocation.substring(lastDotIndex);
+
+    return `${name}_${queryNum}${extension}`;
   }
 }

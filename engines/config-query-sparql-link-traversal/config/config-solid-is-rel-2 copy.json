@@ -4,7 +4,7 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/config-solid-base-hybrid-graph-prioritization-r3-metric.json",
+    "ccqslt:config/config-solid-base-hybrid-graph-prioritization.json",
     "ccqslt:config/extract-links/actors/predicates-common.json",
     "ccqslt:config/extract-links/actors/predicates-ldp.json",
     "ccqslt:config/extract-links/actors/links-describedby.json",
@@ -12,6 +12,6 @@
     "ccqslt:config/extract-links/actors/quad-pattern-query.json",
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
-    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/graph-hybrid-based/wrapper-is-rcc-1.json"
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/graph-hybrid-based/wrapper-is-rel-2.json"
   ]
 }

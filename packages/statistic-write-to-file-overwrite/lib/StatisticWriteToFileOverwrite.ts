@@ -9,14 +9,14 @@ import * as fs from "fs/promises";
 // Make logger, allow as argument array of statistics and for each statistic attach listener that simply logs JSON object with
 // Statistic name and the data.
 export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
-  public fileLocation: string;
   public key: ActionContextKey<IStatisticBase<T>>;
   public writeQueue: Record<string, Promise<void>> = {};
 
-  public constructor(fileLocation: string, statisticsToWrite: IStatisticBase<T>) {
+  public constructor(fileLocation: string, statisticsToWrite: IStatisticBase<T>, queryNum: number = 0) {
     super();
+    const fileWithNum = this.insertQueryNumber(fileLocation, queryNum);
     statisticsToWrite.on((data: T) => {
-      this.updateStatistic(fileLocation, data)
+      this.updateStatistic(fileWithNum, data)
     });
   }
 
@@ -60,4 +60,18 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
     this.writeToFileSafely(fileLocation, data);
     return true;
   }
+
+  public insertQueryNumber(fileLocation: string, queryNum: number){
+    const lastDotIndex = fileLocation.lastIndexOf('.');
+    if (lastDotIndex === -1) {
+        // No extension found, append the queryNum at the end
+        return `${fileLocation}_${queryNum}`;
+    }
+    
+    const name = fileLocation.substring(0, lastDotIndex);
+    const extension = fileLocation.substring(lastDotIndex);
+
+    return `${name}_${queryNum}${extension}`;
+  }
+
 }

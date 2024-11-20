@@ -17,6 +17,10 @@ import { StatisticWriteToFile } from '@comunica/statistic-write-to-file';
 export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPreprocess {
   public fileLocationTraversedTopology: string; 
   public fileLocationResults: string;
+  /**
+   * Track what query number we are on (doesn't work when the endpoint is reset.)
+   */
+  public queryNum: number;
  
   public constructor(args: IActorContextPreprocessSetGraphTrackingArgs) {
     super(args);

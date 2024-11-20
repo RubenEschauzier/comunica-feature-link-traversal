@@ -69,7 +69,7 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
             this.isScores[id] = resultSize;
             this.linkQueue.setPriority(
               normalized,
-              resultSize * (this.rcc1Scores[id] ?? 1),
+              resultSize * (this.rcc1Scores[id] || 1),
             );
           }
         }
@@ -103,7 +103,7 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
     if (data.nodeResultContribution[data.parentNode] > 0) {
       this.linkQueue.setPriority(
         this.indexToNodeDict[data.childNode],
-        this.rcc1Scores[data.childNode] * (this.isScores[data.childNode] || 1),
+        this.priority(data.childNode)
       );
     }
   }
@@ -115,9 +115,18 @@ export class LinkQueueIsRcc1Prioritization extends LinkQueueWrapper<LinkQueuePri
         this.rcc1Scores[neighbour]++;
         this.linkQueue.setPriority(
           this.indexToNodeDict[neighbour],
-          this.rcc1Scores[neighbour] * (this.isScores[neighbour] ?? 1),
+          this.priority(neighbour),
         );
       }
     }
+  }
+  
+  /**
+   * Calculate the is-rcc1 priority.
+   * @param node 
+   * @returns 
+   */
+  public priority(node: number){
+    return (this.rcc1Scores[node] || 1) * (this.isScores[node] || 1)
   }
 }

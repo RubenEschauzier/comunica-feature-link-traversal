@@ -14,14 +14,14 @@ import type * as RDF from '@rdfjs/types';
 import { ArrayIterator } from 'asynciterator';
 import { DataFactory } from 'rdf-data-factory';
 import { types } from 'sparqlalgebrajs/lib/algebra';
-import { LinkQueueIsRcc1Prioritization } from '../lib/LinkQueueIsRcc1Prioritization';
+import { LinkQueueIsRel1Prioritization } from '../lib/LinkQueueIsRel1Prioritization';
 
 const DF = new DataFactory();
 const BF = new BindingsFactory(DF);
 
 describe('LinkQueueIsRcc1Prioritisation', () => {
   let inner: LinkQueuePriority;
-  let queue: LinkQueueIsRcc1Prioritization;
+  let queue: LinkQueueIsRel1Prioritization;
 
   let statisticDiscovery: StatisticLinkDiscovery;
   let statisticDereference: StatisticLinkDereference;
@@ -40,7 +40,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
     );
 
     inner = new LinkQueuePriority();
-    queue = new LinkQueueIsRcc1Prioritization(inner, statisticTraversalTopologyRcc, statisticIntermediateResults);
+    queue = new LinkQueueIsRel1Prioritization(inner, statisticTraversalTopologyRcc, statisticIntermediateResults);
   });
 
   describe('a dynamic example topology', () => {
@@ -72,7 +72,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       });
       attributionStream1.on('end', () => {
         try {
-          expect(queue.rcc1Scores).toEqual(
+          expect(queue.rel1Scores).toEqual(
             { 0: 0, 1: 1, 2: 2 },
           );
           expect(queue.peek()).toEqual({ url: 'http://c/', metadata: { index: 0, priority: 2 }});
@@ -87,7 +87,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
             data: BF.fromRecord({'v1': DF.namedNode('http://d/'), 'v2': DF.namedNode('http://a/')}),
             metadata: {operation: 'inner'}
           });
-          expect(queue.rcc1Scores).toEqual(
+          expect(queue.rel1Scores).toEqual(
             { 0: 0, 1: 1, 2: 2, 3: 2 },
           );
           expect(queue.peek()).toEqual({ url: 'http://d/', metadata: { index: 0, priority: 4 }});
@@ -98,13 +98,13 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
           });
           attributionStream2.on('end', () => {
             try {
-              expect(queue.rcc1Scores).toEqual(
-                { 0: 0, 1: 1, 2: 4, 3: 3 },
+              expect(queue.rel1Scores).toEqual(
+                { 0: 0, 1: 1, 2: 3, 3: 2 },
               );
               expect(queue.isScores).toEqual(
                 { 0: 2, 3: 2 },
               )
-              expect(queue.peek()).toEqual({ url: 'http://d/', metadata: { index: 0, priority: 6 }});
+              expect(queue.peek()).toEqual({ url: 'http://d/', metadata: { index: 0, priority: 4 }});
               done();
             } catch (error) {
               done(error);
@@ -138,13 +138,13 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
 
     it('should initialize parent rcc if parent is seed node', () => {
       statisticDiscovery.updateStatistic({ url: 'http://b' }, { url: 'http://a' });
-      expect(queue.rcc1Scores[queue.nodeToIndexDict['http://a']]).toBe(0);
+      expect(queue.rel1Scores[queue.nodeToIndexDict['http://a']]).toBe(0);
       expect(spySetPriority).not.toHaveBeenCalled();
     });
 
     it('should initialize child rcc if not yet initialized', () => {
       statisticDiscovery.updateStatistic({ url: 'http://b' }, { url: 'http://a' });
-      expect(queue.rcc1Scores[queue.nodeToIndexDict['http://b']]).toBe(0);
+      expect(queue.rel1Scores[queue.nodeToIndexDict['http://b']]).toBe(0);
       expect(spySetPriority).not.toHaveBeenCalled();
     });
 
@@ -152,7 +152,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       statisticDiscovery.updateStatistic({ url: 'http://b' }, { url: 'http://a' });
       statisticDiscovery.updateStatistic({ url: 'http://d' }, { url: 'http://c' });
       statisticDiscovery.updateStatistic({ url: 'http://b' }, { url: 'http://d' });
-      expect(queue.rcc1Scores[queue.nodeToIndexDict['http://b']]).toBe(0);
+      expect(queue.rel1Scores[queue.nodeToIndexDict['http://b']]).toBe(0);
       expect(spySetPriority).not.toHaveBeenCalled();
     });
 
@@ -166,7 +166,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       attributionStream.on('end', () => {
         try {
           statisticDiscovery.updateStatistic({ url: 'http://c' }, { url: 'http://b' });
-          expect(queue.rcc1Scores[queue.nodeToIndexDict['http://c']]).toBe(1);
+          expect(queue.rel1Scores[queue.nodeToIndexDict['http://c']]).toBe(1);
           expect(spySetPriority).toHaveBeenCalledWith('http://c', 1);
           done();
         } catch (error) {
@@ -185,7 +185,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       attributionStream.on('end', () => {
         try {
           statisticDiscovery.updateStatistic({ url: 'http://b' }, { url: 'http://a' });
-          expect(queue.rcc1Scores[queue.nodeToIndexDict['http://b']]).toBe(1);
+          expect(queue.rel1Scores[queue.nodeToIndexDict['http://b']]).toBe(1);
           expect(spySetPriority).toHaveBeenCalledWith('http://b', 1);
           done();
         } catch (error) {
@@ -204,7 +204,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       attributionStream.on('end', () => {
         try {
           statisticDiscovery.updateStatistic({ url: 'http://b' }, { url: 'http://a' });
-          expect(queue.rcc1Scores[queue.nodeToIndexDict['http://b']]).toBe(1);
+          expect(queue.rel1Scores[queue.nodeToIndexDict['http://b']]).toBe(1);
           expect(spySetPriority).toHaveBeenCalledWith('http://b', 3);
           done();
         } catch (error) {
@@ -238,7 +238,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       });
       attributionStream.on('end', () => {
         try {
-          expect(queue.rcc1Scores).toEqual({
+          expect(queue.rel1Scores).toEqual({
             0: 0,
             1: 0,
             2: 0,
@@ -264,7 +264,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       });
       attributionStream.on('end', () => {
         try {
-          expect(queue.rcc1Scores).toEqual({
+          expect(queue.rel1Scores).toEqual({
             0: 1,
             1: 1,
             2: 2,
@@ -293,7 +293,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       });
       attributionStream.on('end', () => {
         try {
-          expect(queue.rcc1Scores).toEqual({
+          expect(queue.rel1Scores).toEqual({
             0: 1,
             1: 1,
             2: 2,
@@ -455,7 +455,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
     });
     it('should add links with rcc > 0 with priority equal to rcc', () => {
       const pushSpy = jest.spyOn(inner, 'push');
-      queue.rcc1Scores[1] = 2;
+      queue.rel1Scores[1] = 2;
       queue.push({ url: 'url1' }, { url: 'url2' });
       expect(pushSpy).toHaveBeenCalledWith({ url: 'url1', metadata: { priority: 2, index: 0 }}, { url: 'url2' });
     });
@@ -467,7 +467,7 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
     });
     it('should add links with rcc and is > 0 with priority equal to rcc * is', () => {
       const pushSpy = jest.spyOn(inner, 'push');
-      queue.rcc1Scores[1] = 2;
+      queue.rel1Scores[1] = 2;
       queue.isScores[1] = 2;
       queue.push({ url: 'url1' }, { url: 'url2' });
       expect(pushSpy).toHaveBeenCalledWith({ url: 'url1', metadata: { priority: 4, index: 0 }}, { url: 'url2' });
@@ -481,4 +481,39 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
       );
     });
   });
+
+  describe('priority', () => {
+    it('should correctly calculate priority with both is and rcc set', () => {
+      queue.isScores[0] = 2;
+      queue.rel1Scores[0] = 2;
+      expect(queue.priority(0)).toEqual(4);
+    })
+    it('should correctly caclulate with rcc = 0 is > 0', () => {
+      queue.isScores[0] = 2;
+      queue.rel1Scores[0] = 0;
+      expect(queue.priority(0)).toEqual(2);
+    })
+    it('should correctly caclulate with rcc undefined and is > 0', () => {
+      queue.isScores[0] = 2;
+      expect(queue.priority(0)).toEqual(2);
+    })
+    it('should correctly caclulate with rcc > 0 is = 0', () => {
+      queue.isScores[0] = 0;
+      queue.rel1Scores[0] = 2;
+      expect(queue.priority(0)).toEqual(2);
+    })
+    it('should correctly caclulate with rcc > 0 is undefined', () => {
+      queue.rel1Scores[0] = 2;
+      expect(queue.priority(0)).toEqual(2);
+    })
+    it('should correctly caclulate with rcc and is = 0', () => {
+      queue.isScores[0] = 0;
+      queue.rel1Scores[0] = 0;
+      expect(queue.priority(0)).toEqual(1);
+    })
+    it('should correctly caclulate with rcc and is undefined', () => {
+      expect(queue.priority(0)).toEqual(1);
+    })
+  });
+
 });

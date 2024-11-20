@@ -40,7 +40,7 @@ export class LinkQueueIsRel1Prioritization extends LinkQueueWrapper<LinkQueuePri
     let priority = 0;
     const id = this.nodeToIndexDict[link.url];
     if (this.rel1Scores[id] || this.isScores[id]) {
-      priority = (this.rel1Scores[id] ?? 1) * (this.isScores[id] ?? 1);
+      priority = this.priority(id);
     }
     link.metadata = {
       ...link.metadata,
@@ -69,7 +69,7 @@ export class LinkQueueIsRel1Prioritization extends LinkQueueWrapper<LinkQueuePri
             this.isScores[id] = resultSize;
             this.linkQueue.setPriority(
               normalized,
-              resultSize * (this.rel1Scores[id] ?? 1),
+              resultSize * (this.rel1Scores[id] || 1),
             );
           }
         }
@@ -103,21 +103,27 @@ export class LinkQueueIsRel1Prioritization extends LinkQueueWrapper<LinkQueuePri
     if (data.nodeResultContribution[data.parentNode] > 0) {
       this.linkQueue.setPriority(
         this.indexToNodeDict[data.childNode],
-        this.rel1Scores[data.childNode] * (this.isScores[data.childNode] ?? 1),
+        this.priority(data.childNode),
       );
     }
   }
-
+  
   public processResultUpdate(data: ITopologyUpdateRccResult) {
     if (data.nodeResultContribution[data.changedNode] === 1) {
       const neighbours = this.adjacencyListOut[data.changedNode];
-      for (const neighbour of neighbours) {
-        this.rel1Scores[neighbour]++;
-        this.linkQueue.setPriority(
-          this.indexToNodeDict[neighbour],
-          this.rel1Scores[neighbour] * (this.isScores[neighbour] ?? 1),
-        );
+      if (neighbours){
+        for (const neighbour of neighbours) {
+          this.rel1Scores[neighbour]++;
+          this.linkQueue.setPriority(
+            this.indexToNodeDict[neighbour],
+            this.priority(neighbour),
+          );
+        }  
       }
     }
+  }
+
+  public priority(node: number){
+    return (this.rel1Scores[node] || 1) * (this.isScores[node] || 1)
   }
 }

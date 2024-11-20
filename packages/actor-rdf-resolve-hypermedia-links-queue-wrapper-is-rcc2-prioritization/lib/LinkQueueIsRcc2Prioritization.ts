@@ -95,12 +95,14 @@ export class LinkQueueIsRcc2Prioritization extends LinkQueueWrapper<LinkQueuePri
     this.nodeToIndexDict = data.nodeToIndexDict;
     // If seed node we set rcc to zero to initialize
     this.rcc2Scores[data.parentNode] ??= 0;
+
     if (!this.inNeighbourHoodNodes.get(data.parentNode)) {
       this.inNeighbourHoodNodes.set(data.parentNode, new Set());
     }
     if (!this.inNeighbourHoodNodes.get(data.childNode)) {
       this.inNeighbourHoodNodes.set(data.childNode, new Set());
     }
+    
     // Prevent double counting of nodes in second degree in-neighbourhood
     const inNeighbours = this.inNeighbourHoodNodes.get(data.childNode)!;
 
@@ -164,7 +166,7 @@ export class LinkQueueIsRcc2Prioritization extends LinkQueueWrapper<LinkQueuePri
     this.linkQueue.setPriority(this.indexToNodeDict[node], this.priority(node));
   }
 
-  private priority(node: number){
+  public priority(node: number){
     return (this.rcc2Scores[node] || 1) * (this.isScores[node] || 1)
   }
 }

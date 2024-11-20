@@ -18,7 +18,7 @@ import { LinkQueueRel1Prioritization } from '../lib/LinkQueueRel1Prioritization'
 const DF = new DataFactory();
 const BF = new BindingsFactory(DF);
 
-describe('LinkQueueIndegreePrioritisation', () => {
+describe('LinkQueueRel1Prioritisation', () => {
   let inner: LinkQueuePriority;
   let queue: LinkQueueRel1Prioritization;
 
@@ -135,19 +135,19 @@ describe('LinkQueueIndegreePrioritisation', () => {
 
     it('should initialize parent rcc if parent is seed node', () => {
       statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
-      expect(queue.priorities[queue.nodeToIndexDict.A]).toBe(0);
+      expect(queue.priorities[queue.nodeToIndexDict['http://A']]).toBe(0);
     });
 
     it('should initialize child rcc if not yet initialized', () => {
       statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
-      expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(0);
+      expect(queue.priorities[queue.nodeToIndexDict['http://B']]).toBe(0);
     });
 
     it('should not change child rcc if parent rcc = 0', () => {
       statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
       statisticDiscovery.updateStatistic({ url: 'http://D' }, { url: 'http://C' });
       statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://D' });
-      expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(0);
+      expect(queue.priorities[queue.nodeToIndexDict['http://B']]).toBe(0);
     });
     it('should update priority if parent rcc > 0 and new node', (done) => {
       statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
@@ -159,7 +159,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       attributionStream1.on('end', () => {
         try {
           statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://B' });
-          expect(queue.priorities[queue.nodeToIndexDict.C]).toBe(1);
+          expect(queue.priorities[queue.nodeToIndexDict['http://C']]).toBe(1);
           done();
         } catch (error) {
           done(error);
@@ -183,7 +183,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
           statisticDiscovery.updateStatistic({ url: 'http://C' }, { url: 'http://B' });
           // This should be true, but is a safety measure
           expect(attributionStream1.done).toBe(true);
-          expect(queue.priorities[queue.nodeToIndexDict.C]).toBe(1);
+          expect(queue.priorities[queue.nodeToIndexDict['http://C']]).toBe(1);
           done();
         } catch (error) {
           done(error);
@@ -200,7 +200,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
       attributionStream1.on('end', () => {
         try {
           statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
-          expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(1);
+          expect(queue.priorities[queue.nodeToIndexDict['http://B']]).toBe(1);
           done();
         } catch (error) {
           done(error);
@@ -223,7 +223,7 @@ describe('LinkQueueIndegreePrioritisation', () => {
         try {
           statisticDiscovery.updateStatistic({ url: 'http://B' }, { url: 'http://A' });
           expect(attributionStream1.done).toBe(true);
-          expect(queue.priorities[queue.nodeToIndexDict.B]).toBe(1);
+          expect(queue.priorities[queue.nodeToIndexDict['http://B']]).toBe(1);
           done();
         } catch (error) {
           done(error);

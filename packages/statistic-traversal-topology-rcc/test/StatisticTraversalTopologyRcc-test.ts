@@ -48,11 +48,13 @@ describe('StatisticTraversalTopologyRcc', () => {
         updateType: 'discover',
         adjacencyListIn: { 0: [], 1: [ 0 ]},
         adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[1,0]],
         openNodes: [ 1 ],
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },
         childNode: 1,
         parentNode: 0,
+        dereferenceOrder: []
       };
       expect(statisticTraversalTopologyRcc.updateStatistic(update)).toBe(true);
       expect(statisticTraversalTopologyRcc.nodeResultContribution).toEqual(
@@ -65,11 +67,13 @@ describe('StatisticTraversalTopologyRcc', () => {
         updateType: 'discover',
         adjacencyListIn: { 0: [], 1: [ 0 ]},
         adjacencyListOut: { 0: [ 1 ], 1: []},
+        edgesInOrder: [[1,0]],
         openNodes: [ 1 ],
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },
         childNode: 1,
         parentNode: 0,
+        dereferenceOrder: []
       };
       expect(statisticTraversalTopologyRcc.updateStatistic(update)).toBe(true);
       expect(statisticTraversalTopologyRcc.nodeResultContribution).toEqual(
@@ -154,7 +158,7 @@ describe('StatisticTraversalTopologyRcc', () => {
       });
     });
 
-    it('should process an update for project, distinct, and joins', () => {
+    it('should process an update for project, distinct, and not joins', () => {
       const updateStatisticSpy = jest.spyOn(statisticTraversalTopologyRcc, 'updateStatistic');
       const attributionStream = new ArrayIterator([
         DF.quad(DF.namedNode('s'), DF.namedNode('p'), DF.namedNode('url1')),
@@ -181,7 +185,7 @@ describe('StatisticTraversalTopologyRcc', () => {
         data: bindingWithSource,
         metadata: { operation: 'inner' },
       });
-      expect(updateStatisticSpy).toHaveBeenCalledTimes(3);
+      expect(updateStatisticSpy).toHaveBeenCalledTimes(2);
     });
     it('should only process an update for project, distinct, and joins', () => {
       const updateStatisticSpy = jest.spyOn(statisticTraversalTopologyRcc, 'updateStatistic');

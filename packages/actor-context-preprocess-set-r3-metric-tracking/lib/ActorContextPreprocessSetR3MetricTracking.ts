@@ -1,6 +1,6 @@
 import type { IActionContextPreprocess, IActorContextPreprocessOutput, IActorContextPreprocessArgs } from '@comunica/bus-context-preprocess';
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
-import { KeysStatistics } from '@comunica/context-entries';
+import { KeysInitQuery, KeysStatistics } from '@comunica/context-entries';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
@@ -15,8 +15,8 @@ import { StatisticWriteToFile } from '@comunica/statistic-write-to-file';
  * A comunica Set Graph Tracking Context Preprocess Actor.
  */
 export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPreprocess {
-  public fileLocationTraversedTopology: string; 
-  public fileLocationResults: string;
+  public baseDirectoryExperiment: string; 
+  public fileLocationBase64toOutputDir: string;
   /**
    * Track what query number we are on (doesn't work when the endpoint is reset.)
    */
@@ -62,15 +62,19 @@ export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPrepr
     }
     // Use overwrite statistic as the entire topology is output as update by traversed
     // topology statistic
+    const query = action.context.getSafe(KeysInitQuery.queryString);
     const statisticTrackTopology = new StatisticWriteToFileOverwrite(
-      this.fileLocationTraversedTopology,
-      traversedTopology
+      this.fileLocationBase64toOutputDir,
+      this.baseDirectoryExperiment,
+      traversedTopology,
+      query
     )
     const statisticTrackResults = new StatisticWriteToFile(
-      this.fileLocationResults,
-      intermediateResult
+      this.fileLocationBase64toOutputDir,
+      this.baseDirectoryExperiment,
+      intermediateResult,
+      query
     )
-
     return { context };
   }
 }
@@ -78,11 +82,11 @@ export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPrepr
 export interface IActorContextPreprocessSetGraphTrackingArgs 
   extends IActorContextPreprocessArgs {
   /**
-   * What file the topology should be written to
+   * What directory the current experiment should write to
    */
-  fileLocationTraversedTopology: string,
+  baseDirectoryExperiment: string,
   /**
    * What file results should be written to
    */
-  fileLocationResults: string
+  fileLocationBase64toOutputDir: string
 }

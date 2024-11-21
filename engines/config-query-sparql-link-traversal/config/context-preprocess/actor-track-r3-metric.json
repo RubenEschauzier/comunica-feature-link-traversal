@@ -10,8 +10,8 @@
       {
         "@id": "urn:comunica:default:context-preprocess/actors#set-r3-metric-tracking",
         "@type": "ActorContextPreprocessSetR3MetricTracking",
-        "fileLocationTraversedTopology": "testFileTopology.txt",
-        "fileLocationResults": "file:///root/projects/r3-metric/comunica-feature-link-traversal-endpoint-traversal-tracking/testFileResults.txt"
+        "baseDirectoryExperiment": "/tmp/r3-metric-output/",
+        "fileLocationBase64toOutputDir": "/tmp/r3-metric-output/base64ToDirectory.json"
       }
     ]
   }

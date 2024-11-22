@@ -5,7 +5,8 @@ import { BunyanStreamProviderFile, ILoggerBunyanArgs, LoggerBunyan } from '@comu
 import { Bindings } from '@comunica/utils-bindings-factory';
 import * as fs from "fs";
 import * as path from 'path';
-
+import { KeysMergeBindingsContext } from '@comunica/context-entries';
+import type * as RDF from '@rdfjs/types';
 
 /**
  * Class used to write result information to file for r3-metric tracking. It depends on a file which maps
@@ -17,16 +18,20 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   public key: ActionContextKey<IStatisticBase<PartialResult>>;
   public statisticToWrite: IStatisticBase<PartialResult>;
 
-  public constructor(fileLocationBase64ToDir: string, baseDirectoryExperiment: string,
-    statisticsToWrite: IStatisticBase<PartialResult>, query: string
-  ) {
+  public constructor(args: IStatisticWriteToFileArgs) {
     super();
-    this.statisticToWrite = statisticsToWrite;
-    const base64ToDir=  this.readBase64ToDir(fileLocationBase64ToDir);
-    const outputLocation = this.getFileLocation(
-      query, baseDirectoryExperiment, base64ToDir
-    );
-
+    this.statisticToWrite = args.statisticToWrite;
+    let outputLocation: string;
+    if (args.fileLocationBase64ToDir){
+      const base64ToDir=  this.readBase64ToDir(args.fileLocationBase64ToDir);
+      outputLocation = this.getFileLocation(
+        args.query, args.baseDirectoryExperiment, base64ToDir
+      );
+    }
+    else{
+      outputLocation = path.join(args.baseDirectoryExperiment, 
+        `${this.statisticToWrite.constructor.name}.txt`);
+    }
     const loggerOptions: ILoggerBunyanArgs = {
       name: 'comunica',
       streamProviders: [
@@ -42,11 +47,7 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   public async updateStatistic(data: PartialResult): Promise<boolean> {
     if (data.type === 'bindings'){
       const binding = <Bindings> data.data;
-      const reducedData = {
-        data: binding.toString(),
-        operation: data.metadata['operation']
-      }
-      this.logger.info('update', reducedData)
+      this.consumeAttributionStream(binding, data);
       return true;  
     }
     return false;
@@ -81,4 +82,45 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
     return match ? parseInt(match[1], 10) : 0; // Return the number as an integer or null if no match
   }
 
+  public consumeAttributionStream(binding: Bindings, data: PartialResult){
+    const sources = binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream);
+    if (!sources){
+      console.error("Error when consuming source attribution when writing result to file.");
+      throw new Error("Error when consuming source attribution when writing result to file.");
+    }
+    const sourceQuadsProcessed = new Set();
+    // Sources are streams of provenance quads (including possible duplicates)
+    sources.on('data', (data: RDF.BaseQuad) => {
+      // Provenance is on object
+      const prov = data.object.value;
+      // Filter duplicates
+      if (!sourceQuadsProcessed.has(prov)) {
+        sourceQuadsProcessed.add(prov);
+      }
+    });
+    sources.on('end', () => {
+      const reducedData = {
+        data: binding.toString(),
+        operation: data.metadata['operation'],
+        provenance: JSON.stringify(sourceQuadsProcessed)
+      }
+      this.logger.info('update', reducedData)
+    });
+  }
+}
+
+export interface IStatisticWriteToFileArgs{
+  query: string,
+  statisticToWrite: IStatisticBase<any>,
+  /**
+   * Base directory the experiment should be saved to.
+   */
+  baseDirectoryExperiment: string,
+
+  /**
+   * Filelocation for dictionary mapping base64 representations of query 
+   * the directory this query run should be saved to. If undefined the
+   * writer will write to baseDirectoryExperiment directory.
+   */
+  fileLocationBase64ToDir?: string,
 }

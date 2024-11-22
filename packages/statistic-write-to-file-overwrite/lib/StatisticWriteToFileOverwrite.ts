@@ -17,17 +17,20 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
   public writeQueue: Record<string, Promise<void>> = {};
   public statisticToWrite: IStatisticBase<T>; 
 
-  public constructor(
-    fileLocationBase64ToDir: string, baseDirectoryExperiment: string,
-    statisticsToWrite: IStatisticBase<T>, 
-    query: string
-  ) {
+  public constructor(args: IStatisticWriteToFileOverwriteArgs) {
     super();
-    this.statisticToWrite = statisticsToWrite
-    const base64ToDir=  this.readBase64ToDir(fileLocationBase64ToDir);
-    const outputLocation = this.getFileLocation(
-      query, baseDirectoryExperiment, base64ToDir
-    );    
+    this.statisticToWrite = args.statisticToWrite;
+    let outputLocation: string;
+    if (args.fileLocationBase64ToDir){
+      const base64ToDir=  this.readBase64ToDir(args.fileLocationBase64ToDir);
+      outputLocation = this.getFileLocation(
+        args.query, args.baseDirectoryExperiment, base64ToDir
+      );
+    }
+    else{
+      outputLocation = path.join(args.baseDirectoryExperiment, 
+        `${this.statisticToWrite.constructor.name}.txt`);
+    }
     this.statisticToWrite.on((data: T) => {
       this.updateStatistic(outputLocation, data)
     });
@@ -102,4 +105,21 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
     const match = fileName.match(/_(\d+)\.txt$/); // Matches "_<digits>.txt" at the end
     return match ? parseInt(match[1], 10) : 0; // Return the number as an integer or null if no match
   }
+}
+
+
+export interface IStatisticWriteToFileOverwriteArgs{
+  query: string,
+  statisticToWrite: IStatisticBase<any>,
+  /**
+   * Base directory the experiment should be saved to.
+   */
+  baseDirectoryExperiment: string,
+
+  /**
+   * Filelocation for dictionary mapping base64 representations of query 
+   * the directory this query run should be saved to. If undefined the
+   * writer will write to baseDirectoryExperiment directory.
+   */
+  fileLocationBase64ToDir?: string,
 }

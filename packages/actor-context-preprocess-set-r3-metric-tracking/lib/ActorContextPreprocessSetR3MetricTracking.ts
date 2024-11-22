@@ -63,18 +63,19 @@ export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPrepr
     // Use overwrite statistic as the entire topology is output as update by traversed
     // topology statistic
     const query = action.context.getSafe(KeysInitQuery.queryString);
-    const statisticTrackTopology = new StatisticWriteToFileOverwrite(
-      this.fileLocationBase64toOutputDir,
-      this.baseDirectoryExperiment,
-      traversedTopology,
-      query
-    )
-    const statisticTrackResults = new StatisticWriteToFile(
-      this.fileLocationBase64toOutputDir,
-      this.baseDirectoryExperiment,
-      intermediateResult,
-      query
-    )
+    const statisticTrackTopology = new StatisticWriteToFileOverwrite({
+      query,
+      statisticToWrite: traversedTopology,
+      baseDirectoryExperiment: this.baseDirectoryExperiment,
+      fileLocationBase64ToDir: this.fileLocationBase64toOutputDir,
+    });
+    const statisticTrackResults = new StatisticWriteToFile({
+      query,
+      statisticToWrite: intermediateResult,
+      baseDirectoryExperiment: this.baseDirectoryExperiment,
+      fileLocationBase64ToDir: this.fileLocationBase64toOutputDir,
+    });
+
     return { context };
   }
 }
@@ -88,5 +89,5 @@ export interface IActorContextPreprocessSetGraphTrackingArgs
   /**
    * What file results should be written to
    */
-  fileLocationBase64toOutputDir: string
+  fileLocationBase64toOutputDir?: string
 }

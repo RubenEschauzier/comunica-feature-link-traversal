@@ -31,8 +31,9 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
       outputLocation = path.join(args.baseDirectoryExperiment, 
         `${this.statisticToWrite.constructor.name}.txt`);
     }
+    const outputLocationURL = new URL(outputLocation).pathname;
     this.statisticToWrite.on((data: T) => {
-      this.updateStatistic(outputLocation, data)
+      this.updateStatistic(outputLocationURL, data)
     });
   }
 

@@ -83,15 +83,17 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   }
 
   public consumeAttributionStream(binding: Bindings, data: PartialResult){
+    // TODO: This method will consume the stream, possibly BEFORE a prioritization algorithm has access to it.
+    // we should be cloning streams or smthing.
     const sources = binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream);
     if (!sources){
-      console.error("Error when consuming source attribution when writing result to file.");
-      throw new Error("Error when consuming source attribution when writing result to file.");
+      console.error("No sources attached to binding writing result to file.");
+      throw new Error("No sources attached to binding writing result to file.");
     }
     const sourceQuadsProcessed = new Set();
     // Sources are streams of provenance quads (including possible duplicates)
     sources.on('data', (data: RDF.BaseQuad) => {
-      // Provenance is on object
+      // Provenance is on object of triple
       const prov = data.object.value;
       // Filter duplicates
       if (!sourceQuadsProcessed.has(prov)) {
@@ -102,7 +104,7 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
       const reducedData = {
         data: binding.toString(),
         operation: data.metadata['operation'],
-        provenance: JSON.stringify(sourceQuadsProcessed)
+        provenance: JSON.stringify(Array.from(sourceQuadsProcessed))
       }
       this.logger.info('update', reducedData)
     });

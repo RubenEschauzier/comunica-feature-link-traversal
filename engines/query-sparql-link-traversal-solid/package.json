@@ -71,9 +71,12 @@
     "@comunica/actor-context-preprocess-query-source-skolemize": "^4.0.2",
     "@comunica/actor-context-preprocess-set-defaults": "^4.0.2",
     "@comunica/actor-context-preprocess-set-defaults-link-traversal": "^0.6.0",
+
     "@comunica/actor-context-preprocess-set-graph-tracking": "^0.6.0",
     "@comunica/actor-context-preprocess-set-graph-tracking-rcc": "^0.6.0",
     "@comunica/actor-context-preprocess-set-intermediate-result-tracking": "^0.6.0",
+    "@comunica/actor-context-preprocess-set-r3-metric-tracking": "^0.6.0",
+
     "@comunica/actor-context-preprocess-source-to-destination": "^4.0.2",
     "@comunica/actor-dereference-fallback": "^4.0.2",
     "@comunica/actor-dereference-http": "^4.0.2",
@@ -343,6 +346,8 @@
     "@comunica/statistic-intermediate-results": "^4.0.1",
     "@comunica/statistic-traversal-topology": "^0.6.0",
     "@comunica/statistic-traversal-topology-rcc": "^0.6.0",
+    "@comunica/statistic-write-to-file": "^0.6.0",
+    "@comunica/statistic-write-to-file-overwrite": "^0.6.0",
     "@comunica/types": "^4.0.2",
     "yargs": "^17.7.2"
   },

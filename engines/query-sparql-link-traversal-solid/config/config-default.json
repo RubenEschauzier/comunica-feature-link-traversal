@@ -3,6 +3,6 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/config-solid-is-r3-metric.json"
+    "ccqslt:config/config-solid-r3-metric/config-solid-is-rcc-2-r3-metric.json"
   ]
 }

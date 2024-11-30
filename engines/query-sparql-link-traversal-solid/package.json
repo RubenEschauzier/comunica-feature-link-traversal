@@ -76,6 +76,7 @@
     "@comunica/actor-context-preprocess-set-graph-tracking-rcc": "^0.6.0",
     "@comunica/actor-context-preprocess-set-intermediate-result-tracking": "^0.6.0",
     "@comunica/actor-context-preprocess-set-r3-metric-tracking": "^0.6.0",
+    "@comunica/logger-bunyan": "^4.0.2",
 
     "@comunica/actor-context-preprocess-source-to-destination": "^4.0.2",
     "@comunica/actor-dereference-fallback": "^4.0.2",

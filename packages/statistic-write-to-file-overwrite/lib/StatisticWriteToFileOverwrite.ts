@@ -22,18 +22,17 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
     this.statisticToWrite = args.statisticToWrite;
     let outputLocation: string;
     if (args.fileLocationBase64ToDir){
-      const base64ToDir=  this.readBase64ToDir(args.fileLocationBase64ToDir);
+      const base64ToDir=  this.readBase64ToDir(new URL(args.fileLocationBase64ToDir).pathname);
       outputLocation = this.getFileLocation(
-        args.query, args.baseDirectoryExperiment, base64ToDir
+        args.query, new URL(args.baseDirectoryExperiment).pathname, base64ToDir
       );
     }
     else{
       outputLocation = path.join(args.baseDirectoryExperiment, 
         `${this.statisticToWrite.constructor.name}.txt`);
     }
-    const outputLocationURL = new URL(outputLocation).pathname;
     this.statisticToWrite.on((data: T) => {
-      this.updateStatistic(outputLocationURL, data)
+      this.updateStatistic(outputLocation, data)
     });
   }
 

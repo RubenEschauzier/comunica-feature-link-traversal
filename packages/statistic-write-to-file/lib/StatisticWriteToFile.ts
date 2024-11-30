@@ -23,10 +23,11 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
     this.statisticToWrite = args.statisticToWrite;
     let outputLocation: string;
     if (args.fileLocationBase64ToDir){
-      const base64ToDir=  this.readBase64ToDir(args.fileLocationBase64ToDir);
+      const base64ToDir=  this.readBase64ToDir(new URL(args.fileLocationBase64ToDir).pathname);
       outputLocation = this.getFileLocation(
-        args.query, args.baseDirectoryExperiment, base64ToDir
+        args.query, new URL(args.baseDirectoryExperiment).pathname, base64ToDir
       );
+      outputLocation = `file:///${outputLocation}`
     }
     else{
       outputLocation = path.join(args.baseDirectoryExperiment, 

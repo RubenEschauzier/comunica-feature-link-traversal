@@ -71,6 +71,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
           edgesInOrder: this.edgesInOrder,
           openNodes: this.openNodes,
           dereferenceOrder: this.dereferenceOrder,
+          nodeMetadata: this.nodeMetadata,
           nodeToIndexDict: this.nodeToIndexDict,
           indexToNodeDict: this.indexToNodeDict,
           childNode: this.nodeToIndexDict[child.url],
@@ -87,6 +88,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
           edgesInOrder: this.edgesInOrder,
           openNodes: this.openNodes,
           dereferenceOrder: this.dereferenceOrder,
+          nodeMetadata: this.nodeMetadata,
           nodeToIndexDict: this.nodeToIndexDict,
           indexToNodeDict: this.indexToNodeDict,
           childNode: this.nodeToIndexDict[update.data.url],
@@ -231,6 +233,10 @@ export interface ITopologyUpdate {
    * Order of dereferencing
    */
   dereferenceOrder: number[];
+  /**
+   * Metadata for each node
+   */
+  nodeMetadata: Record<number, INodeMetadata>;
   /**
    * Dictionary mapping URLs to node ids
    */

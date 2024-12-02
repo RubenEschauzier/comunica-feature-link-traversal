@@ -56,11 +56,9 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     if (update.type === 'discover') {
       const child: ILink = {
         url: update.data.edge[1],
-        metadata: update.data.metadataChild,
       };
       const parent: ILink = {
         url: update.data.edge[0],
-        metadata: update.data.metadataParent,
       };
       const result = this.addEdge(child, parent);
       if (result) {
@@ -106,22 +104,22 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     if (child.url === parent.url) {
       return false;
     }
-    /**
-     * If the parent doesn't exist in the topology, it must be a seed URL
-     * as these are not registered
-     */
-    if (this.nodeToIndexDict[parent.url] === undefined) {
-      const seedParentId = this.nodeToId(parent.url);
-      // We also initialize an empty incoming adjacency list for completeness.
-      this.adjacencyListIn[seedParentId] = [];
-      this.nodeMetadata[seedParentId] = {
-        seed: true,
-        dereferenced: true,
-        discoverOrder: [ -1 ],
-        dereferenceOrder: -1,
-        ...parent.metadata
-      };
-    }
+    // /**
+    //  * If the parent doesn't exist in the topology, it must be a seed URL
+    //  * as these are not registered
+    //  */
+    // if (this.nodeToIndexDict[parent.url] === undefined) {
+    //   const seedParentId = this.nodeToId(parent.url);
+    //   // We also initialize an empty incoming adjacency list for completeness.
+    //   this.adjacencyListIn[seedParentId] = [];
+    //   this.nodeMetadata[seedParentId] = {
+    //     seed: true,
+    //     dereferenced: true,
+    //     discoverOrder: [ -1 ],
+    //     dereferenceOrder: -1,
+    //     ...parent.metadata
+    //   };
+    // }
     // Whether the child node is new
     let newNode = true;
     if (this.nodeToIndexDict[child.url]) {
@@ -168,7 +166,6 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: false,
         discoverOrder: [ this.nDiscovered ],
         dereferenceOrder: Number.NEGATIVE_INFINITY,
-        ...child.metadata
       };
     }
     // If new node we add it as an open node

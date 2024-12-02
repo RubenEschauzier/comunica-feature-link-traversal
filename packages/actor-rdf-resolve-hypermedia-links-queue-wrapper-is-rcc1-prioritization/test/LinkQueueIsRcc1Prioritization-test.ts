@@ -299,7 +299,6 @@ describe('LinkQueueIsRcc1Prioritisation', () => {
             2: 2,
             3: 0,
           });
-          console.log(queue.isScores);
           expect(setPrioritySpy.mock.calls).toEqual(
             [[ 'http://a', 1 ], [ 'http://d', 2 ], [ 'http://d', 4 ], [ 'http://b', 1 ]],
           );

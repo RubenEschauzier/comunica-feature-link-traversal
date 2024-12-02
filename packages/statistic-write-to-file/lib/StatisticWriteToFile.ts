@@ -21,7 +21,7 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   public constructor(args: IStatisticWriteToFileArgs) {
     super();
     this.statisticToWrite = args.statisticToWrite;
-    let outputLocation: string;
+    let outputLocation: string | undefined;
     if (args.fileLocationBase64ToDir){
       const base64ToDir=  this.readBase64ToDir(new URL(args.fileLocationBase64ToDir).pathname);
       outputLocation = this.getFileLocation(
@@ -33,16 +33,18 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
       outputLocation = path.join(args.baseDirectoryExperiment, 
         `${this.statisticToWrite.constructor.name}.txt`);
     }
-    const loggerOptions: ILoggerBunyanArgs = {
-      name: 'comunica',
-      streamProviders: [
-        new BunyanStreamProviderFile({ level: 'info', path: outputLocation})
-      ]
-    };
-    this.logger = new LoggerBunyan(loggerOptions)
-    this.statisticToWrite.on((data: PartialResult) => {
-      this.updateStatistic(data)
-    });
+    if (outputLocation){
+      const loggerOptions: ILoggerBunyanArgs = {
+        name: 'comunica',
+        streamProviders: [
+          new BunyanStreamProviderFile({ level: 'info', path: outputLocation})
+        ]
+      };
+      this.logger = new LoggerBunyan(loggerOptions)
+      this.statisticToWrite.on((data: PartialResult) => {
+        this.updateStatistic(data)
+      });  
+    }
   }
 
   public async updateStatistic(data: PartialResult): Promise<boolean> {
@@ -62,13 +64,14 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
     query: string, 
     baseDirectoryExperiment: string, 
     base64ToDir: Record<string, string>
-  ){
+  ): string|undefined {
     // Convert query to base64 string
     const base64Query = btoa(query.trim());
     // Use that to find the directory it should go to
     const directory = base64ToDir[base64Query];
-    if (!directory){
-      throw new Error(`No matching query found for ${query}`);
+    if (directory === undefined){
+      console.error(`No matching query found for ${query}`);
+      return undefined
     }
     const fullPathDirectory = path.join(baseDirectoryExperiment, directory);
     // Count the number of files already written to directory to prevent overwriting existing runs

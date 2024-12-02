@@ -20,7 +20,7 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
   public constructor(args: IStatisticWriteToFileOverwriteArgs) {
     super();
     this.statisticToWrite = args.statisticToWrite;
-    let outputLocation: string;
+    let outputLocation: string | undefined;
     if (args.fileLocationBase64ToDir){
       const base64ToDir=  this.readBase64ToDir(new URL(args.fileLocationBase64ToDir).pathname);
       outputLocation = this.getFileLocation(
@@ -28,12 +28,19 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
       );
     }
     else{
-      outputLocation = path.join(args.baseDirectoryExperiment, 
+      outputLocation = path.join(new URL(args.baseDirectoryExperiment).pathname, 
         `${this.statisticToWrite.constructor.name}.txt`);
     }
-    this.statisticToWrite.on((data: T) => {
-      this.updateStatistic(outputLocation, data)
-    });
+    /**
+     * When we query something that is not in the base64 dictionary we don't want to try to log it.
+     * This happens when either something is wrong (which will be visible in the logs) or when
+     * we try to dereference a type index.
+     */
+    if (outputLocation){
+      this.statisticToWrite.on((data: T) => {
+        this.updateStatistic(outputLocation, data)
+      });  
+    }
   }
 
   public async writeToFileSafely(filePath: string, content: T): Promise<void> {
@@ -85,13 +92,14 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
     query: string, 
     baseDirectoryExperiment: string, 
     base64ToDir: Record<string, string>
-  ){
+  ): string | undefined{
     // Convert query to base64 string
     const base64Query = btoa(query.trim());
     // Use that to find the directory it should go to
     const directory = base64ToDir[base64Query];
-    if (!directory){
-      throw new Error(`No matching query found for ${query}`);
+    if (directory === undefined){
+      console.error(`No matching query found for ${query}`);
+      return undefined
     }
     const fullPathDirectory = path.join(baseDirectoryExperiment, directory);
     // Count the number of files already written to directory to prevent overwriting existing runs

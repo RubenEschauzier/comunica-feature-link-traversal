@@ -6,7 +6,8 @@ import { Bindings } from '@comunica/utils-bindings-factory';
 import * as fs from "fs";
 import * as path from 'path';
 import { KeysMergeBindingsContext } from '@comunica/context-entries';
-import type * as RDF from '@rdfjs/types';
+import * as RDF from '@rdfjs/types';
+import {AsyncIterator, ClonedIterator} from 'asynciterator';
 
 /**
  * Class used to write result information to file for r3-metric tracking. It depends on a file which maps
@@ -86,17 +87,15 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
     return match ? parseInt(match[1], 10) : 0; // Return the number as an integer or null if no match
   }
 
-  public consumeAttributionStream(binding: Bindings, data: PartialResult){
-    // TODO: This method will consume the stream, possibly BEFORE a prioritization algorithm has access to it.
-    // we should be cloning streams or smthing.
-    const sources = binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream);
+  public consumeAttributionStream(binding: Bindings, resultData: PartialResult){
+    const sources = <AsyncIterator<RDF.BaseQuad>> binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream);
     if (!sources){
-      console.error("No sources attached to binding writing result to file.");
-      throw new Error("No sources attached to binding writing result to file.");
+      return;
     }
     const sourceQuadsProcessed = new Set();
+    const clone = new ClonedIterator(sources);
     // Sources are streams of provenance quads (including possible duplicates)
-    sources.on('data', (data: RDF.BaseQuad) => {
+    clone.on('data', (data: RDF.BaseQuad) => {
       // Provenance is on object of triple
       const prov = data.object.value;
       // Filter duplicates
@@ -107,7 +106,7 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
     sources.on('end', () => {
       const reducedData = {
         data: binding.toString(),
-        operation: data.metadata['operation'],
+        operation: resultData.metadata['operation'],
         provenance: JSON.stringify(Array.from(sourceQuadsProcessed))
       }
       this.logger.info('update', reducedData)

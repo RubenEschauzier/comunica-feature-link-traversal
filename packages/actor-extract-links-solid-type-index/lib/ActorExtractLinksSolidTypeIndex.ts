@@ -134,7 +134,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
         [KeysRdfJoin.skipAdaptiveJoin.name]: true,
         lenient: true,
       })).toArray();
-
+      
     // Collect links per type
     const typeLinks: Record<string, ILink[]> = {};
     for (const bindings of bindingsArray) {

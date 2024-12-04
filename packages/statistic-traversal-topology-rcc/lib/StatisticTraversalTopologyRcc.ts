@@ -8,6 +8,7 @@ import type { IStatisticBase, LogicalJoinType, PartialResult } from '@comunica/t
 import type { Bindings } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
 import { types } from 'sparqlalgebrajs/lib/algebra';
+import { AsyncIterator, ClonedIterator } from 'asynciterator';
 
 export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateRccEmit> {
   public key: ActionContextKey<IStatisticBase<TopologyUpdateRccEmit>>;
@@ -67,10 +68,14 @@ export class StatisticTraversalTopologyRcc extends StatisticBase<TopologyUpdateR
     }
 
     if (update.updateType === 'result') {
-      const sources = update.binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream)!;
+      const sources = <AsyncIterator<RDF.BaseQuad>> update.binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream)!;
+      if (!sources){
+        return false;
+      }  
+      const clone = new ClonedIterator(sources);
       const sourceQuadsProcessed = new Set();
       // Sources are streams of provenance quads (including possible duplicates)
-      sources.on('data', (data: RDF.BaseQuad) => {
+      clone.on('data', (data: RDF.BaseQuad) => {
         // Provenance is on object
         const prov = data.object.value;
         // Filter duplicates

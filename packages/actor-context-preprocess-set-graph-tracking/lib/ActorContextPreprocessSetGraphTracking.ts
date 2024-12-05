@@ -22,6 +22,7 @@ export class ActorContextPreprocessSetGraphTracking extends ActorContextPreproce
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     let context = action.context;
+
     let discovery = <StatisticLinkDiscovery> action.context.get(KeysStatistics.discoveredLinks);
     if (!discovery) {
       discovery = new StatisticLinkDiscovery();

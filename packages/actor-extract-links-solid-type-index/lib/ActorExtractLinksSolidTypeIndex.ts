@@ -4,7 +4,7 @@ import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify } from '@comunica/context-entries';
-import { KeysRdfJoin } from '@comunica/context-entries-link-traversal';
+import { KeysRdfJoin, KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
 import type { ILink, IActionContext } from '@comunica/types';
@@ -120,7 +120,8 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
     const response = await this.mediatorDereferenceRdf.mediate({ url: typeIndex, context });
     const store = await storeStream(response.data);
 
-    // Query the document to extract all type registrations
+    // Query the document to extract all type registrations. Set nested to true to prevent statistic tracking
+    // for the type index query
     const bindingsArray = await (await this.queryEngine
       .queryBindings(`
         PREFIX solid: <http://www.w3.org/ns/solid/terms#>
@@ -130,6 +131,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
             (solid:instance|solid:instanceContainer) ?instance.
         }`, {
         sources: [ store ],
+        [KeysStatisticsTraversal.nestedQuery.name]: true,
         [KeysQuerySourceIdentify.traverse.name]: false,
         [KeysRdfJoin.skipAdaptiveJoin.name]: true,
         lenient: true,

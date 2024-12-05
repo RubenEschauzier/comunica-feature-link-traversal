@@ -3,7 +3,7 @@ import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { KeysStatistics } from '@comunica/context-entries';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { passTestVoid } from '@comunica/core';
+import { failTest, passTestVoid } from '@comunica/core';
 import { StatisticIntermediateResults } from '@comunica/statistic-intermediate-results';
 
 /**
@@ -14,12 +14,13 @@ export class ActorContextPreprocessSetIntermediateResultTracking extends ActorCo
     super(args);
   }
 
-  public async test(_action: IActionContextPreprocess): Promise<TestResult<IActorTest>> {
+  public async test(action: IActionContextPreprocess): Promise<TestResult<IActorTest>> {
     return passTestVoid();
   }
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     let context = action.context;
+
     let intermediateResult = <StatisticIntermediateResults> action.context.get(
       KeysStatistics.intermediateResults,
     );

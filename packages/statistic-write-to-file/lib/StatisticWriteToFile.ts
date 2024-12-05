@@ -90,6 +90,7 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   public consumeAttributionStream(binding: Bindings, resultData: PartialResult){
     const sources = <AsyncIterator<RDF.BaseQuad>> binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream);
     if (!sources){
+      console.log("No sources found")
       return;
     }
     const sourceQuadsProcessed = new Set();
@@ -101,15 +102,22 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
       // Filter duplicates
       if (!sourceQuadsProcessed.has(prov)) {
         sourceQuadsProcessed.add(prov);
+        const reducedData = {
+          data: binding.toString(),
+          operation: resultData.metadata['operation'],
+          provenance: JSON.stringify(Array.from(sourceQuadsProcessed))
+        }
+        this.logger.info('update', reducedData)  
       }
     });
-    sources.on('end', () => {
-      const reducedData = {
-        data: binding.toString(),
-        operation: resultData.metadata['operation'],
-        provenance: JSON.stringify(Array.from(sourceQuadsProcessed))
-      }
-      this.logger.info('update', reducedData)
+    clone.on('end', () => {
+      // End is not guaranteed for failing queries.
+      // const reducedData = {
+      //   data: binding.toString(),
+      //   operation: resultData.metadata['operation'],
+      //   provenance: JSON.stringify(Array.from(sourceQuadsProcessed))
+      // }
+      // this.logger.info('update', reducedData)
     });
   }
 }

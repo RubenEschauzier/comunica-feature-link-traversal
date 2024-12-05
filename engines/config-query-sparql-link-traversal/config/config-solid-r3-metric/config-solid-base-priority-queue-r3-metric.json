@@ -77,6 +77,7 @@
 
     "ccqs:config/iterator-transform/mediators.json",
     "ccqs:config/query-operation/actors/query/wrap-stream.json",
-    "ccqslt:config/iterator-transform/actor-record-solutions.json"
+    "ccqslt:config/iterator-transform/actor-record-solutions.json",
+    "ccqslt:config/context-preprocess/actor-intermediate-results-statistic.json"
   ]
 }

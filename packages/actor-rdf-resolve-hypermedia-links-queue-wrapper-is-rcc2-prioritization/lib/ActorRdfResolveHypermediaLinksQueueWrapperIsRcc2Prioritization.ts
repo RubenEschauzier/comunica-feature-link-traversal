@@ -23,6 +23,11 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperIsRcc2Prioritization exte
     if (action.context.get(KEY_CONTEXT_WRAPPED)) {
       return failTest('Unable to wrap link queues multiple times');
     }
+    // For queries started from the 'main' query, like a typeindex query we don't do prioritization
+    if (action.context.get(KeysStatisticsTraversal.nestedQuery)){
+      return failTest('Nested query detected');
+    }
+    
     return passTestVoid();
   }
 

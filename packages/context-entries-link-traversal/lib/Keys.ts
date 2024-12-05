@@ -40,5 +40,6 @@ export const KeysStatisticsTraversal = {
   ('@comunica/statistic-traversal-topology:Tracked'),
   traversalTopologyRcc: new ActionContextKey<IStatisticBase<TopologyUpdateRccEmit>>
   ('@comunica/statistic-traversal-topology-rcc:Tracked'),
-  writeToFile: new ActionContextKey<IStatisticBase<any>>('@comunica/statistic-write-to-file:Writer')
+  writeToFile: new ActionContextKey<IStatisticBase<any>>('@comunica/statistic-write-to-file:Writer'),
+  nestedQuery: new ActionContextKey<Boolean>('@comunica/statistic-base:nested')
 };

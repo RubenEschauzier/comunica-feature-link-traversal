@@ -3,7 +3,7 @@ import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { KeysInitQuery, KeysStatistics } from '@comunica/context-entries';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { passTestVoid } from '@comunica/core';
+import { failTest, passTestVoid } from '@comunica/core';
 import { StatisticLinkDereference } from '@comunica/statistic-link-dereference';
 import { StatisticLinkDiscovery } from '@comunica/statistic-link-discovery';
 import { StatisticTraversalTopology } from '@comunica/statistic-traversal-topology';
@@ -26,7 +26,7 @@ export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPrepr
     super(args);
   }
 
-  public async test(_action: IActionContextPreprocess): Promise<TestResult<IActorTest>> {
+  public async test(_action: IActionContextPreprocess): Promise<TestResult<IActorTest>> {    
     return passTestVoid();
   }
   /**
@@ -36,7 +36,9 @@ export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPrepr
   * @returns 
   */
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
-    let context = action.context
+    let context = action.context;
+    // For queries started from the 'main' query, like a typeindex query we don't do prioritization
+
     let discovery = <StatisticLinkDiscovery> action.context.get(KeysStatistics.discoveredLinks); 
     if (!discovery){
       discovery = new StatisticLinkDiscovery();
@@ -60,6 +62,10 @@ export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPrepr
       intermediateResult = new StatisticIntermediateResults();
       context = context.set(KeysStatistics.intermediateResults, intermediateResult)
     }
+    // For queries started from the 'main' query, like a typeindex query we don't do prioritization
+    if (action.context.get(KeysStatisticsTraversal.nestedQuery)){
+      return { context };
+    }
     // Use overwrite statistic as the entire topology is output as update by traversed
     // topology statistic
     const query = action.context.getSafe(KeysInitQuery.queryString);
@@ -75,7 +81,6 @@ export class ActorContextPreprocessSetR3MetricTracking extends ActorContextPrepr
       baseDirectoryExperiment: this.baseDirectoryExperiment,
       fileLocationBase64ToDir: this.fileLocationBase64toOutputDir,
     });
-
     return { context };
   }
 }

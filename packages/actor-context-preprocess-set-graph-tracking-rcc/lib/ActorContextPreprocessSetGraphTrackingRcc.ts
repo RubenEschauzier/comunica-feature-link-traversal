@@ -3,7 +3,7 @@ import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { KeysStatistics } from '@comunica/context-entries';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { passTestVoid } from '@comunica/core';
+import { failTest, passTestVoid } from '@comunica/core';
 import { StatisticIntermediateResults } from '@comunica/statistic-intermediate-results';
 import { StatisticLinkDereference } from '@comunica/statistic-link-dereference';
 import { StatisticLinkDiscovery } from '@comunica/statistic-link-discovery';
@@ -24,6 +24,7 @@ export class ActorContextPreprocessSetGraphTrackingRcc extends ActorContextPrepr
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     let context = action.context;
+       
     let discovery = <StatisticLinkDiscovery> action.context.get(KeysStatistics.discoveredLinks);
     if (!discovery) {
       discovery = new StatisticLinkDiscovery();

@@ -9,6 +9,8 @@ import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-h
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import { LinkQueueOraclePrioritization } from './LinkQueueOraclePrioritization';
+import { KeysInitQuery } from '@comunica/context-entries';
+import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
@@ -21,12 +23,8 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperOraclePrioritization exte
     super(args);
   }
 
-  public async readRccFile(): Promise<Record<string, number>> {
-    const data = JSON.parse(await fs.promises.readFile('../oracle/rcc.json', 'utf-8')).catch(
-      (error: any) => {
-        throw new Error(error);
-      },
-    );
+  public async readRccFile(): Promise<Record<string, Record<string, number>>> {
+    const data = JSON.parse(fs.readFileSync("/tmp/oracle-data-input/oracleData.json", 'utf-8'));
     return data;
   }
 
@@ -40,9 +38,20 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperOraclePrioritization exte
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
+    
+    if (!(linkQueue instanceof LinkQueuePriority)) {
+      throw new TypeError('Tried to wrap a non-priority queue with a link prioritisation wrapper.');
+    }
+
     // Load oracle scores
     const rccScores = await this.readRccFile();
-    return { linkQueue: new LinkQueueOraclePrioritization(linkQueue, rccScores) };
+    const queryBase64 = btoa(action.context.getSafe(KeysInitQuery.queryString).trim());
+    const rccScoresQuery = rccScores[queryBase64];
+
+    if ( rccScoresQuery === undefined){
+      throw new Error(`Unknown query: ${action.context.getSafe(KeysInitQuery.queryString).trim()}`);
+    }
+    return { linkQueue: new LinkQueueOraclePrioritization(linkQueue, rccScoresQuery) };
   }
 }
 

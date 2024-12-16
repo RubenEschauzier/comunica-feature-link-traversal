@@ -7,6 +7,7 @@ import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-h
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import { LinkQueueRandomPrioritization } from './LinkQueueRandomPrioritization';
+import { LinkQueuePriority } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-priority';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
@@ -29,6 +30,11 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperRandomPrioritization exte
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
+    
+    if (!(linkQueue instanceof LinkQueuePriority)) {
+      throw new TypeError('Tried to wrap a non-priority queue with a link prioritisation wrapper.');
+    }
+
     return { linkQueue: new LinkQueueRandomPrioritization(linkQueue) };
   }
 }

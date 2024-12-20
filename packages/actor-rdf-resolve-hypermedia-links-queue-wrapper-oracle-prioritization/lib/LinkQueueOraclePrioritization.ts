@@ -17,7 +17,8 @@ export class LinkQueueOraclePrioritization extends LinkQueueWrapper {
       ...link.metadata,
       priority: this.RccScores[link.url] === undefined ? 0 : this.RccScores[link.url],
     };
-
+    console.log(JSON.stringify({size: super.getSize(), priority: link.metadata.priority}));
+    console.log(JSON.stringify(link.url))
     return super.push(link, parent);
   }
 }

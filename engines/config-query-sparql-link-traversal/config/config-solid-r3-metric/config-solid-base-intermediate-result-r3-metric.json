@@ -24,7 +24,6 @@
       "ccqs:config/http-invalidate/actors.json",
       "ccqs:config/http-invalidate/mediators.json",
       "ccqslt:config/init/actors.json",
-      "ccqslt:config/merge-bindings-context/source-promise-union.json",
       "ccqs:config/merge-bindings-context/mediators.json",
       "ccqslt:config/optimize-query-operation/actors.json",
       "ccqs:config/optimize-query-operation/mediators.json",
@@ -78,6 +77,7 @@
       "ccqslt:config/context-preprocess/actor-intermediate-results-statistic.json",
       "ccqs:config/iterator-transform/mediators.json",
       "ccqs:config/rdf-join/actors-wrap-stream.json",
+      "ccqslt:config/merge-bindings-context/source-promise-union.json",
 
       "ccqslt:config/iterator-transform/actor-record-intermediate-full-solutions.json",
       "ccqs:config/query-operation/actors/query/wrap-stream.json"

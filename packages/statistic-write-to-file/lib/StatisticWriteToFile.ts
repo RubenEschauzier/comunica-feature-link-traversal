@@ -49,7 +49,7 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   }
 
   public async updateStatistic(data: PartialResult): Promise<boolean> {
-    if (data.type === 'bindings'){
+    if (data.type === 'bindings' && data.metadata['operation'] === 'project'){
       const binding = <Bindings> data.data;
       this.consumeAttributionStream(binding, data);
       return true;  
@@ -90,11 +90,10 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
   public consumeAttributionStream(binding: Bindings, resultData: PartialResult){
     const sources = <AsyncIterator<RDF.BaseQuad>> binding.getContextEntry(KeysMergeBindingsContext.sourcesBindingStream);
     if (!sources){
-      console.log("No sources found")
       return;
     }
     const sourceQuadsProcessed = new Set();
-    const clone = new ClonedIterator(sources);
+    const clone = sources.clone()
     // Sources are streams of provenance quads (including possible duplicates)
     clone.on('data', (data: RDF.BaseQuad) => {
       // Provenance is on object of triple
@@ -105,19 +104,11 @@ export class StatisticWriteToFile extends StatisticBase<PartialResult> {
         const reducedData = {
           data: binding.toString(),
           operation: resultData.metadata['operation'],
-          provenance: JSON.stringify(Array.from(sourceQuadsProcessed))
+          provenance: JSON.stringify(Array.from(sourceQuadsProcessed)),
+          timestamp: performance.now()
         }
         this.logger.info('update', reducedData)  
       }
-    });
-    clone.on('end', () => {
-      // End is not guaranteed for failing queries.
-      // const reducedData = {
-      //   data: binding.toString(),
-      //   operation: resultData.metadata['operation'],
-      //   provenance: JSON.stringify(Array.from(sourceQuadsProcessed))
-      // }
-      // this.logger.info('update', reducedData)
     });
   }
 }

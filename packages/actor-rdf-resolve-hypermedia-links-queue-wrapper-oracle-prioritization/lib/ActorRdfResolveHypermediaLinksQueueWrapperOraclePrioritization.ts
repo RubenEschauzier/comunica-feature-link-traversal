@@ -9,6 +9,8 @@ import { ActorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-h
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import { LinkQueueOraclePrioritization } from './LinkQueueOraclePrioritization';
+import { KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 
 /**
  * A comunica Wrapper Limit Count RDF Resolve Hypermedia Links Queue Actor.
@@ -21,12 +23,8 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperOraclePrioritization exte
     super(args);
   }
 
-  public async readRccFile(): Promise<Record<string, number>> {
-    const data = JSON.parse(await fs.promises.readFile('../oracle/rcc.json', 'utf-8')).catch(
-      (error: any) => {
-        throw new Error(error);
-      },
-    );
+  public async readRccFile(): Promise<Record<string, Record<string, number>>> {
+    const data = JSON.parse(fs.readFileSync("/tmp/r3-metric-output/oracleData.json", 'utf-8'));
     return data;
   }
 
@@ -42,7 +40,23 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperOraclePrioritization exte
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
     // Load oracle scores
     const rccScores = await this.readRccFile();
-    return { linkQueue: new LinkQueueOraclePrioritization(linkQueue, rccScores) };
+    const queryBase64 = btoa(action.context.getSafe(KeysInitQuery.queryString).trim());
+    const rccScoresQuery = rccScores[queryBase64];
+    console.log("Base64 Query and rcc scores read")
+    console.log(JSON.stringify(queryBase64));
+    console.log(JSON.stringify(rccScoresQuery));
+    if ( rccScoresQuery === undefined){
+      throw new Error(`Unknown query: ${action.context.getSafe(KeysInitQuery.queryString).trim()}`);     
+    }
+    // const rccScoresQuery = {
+    //   "https://solidbench.linkeddatafragments.org/pods/00000000000000000933/posts/2012-06-03": 1,
+    //   "https://solidbench.linkeddatafragments.org/pods/00000000000000000933/posts/2011-08-17": 1,
+    //   "https://solidbench.linkeddatafragments.org/pods/00000000000000000933/posts/2012-07-20": 1,
+    //   "https://solidbench.linkeddatafragments.org/pods/00000000000000000933/posts/2012-06-07": 1,
+    //   "https://solidbench.linkeddatafragments.org/pods/00000000000000000933/posts/2010-02-14": 1,
+    //   "https://solidbench.linkeddatafragments.org/pods/00000000000000000933/posts/2011-01-05": 1
+    // }
+    return { linkQueue: new LinkQueueOraclePrioritization(linkQueue, rccScoresQuery) };
   }
 }
 

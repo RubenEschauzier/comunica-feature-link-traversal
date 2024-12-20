@@ -40,6 +40,7 @@
     "@comunica/statistic-base": "^4.0.1",
     "@comunica/types": "^4.0.1",
     "@comunica/logger-bunyan":"^4.0.2",
-    "@comunica/utils-bindings-factory": "^4.0.2"
+    "@comunica/utils-bindings-factory": "^4.0.2",
+    "asynciterator": "^3.9.0"
   }
 }

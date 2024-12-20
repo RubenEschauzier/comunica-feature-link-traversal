@@ -60,7 +60,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
       const parent: ILink = {
         url: update.data.edge[0],
       };
-      const result = this.addEdge(child, parent);
+      const result = this.addEdge(child, parent, update.data.metadataChild);
       if (result) {
         this.emit({
           updateType: update.type,
@@ -99,7 +99,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     return true;
   }
 
-  public addEdge(child: ILink, parent: ILink): boolean {
+  public addEdge(child: ILink, parent: ILink, metadata: Record<any, any>): boolean {
     // Self references edges are irrelevant
     if (child.url === parent.url) {
       return false;
@@ -166,6 +166,9 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: false,
         discoverOrder: [ this.nDiscovered ],
         dereferenceOrder: Number.NEGATIVE_INFINITY,
+        discoverTimestamp: performance.now(),
+        dereferenceTimestamp: Number.NEGATIVE_INFINITY,
+        httpRequestTime: Number.NEGATIVE_INFINITY
       };
     }
     // If new node we add it as an open node
@@ -182,8 +185,9 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     }
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
     this.nodeMetadata[this.nodeToId(link.url)].dereferenceOrder = this.nDereferenced;
+    this.nodeMetadata[this.nodeToId(link.url)].dereferenceTimestamp = performance.now();
+    this.nodeMetadata[this.nodeToId(link.url)].httpRequestTime = link.metadata!.requestTime;
     this.dereferenceOrder.push(this.nodeToId(link.url));
-    // Remove dereferenced node from open nodes (TODO check correct implementation)
     this.openNodes = this.openNodes.filter(val => val !== this.nodeToId(link.url));
     this.nDereferenced++;
     return true;
@@ -257,4 +261,7 @@ export interface INodeMetadata {
   dereferenced: boolean;
   discoverOrder: number[];
   dereferenceOrder: number;
+  discoverTimestamp: number;
+  dereferenceTimestamp: number;
+  httpRequestTime: number;
 }

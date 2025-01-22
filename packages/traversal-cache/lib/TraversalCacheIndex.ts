@@ -5,7 +5,9 @@
  * This information might lead to predicate sets that are required for a connection instead of a singular predicate.
  */
 
-export class TraversalCacheIndex<V extends {}> implements ITraversalIndex<V>{
+import { IDiscoverEventData, IStatisticBase } from "@comunica/types";
+
+export class TraversalCacheIndex<K extends string> implements ITraversalIndex<K>{
     /**
      * Data structures that maps a predicate string to a number
      */
@@ -30,23 +32,57 @@ export class TraversalCacheIndex<V extends {}> implements ITraversalIndex<V>{
 
     }
 
-    public traverse(start: string, reachableEdges: string[]): V[] {
+    public traverse(start: string, reachableEdges: string[]): K[] {
         throw new Error("Method not implemented.");
+    }
+
+    public attachStatisticListener(statistics: IStatisticBase<IDiscoverEventData>[]){
+        if (statistics.length > 1){
+            throw new Error("TraversalCacheIndex cannot listen to more than one statistic");
+        }
+        statistics[0].on(this.addDiscoveryToCache);
+    }
+
+    public delete(node: K){
+        const nodeIndex = this.nodeToIndex[node];
+        if (!nodeIndex){
+            return false;
+        }
+        // TODO Implement deletion logic here, likely with re-connecting 
+        // old connections with new predicate annotations
+        return true
     }
 
     public clear(){
         throw new Error("Method not implemented.");
     }
+
+    private addDiscoveryToCache(discoveryData: IDiscoverEventData){
+        console.log(discoveryData);
+    }
+
 }
 
-export interface ITraversalIndex<V extends {}>{
+export interface ITraversalIndex<K extends {}>{
     /**
      * Traverses the index to find all reachable nodes given a start node
      * and acceptable edge types.
      * @param start 
      * @param reachableEdges 
      */
-    traverse(start: string, reachableEdges: string[]): V[]
+    traverse(start: string, reachableEdges: string[]): K[];
+
+    /**
+     * Allows the index to attach listeners to statistic events emitted by the engine.
+     * These can be used to build the index and must be re-set for every query.
+     */
+    attachStatisticListener(statistics: IStatisticBase<any>[]): void;
+
+    /**
+     * Deletes a node from the traversal index. 
+     */
+    delete(node: K): boolean;
+
     /**
      * Empties the traversal index
      */

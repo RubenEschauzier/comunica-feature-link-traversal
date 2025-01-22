@@ -2,14 +2,15 @@ import { Algebra } from "sparqlalgebrajs";
 import { LRUCache } from 'lru-cache';
 import { ITraversalIndex, TraversalCacheIndex } from "./TraversalCacheIndex";
 
-export class TraversalCache<K extends {}, V extends {}> implements ITraversalCache<K, V>{
+export class TraversalCache<K extends string, V extends {}> implements ITraversalCache<K, V>{
     private cache: LRUCache<K, V>;
-    private traversalIndex: ITraversalIndex<V>;
+    private traversalIndex: ITraversalIndex<K>;
     private solidTraversalPredicates: string[];
 
     public constructor(maxSize: number){
-        this.cache = new LRUCache({ maxSize });
-        this.traversalIndex = new TraversalCacheIndex();
+        this.traversalIndex = new TraversalCacheIndex<K>();
+        this.cache = new LRUCache({ maxSize, dispose: (value, key) => this.traversalIndex.delete(key) });
+
         // TODO: Add solid traversal predicates
         this.solidTraversalPredicates = [];
     }

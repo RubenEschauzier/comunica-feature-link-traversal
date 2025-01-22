@@ -98,7 +98,9 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
               if (quad[quadTermName].termType === 'NamedNode') {
                 links.push({
                   url: quad[quadTermName].value,
-                  metadata: { producedByActor: { name: this.name, onlyVariables: this.onlyVariables }},
+                  metadata: { producedByActor: { name: this.name, onlyVariables: this.onlyVariables,
+                    predicateUsed: quad.predicate.value
+                  }},
                 });
               }
             }
@@ -107,7 +109,8 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
             for (const link of getNamedNodes(getTerms(quad))) {
               links.push({
                 url: link.value,
-                metadata: { producedByActor: { name: this.name, onlyVariables: this.onlyVariables }},
+                metadata: { producedByActor: { name: this.name, onlyVariables: this.onlyVariables }, 
+                predicateUsed: quad.predicate.value},
               });
             }
           }

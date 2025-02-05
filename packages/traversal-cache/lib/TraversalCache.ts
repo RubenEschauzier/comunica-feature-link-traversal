@@ -17,7 +17,7 @@ export class TraversalCache<K extends string, V extends {}> implements ITraversa
 
     public set(key: K, value: V): void {
         this.cache.set(key, value);
-        throw new Error("Method not implemented.");
+        // Add traversalIndex set logic here
     }
 
     public get(key: K, reachableSources?: Set<K> | undefined): V | undefined {
@@ -30,7 +30,6 @@ export class TraversalCache<K extends string, V extends {}> implements ITraversa
     public clear(): void {
         this.cache.clear();
         this.traversalIndex.clear()
-        throw new Error("Method not implemented.");
     }
 
     public has(key: K, reachableSources: Set<K>): boolean {

@@ -1,6 +1,6 @@
 import { ActorContextPreprocess, IActionContextPreprocess, IActorContextPreprocessOutput, IActorContextPreprocessArgs } from '@comunica/bus-context-preprocess';
 import { KeysCaches } from '@comunica/context-entries';
-import { IAction, IActorArgs, IActorTest, passTestVoid, TestResult } from '@comunica/core';
+import { IAction, IActorTest, passTestVoid, TestResult } from '@comunica/core';
 import { ISourceState } from '@comunica/types';
 import CachePolicy = require('http-cache-semantics');
 import { LRUCache } from 'lru-cache';

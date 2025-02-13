@@ -1171,6 +1171,11 @@
   resolved "https://registry.yarnpkg.com/@comunica/config-query-sparql/-/config-query-sparql-2.7.0.tgz#1030ee76d5532bc6a09a6c8af26a06c7311a5861"
   integrity sha512-rMnFgT7cz9+0z7wV4OzIMY5qM9/Z0mTGrR8y2JokoHyyTcBGOSajFmy61XCSLMCsLLG8qDXsJ4ClCCky3TGfqA==
 
+"@comunica/config-query-sparql@~4.0.1":
+  version "4.0.1"
+  resolved "https://registry.yarnpkg.com/@comunica/config-query-sparql/-/config-query-sparql-4.0.1.tgz#ad7da2b3636aaf7dd3eb5b4918c76ac3bf2c61d7"
+  integrity sha512-jNuRl7PmOKillPfvIzmO+I7IFP0nroFQrZaX/4pUIqe4WNrSCzjZqrLnru0BQtFE5LXcaEA9IdtISSfjwTFt2w==
+
 "@comunica/context-entries@^2.10.0":
   version "2.10.0"
   resolved "https://registry.yarnpkg.com/@comunica/context-entries/-/context-entries-2.10.0.tgz#6920bad7b55ffcf99ed00472fadab659147bd3ea"
@@ -11615,13 +11620,20 @@ rdf-quad@^1.5.0:
     rdf-literal "^1.2.0"
     rdf-string "^1.5.0"
 
-rdf-store-stream@^2.0.0, rdf-store-stream@^2.0.1:
+rdf-store-stream@^2.0.1:
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/rdf-store-stream/-/rdf-store-stream-2.0.1.tgz#f61ab958e11876f763fdc3799eff58589f998181"
   integrity sha512-znGaibHLvbRE0BrDcXHRleRcLKlHYP6ADr1RFJ3yA28QBmhOjxxgbBFTvCMzgsxvBIqdaFS8Vd2FG4NefJL4Mg==
   dependencies:
     "@rdfjs/types" "*"
     rdf-stores "^1.0.0"
+
+rdf-store-stream@^3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/rdf-store-stream/-/rdf-store-stream-3.0.0.tgz#79ec49161f6f76c429ef88065f26b1f3e1e5bd74"
+  integrity sha512-y30MHEyEnS1SjMzPhioZRvZ9yz4e6FL96TFq6YcMCUSDvT8zONotAfz28kMbOUAcKCncmrCJiukjP7Q1bJT4aw==
+  dependencies:
+    rdf-stores "^2.0.0"
 
 rdf-stores@^1.0.0:
   version "1.0.0"
@@ -11633,6 +11645,16 @@ rdf-stores@^1.0.0:
     rdf-data-factory "^1.1.1"
     rdf-string "^1.6.2"
     rdf-terms "^1.9.1"
+
+rdf-stores@^2.0.0:
+  version "2.1.1"
+  resolved "https://registry.yarnpkg.com/rdf-stores/-/rdf-stores-2.1.1.tgz#a95b173a90540f35a965ff5add9e386d8a715647"
+  integrity sha512-wYovM7q+12K+dV3AsPbBiAY63Dy1eoOBJ69XoL757Pqwimz2LLCrSwrjMyqc4AB+/wPgDwPeNiQA7IzD6zeAZg==
+  dependencies:
+    asynciterator "^3.8.0"
+    rdf-data-factory "^2.0.1"
+    rdf-string "^2.0.0"
+    rdf-terms "^2.0.0"
 
 rdf-streaming-store@^1.1.4:
   version "1.1.5"

@@ -5,8 +5,8 @@
   "workspaces": [
     "engines/*",
     "packages/*",
-    "../comunica-http-caching/engines/*",
-    "../comunica-http-caching/packages/*"
+    "../comunica-test/engines/*",
+    "../comunica-test/packages/*"
   ],
   "scripts": {
     "test-changed": "lerna run test --since HEAD",

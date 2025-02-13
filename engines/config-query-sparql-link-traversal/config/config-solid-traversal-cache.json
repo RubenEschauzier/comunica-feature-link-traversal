@@ -13,7 +13,6 @@
       "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
       "ccqslt:config/context-preprocess/traversal-caching.json"
-      
     ]
   }
   

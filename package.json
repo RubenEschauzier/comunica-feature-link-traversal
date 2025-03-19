@@ -44,7 +44,7 @@
     "@babel/core": "^7.22.20",
     "@babel/preset-env": "^7.22.20",
     "@comunica/packager": "4.0.1",
-    "@comunica/utils-jest": "4.0.2",
+    "@comunica/utils-jest": "4.1.0",
     "@comunica/utils-monorepo": "4.0.1",
     "@pollyjs/adapter-node-http": "^6.0.6",
     "@pollyjs/core": "^6.0.6",
@@ -94,6 +94,6 @@
     "webpack-cli": "^5.1.4"
   },
   "resolutions": {
-    "@comunica/mediatortype-time": "4.0.2"
+    "@comunica/mediatortype-time": "4.1.0"
   }
 }

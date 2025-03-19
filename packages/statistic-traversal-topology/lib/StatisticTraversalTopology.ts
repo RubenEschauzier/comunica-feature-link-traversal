@@ -4,6 +4,7 @@ import { StatisticBase } from '@comunica/statistic-base';
 import type { StatisticLinkDereference } from '@comunica/statistic-link-dereference';
 import type { StatisticLinkDiscovery } from '@comunica/statistic-link-discovery';
 import type { IDiscoverEventData, ILink, IStatisticBase } from '@comunica/types';
+import { chdir } from 'process';
 
 export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
   public key: ActionContextKey<IStatisticBase<ITopologyUpdate>>;
@@ -56,9 +57,11 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     if (update.type === 'discover') {
       const child: ILink = {
         url: update.data.edge[1],
+        metadata: update.data.metadataChild
       };
       const parent: ILink = {
         url: update.data.edge[0],
+        metadata: update.data.metadataParent
       };
       const result = this.addEdge(child, parent);
       if (result) {
@@ -104,22 +107,6 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     if (child.url === parent.url) {
       return false;
     }
-    // /**
-    //  * If the parent doesn't exist in the topology, it must be a seed URL
-    //  * as these are not registered
-    //  */
-    // if (this.nodeToIndexDict[parent.url] === undefined) {
-    //   const seedParentId = this.nodeToId(parent.url);
-    //   // We also initialize an empty incoming adjacency list for completeness.
-    //   this.adjacencyListIn[seedParentId] = [];
-    //   this.nodeMetadata[seedParentId] = {
-    //     seed: true,
-    //     dereferenced: true,
-    //     discoverOrder: [ -1 ],
-    //     dereferenceOrder: -1,
-    //     ...parent.metadata
-    //   };
-    // }
     // Whether the child node is new
     let newNode = true;
     if (this.nodeToIndexDict[child.url]) {
@@ -156,16 +143,12 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
 
     // Update metadata
     if (this.nodeMetadata[childId]) {
-      const discoverOrder = this.nodeMetadata[childId].discoverOrder;
-      this.nodeMetadata[childId].discoverOrder = discoverOrder ?
-          [ ...discoverOrder, this.nDiscovered ] :
-          [ this.nDiscovered ];
+      this.nodeMetadata[childId].linkMetadata = child.metadata;
     } else {
       this.nodeMetadata[childId] = {
-        seed: false,
         dereferenced: false,
-        discoverOrder: [ this.nDiscovered ],
         dereferenceOrder: Number.NEGATIVE_INFINITY,
+        linkMetadata: child.metadata
       };
     }
     // If new node we add it as an open node
@@ -253,8 +236,8 @@ export interface ITopologyUpdate {
 }
 
 export interface INodeMetadata {
-  seed: boolean;
   dereferenced: boolean;
-  discoverOrder: number[];
+  // discoverOrder: number[];
   dereferenceOrder: number;
+  linkMetadata?: Record<any, any>;
 }

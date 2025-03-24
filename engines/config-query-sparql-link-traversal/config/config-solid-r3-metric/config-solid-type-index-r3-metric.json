@@ -1,0 +1,33 @@
+{
+    "@context": [
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^4.0.0/components/context.jsonld",
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld",
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^4.0.0/components/context.jsonld",
+      "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-context-preprocess-set-r3-metric-tracking/^0.0.0/components/context.jsonld"  
+    ],
+    "import": [
+      "ccqslt:config/config-solid-base-priority-queue.json",
+      "ccqslt:config/extract-links/actors/predicates-common.json",
+      "ccqslt:config/extract-links/actors/predicates-ldp.json",
+      "ccqslt:config/extract-links/actors/links-describedby.json",
+      "ccqslt:config/extract-links/actors/predicates-solidstorage.json",
+      "ccqslt:config/extract-links/actors/quad-pattern-query.json",
+      "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
+  
+      "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/solid-based/wrapper-type-index.json"
+    ],
+    "@graph": [
+      {
+        "@id": "urn:comunica:default:Runner",
+        "@type": "Runner",
+        "actors": [
+          {
+            "@id": "urn:comunica:default:context-preprocess/actors#set-r3-metric-tracking",
+            "@type": "ActorContextPreprocessSetR3MetricTracking",
+            "baseDirectoryExperiment": "file:///tmp/"
+          }
+        ]
+      }
+    ]  
+  }
+  

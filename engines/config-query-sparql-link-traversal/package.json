@@ -46,6 +46,6 @@
   },
   "dependencies": {
     "@comunica/config-query-sparql": "~4.0.1",
-    "@comunica/config-query-sparql-solid": "~4.0.2"
+    "@comunica/config-query-sparql-solid": "~4.0.0"
   }
 }

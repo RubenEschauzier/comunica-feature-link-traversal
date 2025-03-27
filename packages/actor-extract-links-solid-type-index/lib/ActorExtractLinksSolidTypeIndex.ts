@@ -1,5 +1,6 @@
 import { QueryEngineBase } from '@comunica/actor-init-query';
 import type { ActorInitQueryBase } from '@comunica/actor-init-query';
+import { KEY_NESTED_QUERY } from '@comunica/actor-rdf-join-inner-multi-index-sampling';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
@@ -13,6 +14,8 @@ import { storeStream } from 'rdf-store-stream';
 import { termToString } from 'rdf-string';
 import type { Algebra } from 'sparqlalgebrajs';
 import { Util as AlgebraUtil } from 'sparqlalgebrajs';
+
+// This should be changed for non-research code
 
 /**
  * A comunica Solid Type Index Extract Links Actor.
@@ -119,7 +122,6 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
     // Parse the type index document
     const response = await this.mediatorDereferenceRdf.mediate({ url: typeIndex, context });
     const store = await storeStream(response.data);
-
     // Query the document to extract all type registrations
     const bindingsArray = await (await this.queryEngine
       .queryBindings(`
@@ -132,6 +134,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
         sources: [ store ],
         [KeysQuerySourceIdentify.traverse.name]: false,
         [KeysRdfJoin.skipAdaptiveJoin.name]: true,
+        [KEY_NESTED_QUERY.name]: true,
         lenient: true,
       })).toArray();
 

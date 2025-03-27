@@ -97,6 +97,8 @@
     "@comunica/packager": "4.0.1",
     "@comunica/utils-jest": "^4.1.0",
     "@comunica/utils-monorepo": "4.0.1",
+    "rdf-store-stream": "npm:@rubeneschauzier/rdf-store-stream@3.0.0-beta.0.1",
+    "rdf-stores": "npm:@rubeneschauzier/rdf-stores@2.1.1-beta.0.1",
     "typescript": "5.5.4"
   }
 }

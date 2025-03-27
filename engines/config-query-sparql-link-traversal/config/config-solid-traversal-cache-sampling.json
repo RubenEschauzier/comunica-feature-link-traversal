@@ -1,0 +1,12 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^4.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
+  ],
+  "import": [
+    "ccqslt:config/config-solid-traversal-cache.json",
+    "ccqs:config/extract-sources/mediators.json",
+    "ccqslt:config/extract-sources/actors.json",
+    "ccqs:config/rdf-join/actors-sampling.json"
+  ]
+}

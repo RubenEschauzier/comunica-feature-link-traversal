@@ -14,6 +14,27 @@
 <a href="https://gitter.im/comunica/Lobby"><img src="https://badges.gitter.im/comunica.png" alt="Gitter chat"></a>
 </p>
 
+**Link Prioritization Reimplementations and R3 measurement branch**
+
+This branch of link-traversal is used to test 17 link prioritization algorithms in a previously unexplored structured decentralized environment (Solid). This branch depends on a development version of base [Comunica](https://github.com/RubenEschauzier/comunica/tree/feature/source-attribution-qouted-triples), which calculates provenance using quoted triples.
+To use this repository, you clone the base Comunica branch and follow its `README.md` to install it. Then, in this repository, edit the `package.json` entry for `workspaces from
+```
+  "workspaces": [
+    "engines/*",
+    "packages/*",
+  ],
+```
+to
+```
+  "workspaces": [
+    "engines/*",
+    "packages/*",
+    "path/to/comunica/engines/*",
+    "path/to/comunica/packages/*"
+  ],
+```
+This workspace method is also explained on the [website](https://comunica.dev/docs/modify/advanced/linking_local_version/).
+
 **[Learn more about Comunica on our website](https://comunica.dev/).**
 
 This is a monorepo that contains packages for allowing [Comunica](https://github.com/comunica/comunica) to link traversal-based query execution.

@@ -40,7 +40,7 @@
     "@comunica/bus-context-preprocess": "^4.0.1",
     "@comunica/core": "^4.0.1",
     "@comunica/context-entries": "^4.1.0",
-    "@comunica/context-entries-link-traversal": "^0.6.0",
+    "@comunica/context-entries-link-traversal": "^0.7.0",
     "@comunica/statistic-link-dereference": "^4.0.1",
     "@comunica/statistic-link-discovery": "^4.0.1",
     "@comunica/statistic-traversal-topology": "^0.6.0",

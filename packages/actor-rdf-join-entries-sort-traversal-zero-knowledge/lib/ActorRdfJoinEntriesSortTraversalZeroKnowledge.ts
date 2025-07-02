@@ -1,8 +1,8 @@
-import type { IActionRdfJoinEntriesSort, IActorRdfJoinEntriesSortOutput } from '@comunica/bus-rdf-join-entries-sort';
+import type { IActionRdfJoinEntriesSort, IActorRdfJoinEntriesSortArgs, IActorRdfJoinEntriesSortOutput, IActorRdfJoinEntriesSortTest } from '@comunica/bus-rdf-join-entries-sort';
 import { ActorRdfJoinEntriesSort } from '@comunica/bus-rdf-join-entries-sort';
 import { KeysQueryOperation } from '@comunica/context-entries';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
-import { passTestVoid } from '@comunica/core';
+import { passTest, passTestVoid } from '@comunica/core';
 import type { IJoinEntryWithMetadata, IQuerySourceWrapper } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 import { getNamedNodes, getTerms, getVariables, QUAD_TERM_NAMES } from 'rdf-terms';
@@ -27,7 +27,7 @@ import { Algebra, Util as AlgebraUtil } from 'sparqlalgebrajs';
  */
 export class ActorRdfJoinEntriesSortTraversalZeroKnowledge extends ActorRdfJoinEntriesSort {
   public constructor(
-    args: IActorArgs<IActionRdfJoinEntriesSort, IActorTest, IActorRdfJoinEntriesSortOutput>,
+    args: IActorRdfJoinEntriesSortArgs,
   ) {
     super(args);
   }
@@ -126,8 +126,10 @@ export class ActorRdfJoinEntriesSortTraversalZeroKnowledge extends ActorRdfJoinE
     });
   }
 
-  public async test(_action: IActionRdfJoinEntriesSort): Promise<TestResult<IActorTest>> {
-    return passTestVoid();
+  public async test(_action: IActionRdfJoinEntriesSort): Promise<TestResult<IActorRdfJoinEntriesSortTest>> {
+    return passTest({
+      accuracy: .5
+    });
   }
 
   public async run(action: IActionRdfJoinEntriesSort): Promise<IActorRdfJoinEntriesSortOutput> {

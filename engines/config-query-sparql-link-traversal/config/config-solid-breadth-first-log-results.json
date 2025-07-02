@@ -4,14 +4,14 @@
       "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
     ],
     "import": [
-      "ccqslt:config/config-solid-base-priority-queue.json",
+      "ccqslt:config/config-solid-base-final-result.json",
       "ccqslt:config/extract-links/actors/predicates-common.json",
       "ccqslt:config/extract-links/actors/predicates-ldp.json",
       "ccqslt:config/extract-links/actors/predicates-solidstorage.json",
       "ccqslt:config/extract-links/actors/quad-pattern-query.json",
       "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
   
-      "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/solid-based/wrapper-type-index.json"
+      "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/non-adaptive/wrapper-breadth-first.json"
     ]
   }
   

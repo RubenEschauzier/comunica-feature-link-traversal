@@ -37,7 +37,7 @@
     "ccqs:config/dereference-rdf/mediators.json",
     "ccqslt:config/rdf-join/actors-adaptive.json",
     "ccqs:config/rdf-join/mediators.json",
-    "ccqslt:config/rdf-join-entries-sort/actors-adaptive.json",
+    "ccqslt:config/rdf-join-entries-sort/actors.json",
     "ccqs:config/rdf-join-entries-sort/mediators.json",
     "ccqs:config/rdf-join-selectivity/actors.json",
     "ccqs:config/rdf-join-selectivity/mediators.json",

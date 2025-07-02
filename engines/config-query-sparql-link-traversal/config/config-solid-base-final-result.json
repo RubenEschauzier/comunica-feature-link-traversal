@@ -24,6 +24,7 @@
       "ccqs:config/http-invalidate/actors.json",
       "ccqs:config/http-invalidate/mediators.json",
       "ccqslt:config/init/actors.json",
+      "ccqs:config/merge-bindings-context/actors.json",
       "ccqs:config/merge-bindings-context/mediators.json",
       "ccqslt:config/optimize-query-operation/actors.json",
       "ccqs:config/optimize-query-operation/mediators.json",
@@ -48,7 +49,8 @@
       "ccqs:config/rdf-join/mediators.json",
       "ccqslt:config/rdf-join-entries-sort/actors.json",
       "ccqs:config/rdf-join-entries-sort/mediators.json",
-  "ccqs:config/rdf-join-entries-sort/actors-v4-1-0.json",      "ccqs:config/rdf-join-selectivity/mediators.json",
+      "ccqs:config/rdf-join-selectivity/actors.json",
+      "ccqs:config/rdf-join-selectivity/mediators.json",
       "ccqs:config/rdf-metadata/actors.json",
       "ccqs:config/rdf-metadata/mediators.json",
       "ccqs:config/rdf-metadata-accumulate/actors.json",
@@ -75,11 +77,9 @@
 
       "ccqslt:config/context-preprocess/actor-intermediate-results-statistic.json",
       "ccqs:config/iterator-transform/mediators.json",
-      "ccqs:config/rdf-join/actors-wrap-stream.json",
-      "ccqslt:config/merge-bindings-context/source-promise-union.json",
-
+      "ccqs:config/query-operation/actors/query/wrap-stream.json",
       "ccqslt:config/iterator-transform/actor-record-intermediate-full-solutions.json",
-      "ccqs:config/query-operation/actors/query/wrap-stream.json"
+      "ccqslt:config/merge-bindings-context/source-promise-union.json"
     ]
   }
   

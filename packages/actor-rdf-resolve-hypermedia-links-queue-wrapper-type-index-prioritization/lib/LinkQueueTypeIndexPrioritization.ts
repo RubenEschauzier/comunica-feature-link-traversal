@@ -26,7 +26,6 @@ export class LinkQueueTypeIndexPrioritization extends LinkQueueWrapper {
     else{
       link.metadata.priority = 0
     }
-    console.log(`Priority: ${link.metadata?.priority}`);
     return super.push(link, parent);
   }
 

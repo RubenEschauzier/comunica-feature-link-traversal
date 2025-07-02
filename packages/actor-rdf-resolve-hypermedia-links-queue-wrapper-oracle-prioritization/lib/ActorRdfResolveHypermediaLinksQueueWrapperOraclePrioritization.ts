@@ -18,9 +18,12 @@ import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversa
 export class ActorRdfResolveHypermediaLinksQueueWrapperOraclePrioritization extends
   ActorRdfResolveHypermediaLinksQueue {
   private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
+  private readonly rccScores: Promise<Record<string, Record<string, number>>>;
+
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperOraclePrioritizationArgs) {
     super(args);
+    this.rccScores = this.readRccFile();
   }
 
   public async readRccFile(): Promise<Record<string, Record<string, number>>> {
@@ -38,15 +41,14 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperOraclePrioritization exte
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(KEY_CONTEXT_WRAPPED, true);
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
+    
     // Load oracle scores
-    const rccScores = await this.readRccFile();
+    const rccScores = await this.rccScores;
     const queryBase64 = btoa(action.context.getSafe(KeysInitQuery.queryString).trim());
     const rccScoresQuery = rccScores[queryBase64];
-    console.log("Base64 Query and rcc scores read")
-    console.log(JSON.stringify(queryBase64));
-    console.log(JSON.stringify(rccScoresQuery));
+
     if ( rccScoresQuery === undefined){
-      throw new Error(`Unknown query: ${action.context.getSafe(KeysInitQuery.queryString).trim()}`);     
+      console.log(`Unknown query: ${action.context.getSafe(KeysInitQuery.queryString).trim()}`);     
     }
     // const rccScoresQuery = {
     //   "https://solidbench.linkeddatafragments.org/pods/00000000000000000933/posts/2012-06-03": 1,

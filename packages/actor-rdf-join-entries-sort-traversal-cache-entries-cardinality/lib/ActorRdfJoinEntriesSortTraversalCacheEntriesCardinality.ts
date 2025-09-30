@@ -5,10 +5,10 @@ import type {
   IActorRdfJoinEntriesSortTest,
 } from '@comunica/bus-rdf-join-entries-sort';
 import { ActorRdfJoinEntriesSort } from '@comunica/bus-rdf-join-entries-sort';
-import { KeysQueryOperation } from '@comunica/context-entries';
+import { KeysCaches, KeysQueryOperation } from '@comunica/context-entries';
 import type { IActorArgs, TestResult } from '@comunica/core';
 import { passTest } from '@comunica/core';
-import type { IJoinEntryWithMetadata, IQuerySourceWrapper } from '@comunica/types';
+import type { IJoinEntryWithMetadata, IQuerySourceWrapper, ISourceState } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 import { getNamedNodes, getTerms, getVariables, QUAD_TERM_NAMES } from 'rdf-terms';
 import { Algebra, Util as AlgebraUtil } from 'sparqlalgebrajs';
@@ -47,7 +47,7 @@ export class ActorRdfJoinEntriesSortTraversalCacheEntriesCardinality extends Act
    * @param sources The sources that are currently being queried.
    */
   public static sortJoinEntries(entries: IJoinEntryWithMetadata[], sources: string[]): IJoinEntryWithMetadata[] {
-    return [ ...entries ]
+    return [ ...entries ];
   }
 
   public async test(_action: IActionRdfJoinEntriesSort): Promise<TestResult<IActorRdfJoinEntriesSortTest>> {
@@ -55,19 +55,39 @@ export class ActorRdfJoinEntriesSortTraversalCacheEntriesCardinality extends Act
   }
 
   public async run(action: IActionRdfJoinEntriesSort): Promise<IActorRdfJoinEntriesSortOutput> {
-    // Determine all current sources
-    const sources: string[] = [];
-    const dataSources: IQuerySourceWrapper[] | undefined = action.context
-      .get(KeysQueryOperation.querySources);
-    if (dataSources) {
-      for (const source of dataSources) {
-        const sourceValue = source.source.referenceValue;
-        if (typeof sourceValue === 'string') {
-          sources.push(sourceValue);
+    const operationToCardinality: Record<string, number> = {};
+    for (const entry of action.entries) {
+      const operationKey: string = this.keyOperation(entry.operation);
+      operationToCardinality[operationKey] = 0;
+    }
+    const sourceCache = action.context.get(KeysCaches.storeCache)!;
+    // eslint-disable-next-line unicorn/no-useless-spread
+    for (const key of [ ...sourceCache.keys() ]) {
+      const sourceState: ISourceState = sourceCache.get(key)!;
+      const cachedSource = sourceState.source;
+      if ('countQuads' in cachedSource && typeof cachedSource.countQuads === 'function') {
+        for (const entry of action.entries) {
+          const entryOperationkey = this.keyOperation(entry.operation);
+          operationToCardinality[entryOperationkey] += await cachedSource.countQuads(
+            entry.operation.subject,
+            entry.operation.predicate,
+            entry.operation.object,
+            entry.operation.graph,
+          );
         }
       }
     }
-    return { entries: ActorRdfJoinEntriesSortTraversalCacheEntriesCardinality.sortJoinEntries(action.entries, sources) };
+    // TODO: Use the generated cardinalities in the sortJoinEntries function to sort. Also make sure the test
+    // fails if not enough cache entries exist. Then also remove the code from the hypermedia actor.
+    return {
+      entries: ActorRdfJoinEntriesSortTraversalCacheEntriesCardinality.sortJoinEntries(action.entries, sources),
+    };
+  }
+
+  protected keyOperation(operation: Algebra.Operation): string {
+    return JSON.stringify(
+      [ operation.subject.value, operation.predicate.value, operation.object.value, operation.graph.value ],
+    );
   }
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "@comunica/actor-rdf-join-entries-sort-traversal-zero-knowledge",
+  "name": "@comunica/actor-rdf-join-entries-sort-traversal-cache-entries-cardinality",
   "version": "0.7.0",
   "description": "A rdf-join-entries-sort actor that orders by increasing traversal-zero-knowledge",
   "lsd:module": true,

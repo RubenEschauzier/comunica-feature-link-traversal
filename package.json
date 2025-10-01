@@ -5,8 +5,8 @@
   "workspaces": [
     "engines/*",
     "packages/*",
-    "../comunica-adaptive-routing/engines/*",
-    "../comunica-adaptive-routing/packages/*"
+    "../comunica-adaptive/engines/*",
+    "../comunica-adaptive/packages/*"
   ],
   "scripts": {
     "test-changed": "lerna run test --since HEAD",

@@ -1,7 +1,9 @@
-import { ActorExtractSources, IActionExtractSources, IActorExtractSourcesOutput, IActorExtractSourcesArgs } from '@comunica/bus-extract-sources';
+import type { IActionExtractSources, IActorExtractSourcesOutput, IActorExtractSourcesArgs } from '@comunica/bus-extract-sources';
+import { ActorExtractSources } from '@comunica/bus-extract-sources';
 import { KeysCaches } from '@comunica/context-entries';
-import { IActorTest, passTestVoid, TestResult } from '@comunica/core';
-import { IQuerySource, ISourceState } from '@comunica/types';
+import type { IActorTest, TestResult } from '@comunica/core';
+import { passTestVoid } from '@comunica/core';
+import type { IQuerySource, ISourceState } from '@comunica/types';
 
 /**
  * A comunica Cache Extract Sources Actor.
@@ -15,12 +17,11 @@ export class ActorExtractSourcesCache extends ActorExtractSources {
     return passTestVoid();
   }
 
-
   public async run(action: IActionExtractSources): Promise<IActorExtractSourcesOutput> {
     const sourceCache = action.context.get(KeysCaches.storeCache);
     const sources: IQuerySource[] = [];
-    if (sourceCache && sourceCache.size > 0){
-      for (const key of sourceCache.keys()){
+    if (sourceCache && sourceCache.size > 0) {
+      for (const key of sourceCache.keys()) {
         const sourceState: ISourceState = sourceCache.get(key)!;
         sources.push(sourceState.source);
       }

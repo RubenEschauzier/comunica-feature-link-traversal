@@ -25,7 +25,6 @@ export class ActorRdfJoinEntriesSortTraversalCacheEntriesCardinality extends Act
     if (!cardinalitySet || isRecursive) {
       return failTest('Wrapping join actor has not set cache cardinalities.');
     }
-    console.log("Sorting!");
     return passTest({ accuracy: 1 });
   }
 }

@@ -3,7 +3,7 @@ import type { ActorInitQueryBase } from '@comunica/actor-init-query';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
-import { KeysCaches, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import { KeysRdfJoin } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
@@ -41,7 +41,6 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     // Determine links to type indexes
     const typeIndexes = [ ...await this.extractTypeIndexLinks(action.metadata) ];
-
     // Dereference all type indexes, and collect them in one record
     const typeLinks = (await Promise.all(typeIndexes
       .map(typeIndex => this.dereferenceTypeIndex(typeIndex, action.context))))
@@ -130,7 +129,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
         [KeysRdfJoin.skipAdaptiveJoin.name]: true,
         lenient: true,
       })).toArray();
-      
+
     // Collect links per type
     const typeLinks: Record<string, ILink[]> = {};
     for (const bindings of bindingsArray) {

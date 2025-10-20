@@ -29,7 +29,6 @@ TS = undefined,
     } catch {
       testResults = [];
     }
-
     if (this.filterErrors) {
       const _testResults: IActorReply<A, I, T, O, TS>[] = [];
       for (const result of testResults) {
@@ -49,11 +48,9 @@ TS = undefined,
       sideDatas[i] = awaited.getSideData();
       return value;
     }));
-
     // Run action on all actors.
     const results: O[] = await Promise.all(testResults
       .map((result, i) => result.actor.runObservable(action, sideDatas[i]!)));
-
     // Return the combined results.
     return this.combiner(results);
   }

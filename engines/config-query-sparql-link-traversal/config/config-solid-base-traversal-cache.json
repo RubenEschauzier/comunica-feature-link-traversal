@@ -44,9 +44,13 @@
     "ccqs:config/dereference/mediators.json",
     "ccqs:config/dereference-rdf/actors.json",
     "ccqs:config/dereference-rdf/mediators.json",
-    "ccqslt:config/rdf-join/actors-cache-cardinality.json",
+
     "ccqs:config/rdf-join/mediators.json",
+
+    "ccqslt:config/rdf-join/actors-cache-cardinality.json",
     "ccqslt:config/rdf-join-entries-sort/actors.json",
+    "ccqslt:config/rdf-join-entries-sort/actors-cache-sort.json",
+
     "ccqs:config/rdf-join-entries-sort/mediators.json",
     "ccqs:config/rdf-join-selectivity/actors.json",
     "ccqs:config/rdf-join-selectivity/mediators.json",

@@ -39,7 +39,7 @@ export interface IActorContextPreprocessSetSourceCacheArgs extends IActorContext
   /**
    * The maximum number of entries in the source cache, set to 0 to disable.
    * @range {integer}
-   * @default {100}
+   * @default {10000}
    */
   cacheSize: number;
 }

@@ -70,6 +70,7 @@
     "@comunica/actor-context-preprocess-query-source-skolemize": "^4.4.0",
     "@comunica/actor-context-preprocess-set-defaults": "^4.4.0",
     "@comunica/actor-context-preprocess-set-defaults-link-traversal": "^0.7.0",
+    "@comunica/actor-context-preprocess-set-defaults-traversal-caching": "^0.7.0",
     "@comunica/actor-context-preprocess-source-to-destination": "^4.4.0",
     "@comunica/actor-dereference-fallback": "^4.4.0",
     "@comunica/actor-dereference-http": "^4.4.0",

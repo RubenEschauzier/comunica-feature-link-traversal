@@ -195,7 +195,7 @@ export class ActorRdfMetadataExtractShapetrees extends ActorRdfMetadataExtract {
       // TODO: pass dummy context because servers may reject anything with DPoP auth
       context: new ActionContext(),
     });
-    let data = await response.text();
+    let data = await response.response!.text();
 
     // TODO: temp workaround because the test dataset uses the wrong BASE
     data = data.replace(

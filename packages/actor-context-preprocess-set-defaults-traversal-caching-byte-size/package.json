@@ -1,0 +1,48 @@
+{
+  "name": "@comunica/actor-context-preprocess-set-defaults-traversal-caching-byte-size",
+  "version": "0.7.0",
+  "description": "A set-defaults-traversal-caching context-preprocess actor",
+  "lsd:module": true,
+  "license": "MIT",
+  "homepage": "https://comunica.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/comunica/comunica.git",
+    "directory": "packages/actor-context-preprocess-set-defaults-traversal-caching"
+  },
+  "bugs": {
+    "url": "https://github.com/comunica/comunica/issues"
+  },
+  "keywords": [
+    "comunica",
+    "actor",
+    "context-preprocess",
+    "set-defaults-traversal-caching"
+  ],
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "scripts": {
+    "build": "npm run build:ts && npm run build:components",
+    "build:ts": "node \"../../node_modules/typescript/bin/tsc\"",
+    "build:components": "componentsjs-generator"
+  },
+  "dependencies": {
+    "@comunica/bus-context-preprocess": "^4.4.0",
+    "@comunica/context-entries": "^4.4.0",
+    "@comunica/core": "^4.4.0",
+    "lru-cache": "10.2.0"
+  },
+  "devDependencies": {
+    "@types/http-cache-semantics": "^4.0.4"
+  }
+}

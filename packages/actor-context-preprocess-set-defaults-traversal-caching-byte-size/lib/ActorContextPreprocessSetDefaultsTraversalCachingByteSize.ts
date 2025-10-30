@@ -53,6 +53,9 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingByteSize extends A
    */
   private static getSizeSource(source: ISourceState, _key: string): number {
     const nTriples = (<any>source.source).source._size;
+    if (nTriples === 0){
+      return 1;
+    }
     return nTriples;
   }
 

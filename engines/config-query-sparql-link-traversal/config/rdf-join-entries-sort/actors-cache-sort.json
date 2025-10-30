@@ -1,0 +1,16 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^4.0.0/components/context.jsonld",
+
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-rdf-join-entries-sort-traversal-zero-knowledge/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-rdf-join-entries-sort-traversal-cache-entries-cardinality/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:rdf-join-entries-sort/actors#traversal-cache-entries-cardinality",
+      "@type": "ActorRdfJoinEntriesSortTraversalCacheEntriesCardinality"
+    }
+  ]
+}

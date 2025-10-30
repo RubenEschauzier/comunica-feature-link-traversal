@@ -37,4 +37,8 @@ export const KeysRdfJoin = {
    * If adaptive joining must not be done.
    */
   skipAdaptiveJoin: new ActionContextKey<boolean>('@comunica/bus-rdf-join:skipAdaptiveJoin'),
+  /**
+   * If setting cardinality from cache should be skipped
+   */
+  skipSetCacheCardinality: new ActionContextKey<boolean>('@comunica/bus-rdf-join:skipSetCacheCardinality'),
 };

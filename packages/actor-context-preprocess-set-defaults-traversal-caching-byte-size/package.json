@@ -41,8 +41,5 @@
     "@comunica/context-entries": "^4.4.0",
     "@comunica/core": "^4.4.0",
     "lru-cache": "10.2.0"
-  },
-  "devDependencies": {
-    "@types/http-cache-semantics": "^4.0.4"
   }
 }

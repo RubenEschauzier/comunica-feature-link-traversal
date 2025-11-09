@@ -40,6 +40,12 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingByteSize extends A
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     let context = action.context;
+    
+    if (context.get(KeysCaches.cleanCache)){
+      this.policyCache.clear();
+      this.storeCache.clear();
+    }
+
     context = context
       .setDefault(KeysCaches.policyCache, this.policyCache)
       .setDefault(KeysCaches.storeCache, this.storeCache);

@@ -9,7 +9,7 @@
     "ccqs:config/bindings-aggregator-factory/mediators.json",
     "ccqs:config/context-preprocess/actors.json",
     "ccqslt:config/context-preprocess/actors.json",
-    "ccqslt:config/context-preprocess/actors-defaults.json",
+    "ccqslt:config/context-preprocess/actors-defaults-caching.json",
     "ccqs:config/context-preprocess/mediators.json",
     "ccqslt:config/extract-links/mediators.json",
     "ccqs:config/expression-evaluator-factory/actors.json",

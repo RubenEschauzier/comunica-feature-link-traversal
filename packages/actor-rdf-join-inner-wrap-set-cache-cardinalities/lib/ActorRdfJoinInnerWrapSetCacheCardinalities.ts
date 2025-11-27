@@ -104,7 +104,7 @@ export class ActorRdfJoinInnerWrapSetCacheCardinalities extends ActorRdfJoin {
       }
       entry.output.metadata = metadataUpdated;
     }
-    console.log("Set cardinalities in wrap")
+    console.log('Set cardinalities in wrap');
 
     // Run the join mediator but with context entry set
     action.context = action.context.set(KeysRdfJoinLT.skipSetCacheCardinality, true);

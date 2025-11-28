@@ -22,7 +22,7 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingByteSize extends A
   private readonly storeCache: LRUCache<string, ISourceState>;
   private readonly cacheSizePolicy: number;
   private readonly cacheSizeStore: number;
-  private cacheStatistics: ICacheStatistics;
+  private cacheStatistics: ICacheStatistics | undefined;
   private readonly DF: DataFactory = new DataFactory();
 
   public constructor(args: IActorContextPreprocessSetSourceCacheByteSizeArgs) {
@@ -45,7 +45,9 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingByteSize extends A
       this.policyCache.clear();
       this.storeCache.clear();
     }
-    this.cacheStatistics = context.getSafe(KeysCaches.cacheStatistics);
+    if (context.get(KeysCaches.cacheStatistics)){
+      this.cacheStatistics = context.get(KeysCaches.cacheStatistics);
+    }
 
     context = context
       .setDefault(KeysCaches.policyCache, this.policyCache)
@@ -74,12 +76,11 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingByteSize extends A
    */
   private dispose(value: ISourceState, key: string, reason: string): void {
     if (reason === 'evict' || reason === 'delete') {
-      console.log(this.cacheStatistics)
-      this.cacheStatistics.evictions++;
-      this.cacheStatistics.evictionsTriples +=
+      this.cacheStatistics!.evictions++;
+      this.cacheStatistics!.evictionsTriples +=
        ActorContextPreprocessSetDefaultsTraversalCachingByteSize.getSizeSource(value, key);
-      this.cacheStatistics.evictionPercentage =
-        this.cacheStatistics.evictionsTriples / this.cacheSizeStore;
+      this.cacheStatistics!.evictionPercentage =
+        this.cacheStatistics!.evictionsTriples / this.cacheSizeStore;
       this.policyCache.delete(key);
     }
   }

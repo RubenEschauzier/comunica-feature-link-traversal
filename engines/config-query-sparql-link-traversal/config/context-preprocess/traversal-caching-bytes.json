@@ -10,7 +10,7 @@
       "@id": "urn:comunica:default:context-preprocess/actors#set-defaults-traversal-caching-byte-size",
       "@type": "ActorContextPreprocessSetDefaultsTraversalCachingByteSize",
       "cacheSizePolicy": 20000,
-      "cacheSizeStore": 250
+      "cacheSizeStore": 700000
     }
   ]
 }

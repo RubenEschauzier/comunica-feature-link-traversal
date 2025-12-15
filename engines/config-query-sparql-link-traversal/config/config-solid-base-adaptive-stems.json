@@ -45,7 +45,7 @@
     "ccqs:config/dereference-rdf/actors.json",
     "ccqs:config/dereference-rdf/mediators.json",
 
-    "ccqslt:config/rdf-join/actors-inner-binary.json",
+    "ccqslt:config/rdf-join/actors-inner-no-bind.json",
     "ccqs:config/rdf-join/actors-minus.json",
     "ccqs:config/rdf-join/actors-optional.json",
 

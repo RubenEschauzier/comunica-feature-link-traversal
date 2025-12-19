@@ -1,6 +1,6 @@
 {
   "name": "@comunica/types-link-traversal",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Typings module for Comunica Link Traversal",
   "lsd:module": true,
   "license": "MIT",
@@ -40,5 +40,8 @@
     "build": "yarn run build:ts && yarn run build:components",
     "build:ts": "node \"../../node_modules/types-link-traversalcript/bin/tsc\"",
     "build:components": "componentsjs-generator"
+  },
+  "dependencies": {
+    "@comunica/types": "^4.4.0"
   }
 }

@@ -4,7 +4,7 @@ import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolv
 import { KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { ActionContext, Bus } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
-import arrayifyStream from 'arrayify-stream';
+import { arrayifyStream } from 'arrayify-stream';
 import { DataFactory } from 'rdf-data-factory';
 import {
   ActorRdfResolveHypermediaLinksTraverseAnnotateSourceGraph,
@@ -97,7 +97,7 @@ describe('ActorRdfResolveHypermediaLinksTraverseAnnotateSourceGraph', () => {
           links: [
             {
               url: 'ex:link1',
-              transform: input => (<Readable> input).pipe(new Transform({
+              transform: (input: Readable) => input.pipe(new Transform({
                 objectMode: true,
                 transform(chunk: any, encoding: string, callback: TransformCallback) {
                   callback(undefined, chunk);

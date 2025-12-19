@@ -1,7 +1,8 @@
 import { ActionContextKey } from '@comunica/core';
-import type { AnnotateSourcesType } from '@comunica/types-link-traversal';
 import { IStatisticBase } from '@comunica/types';
 import { ITopologyUpdate } from '@comunica/statistic-traversal-topology';
+import type { AnnotateSourcesType, LinkFilter } from '@comunica/types-link-traversal';
+
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
  * ActorIniQueryBase in @comunica/actor-init-query if it makes sense to use this entry externally.
@@ -9,12 +10,18 @@ import { ITopologyUpdate } from '@comunica/statistic-traversal-topology';
  */
 
 export const KeysRdfResolveHypermediaLinks = {
-
   /**
    * Context entry for indicating the type of source annotation.
    */
   annotateSources: new ActionContextKey<AnnotateSourcesType>(
     '@comunica/bus-rdf-resolve-hypermedia-links:annotateSources',
+  ),
+  /**
+   * Context entry containing the link filters applied on link queues within the context scope.
+   * Setting this entry too high in the context hierarchy could result in too much being filtered out.
+   */
+  linkFilters: new ActionContextKey<LinkFilter[]>(
+    '@comunica/bus-rdf-resolve-hypermedia-links:linkFilters',
   ),
 };
 

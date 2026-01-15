@@ -1,3 +1,4 @@
+import type { PersistentCacheManager } from '@comunica/actor-context-preprocess-set-persistent-cache-manager';
 import { ActionContextKey } from '@comunica/core';
 import type {
   AnnotateSourcesType,
@@ -56,5 +57,14 @@ export const KeysQuerySourceIdentifyLinkTraversal = {
    */
   linkTraversalManager: new ActionContextKey<ILinkTraversalManager>(
     '@comunica/bus-query-source-identify:linkTraversalManager',
+  ),
+};
+
+export const KeysCaching = {
+  /**
+   * Caching manager that handles the logic between viewing and writing to cache
+   */
+  cacheManager: new ActionContextKey<PersistentCacheManager>(
+    '@comunica/actor-context-preprocess:cacheManager',
   ),
 };

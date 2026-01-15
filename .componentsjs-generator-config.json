@@ -15,7 +15,8 @@
     "MetadataValidationState",
     "ILink",
     "IQuerySource",
-    "AggregatedStoreMemory"
+    "AggregatedStoreMemory",
+    "PersistentCacheManager"
   ],
   "modulePrefix": {}
 }

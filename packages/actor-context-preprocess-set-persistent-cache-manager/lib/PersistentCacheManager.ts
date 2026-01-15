@@ -9,8 +9,10 @@ import type { ILink, IQuerySource, MetadataBindings, ICachePolicy } from '@comun
 // what we should do is tie the view function to a token, with one cache having multiple possible
 // 'view' tokens (see gemini). This way other parts of the engine just need access to this view token
 // nothing else.
+// TODO Fix endpoint stopping when query times out
 // TODO Then using this view we can also reimplement our sort-cache-cardinality by just getting the
 // view token, issueing a query to the cache view and getting results. Super CLEAN!
+// TODO Reimplement caching performance tracking in nice way.
 
 export class PersistentCacheManager {
   protected registry = new Map<string, ICacheRegistryEntry>();

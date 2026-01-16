@@ -1,21 +1,22 @@
 import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { ICacheKey } from '@comunica/cache-manager-entries';
+import { IViewKey } from '@comunica/cache-manager-entries/lib/ViewKey';
 import type { ILink, IQuerySource, MetadataBindings, ICachePolicy } from '@comunica/types';
 
 // TODO: Think about how to set / get in cache without having to go into comunica default. I would prefer
 // to keep this self-contained. Possibly through the use of wrapper around new get links bus. With
 // a way of preventing caching by the within query cache.
-// TODO: This currently ties the view function to a specific cache implementation. Instead
-// what we should do is tie the view function to a token, with one cache having multiple possible
-// 'view' tokens (see gemini). This way other parts of the engine just need access to this view token
-// nothing else.
+// TODO: Define interface that caches should adhere to
+// TODO: Test caching
 // TODO Fix endpoint stopping when query times out
 // TODO Then using this view we can also reimplement our sort-cache-cardinality by just getting the
 // view token, issueing a query to the cache view and getting results. Super CLEAN!
 // TODO Reimplement caching performance tracking in nice way.
 
 export class PersistentCacheManager {
-  protected registry = new Map<string, ICacheRegistryEntry>();
+  protected registry = new Map<string, ICacheRegistryEntry<any, any>>();
+
+  protected viewRegistry = new Map<string, ICacheView<any, any, any>>();
   /**
    * Registers a cache and its set method to the manager. This cache can then be added to
    * using a call to the set strategy with the associated cacheId and the setStrategy.
@@ -35,6 +36,15 @@ export class PersistentCacheManager {
     this.registry.set(cacheKey.id, { cache, setFn });
   }
 
+  public registerCacheView<T, C, K>(
+    viewKey: IViewKey<T, C, K>,
+    view: ICacheView<T, C, K>, 
+  ){
+    if (this.viewRegistry.has(viewKey.id)) {
+      return;
+    }
+    this.viewRegistry.set(viewKey.id, view);
+  }
   /**
    * Sets a cache using a specified setting strategy defined
    * when the cache was registered
@@ -50,25 +60,35 @@ export class PersistentCacheManager {
     value: T,
     context: C,
   ): void {
-    const { cache, setFn } = this.ensureCache(cacheKey.id);
+    const { cache, setFn } = this.ensureCache(cacheKey);
     setFn.setInCache(key, value, cache, context);
   }
 
-  public getFromCache<T, C>(
+  public getFromCache<T, C, K>(
     cacheKey: ICacheKey<T, C>,
-    view: ICacheView<T, C>,
+    viewKey: IViewKey<T, C, K>,
     context: C,
-  ): T {
-    const relevantCache = this.ensureCache(cacheKey.id);
+  ): K | undefined {
+    const relevantCache = this.ensureCache(cacheKey);
+    const view = this.ensureView(viewKey);
+
     return view.construct(relevantCache, context);
   }
 
-  protected ensureCache(cacheId: string): ICacheRegistryEntry {
-    const relevantCache = this.registry.get(cacheId);
+  protected ensureCache<T,C>(cacheKey: ICacheKey<T, C>): ICacheRegistryEntry<T, C> {
+    const relevantCache = this.registry.get(cacheKey.id);
     if (!relevantCache) {
       throw new Error('Tried to set or get from a cache that was never registered');
     }
     return relevantCache;
+  }
+
+  protected ensureView<T, C, K>(viewKey: IViewKey<T, C, K>): ICacheView<T, C, K> {
+    const view = this.viewRegistry.get(viewKey.id);
+    if (!view){
+      throw new Error(`Tried to get a cache view that was never registered`);
+    }
+    return view;
   }
 }
 
@@ -130,11 +150,12 @@ export interface ISetFn<T, C> {
  * T the output type of the constructed view
  * C the context needed to construct the view
  */
-export interface ICacheView<T, C> {
-  construct: (cache: any, context: C) => T;
+export interface ICacheView<T, C, K> {
+  construct: (cache: any, context: C) => K | undefined;
 }
 
-export interface ICacheRegistryEntry {
+export interface ICacheRegistryEntry<T, C> {
   cache: any;
-  setFn: ISetFn<any, any>;
+  setFn: ISetFn<T, C>;
 }
+

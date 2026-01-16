@@ -1,3 +1,4 @@
+// TODO THIS SHOULD BE A @comunica/TYPES IMPORT (the ISourceState one)
 import type { ICacheView, ISetFn, ISourceState } from '@comunica/actor-context-preprocess-set-persistent-cache-manager';
 import type {
   IActionContextPreprocess,
@@ -6,11 +7,11 @@ import type {
 } from '@comunica/bus-context-preprocess';
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
+import { CacheSourceStateView } from '@comunica/cache-manager-entries/lib/ViewKeys';
 import { KeysCaching } from '@comunica/context-entries-link-traversal';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
 
-// TODO THIS SHOULD BE A @comunica/TYPES IMPORT
 import { LRUCache } from 'lru-cache';
 
 /**
@@ -39,6 +40,10 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingNumTriples extends
       this.cacheSourceState,
       new SetSourceStateCache(),
     );
+    cacheManager.registerCacheView(
+      CacheSourceStateView.cacheSourceStateView,
+      new GetSourceStateCacheView()
+    )
     return { context };
   }
 
@@ -58,8 +63,9 @@ export class SetSourceStateCache implements ISetFn<ISourceState, Record<string, 
     cache.set(key, value);
   }
 }
-export class GetSourceStateCacheView implements ICacheView<ISourceState, { url: string }> {
-  public construct(cache: any, context: { url: string }): ISourceState {
+export class GetSourceStateCacheView 
+implements ICacheView<ISourceState, { url: string }, ISourceState> {
+  public construct(cache: any, context: { url: string }): ISourceState | undefined {
     return cache.get(context.url);
   }
 }

@@ -1,7 +1,5 @@
-import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { ICacheKey } from '@comunica/cache-manager-entries';
 import { IViewKey } from '@comunica/cache-manager-entries/lib/ViewKey';
-import type { ILink, IQuerySource, MetadataBindings, ICachePolicy } from '@comunica/types';
 
 // TODO: Think about how to set / get in cache without having to go into comunica default. I would prefer
 // to keep this self-contained. Possibly through the use of wrapper around new get links bus. With
@@ -72,7 +70,15 @@ export class PersistentCacheManager {
     const relevantCache = this.ensureCache(cacheKey);
     const view = this.ensureView(viewKey);
 
-    return view.construct(relevantCache, context);
+    return view.construct(relevantCache.cache, context);
+  }
+
+  public getRegisteredCaches(){
+    return this.registry;
+  }
+
+  public getRegisteredViews(){
+    return this.viewRegistry;
   }
 
   protected ensureCache<T,C>(cacheKey: ICacheKey<T, C>): ICacheRegistryEntry<T, C> {
@@ -95,36 +101,6 @@ export class PersistentCacheManager {
 export interface IPersistentCache {
   // TODO: Implement generic wrapper interface for getting and setting caches, so any arbitrary
   // cache can be put into this.
-}
-
-/**
- * NOTE: This is taken from '@comunica/actor-query-source-identify-hypermedia'
- * as its not exported and I don't want to deal with changing comunica and linking
- * for something so small.
- * The current state of a source.
- * This is needed for following links within a source.
- */
-export interface ISourceState {
-  /**
-   * The link to this source.
-   */
-  link: ILink;
-  /**
-   * A source.
-   */
-  source: IQuerySource;
-  /**
-   * The source's initial metadata.
-   */
-  metadata: MetadataBindings;
-  /**
-   * All dataset identifiers that have been passed for this source.
-   */
-  handledDatasets: Record<string, boolean>;
-  /**
-   * The cache policy of the request's response.
-   */
-  cachePolicy?: ICachePolicy<IActionQuerySourceDereferenceLink>;
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { ISourceState } from '@comunica/actor-context-preprocess-set-persistent-cache-manager';
+import type { ISourceState } from '@comunica/types';
 import { ViewKey } from './ViewKey';
 
 export const CacheSourceStateView = {

@@ -1,3 +1,4 @@
+import { KeysQuerySourceIdentifyHypermediaNoneLazy } from '@comunica/context-entries-link-traversal';
 import type {
   BindingsStream,
   ComunicaDataFactory,
@@ -9,11 +10,12 @@ import type {
 } from '@comunica/types';
 import { Algebra, isKnownOperation, AlgebraFactory } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
-import type { AsyncIterator } from 'asynciterator';
+import { AsyncIterator, WrappingIterator } from 'asynciterator';
 import { TransformIterator } from 'asynciterator';
 
 export class QuerySourceFileLazy implements IQuerySource {
   private quads: RDF.Stream | undefined;
+  private originalClonedQuads: AsyncIterator<RDF.Quad> | undefined;
   private source: Promise<IQuerySource> | undefined;
   protected readonly selectorShape: FragmentSelectorShape;
   public referenceValue: QuerySourceReference;
@@ -77,7 +79,7 @@ export class QuerySourceFileLazy implements IQuerySource {
 
   public queryQuads(
     operation: Algebra.Operation,
-    _context: IActionContext,
+    context: IActionContext,
   ): AsyncIterator<RDF.Quad> {
     if (!this.quads) {
       throw new Error('Illegal invocation of queryQuads, as the lazy quads stream has already been consumed.');
@@ -87,6 +89,20 @@ export class QuerySourceFileLazy implements IQuerySource {
         operation.predicate.termType === 'Variable' &&
         operation.object.termType === 'Variable' &&
         operation.graph.termType === 'Variable') {
+      // Check if context says it is a non-consuming call. This can be when a cache
+      // wants to import the data into its cache before the AggregatedStore imports 
+      // the quads
+      if (context.get(KeysQuerySourceIdentifyHypermediaNoneLazy.nonConsumingQueryQuads)){
+        this.originalClonedQuads = new WrappingIterator(this.quads);
+        return this.originalClonedQuads.clone();
+      }
+      // If this source has been cloned we only return the clone
+      if (this.originalClonedQuads){
+        const ret = this.originalClonedQuads.clone();
+        this.quads = undefined;
+        this.originalClonedQuads = undefined;
+        return ret;
+      }
       const ret = this.quads;
       this.quads = undefined;
       // This does not return an AsyncIterator to save some CPU cycles,

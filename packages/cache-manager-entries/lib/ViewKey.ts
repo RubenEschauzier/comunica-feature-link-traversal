@@ -1,9 +1,9 @@
-export interface IViewKey<T, C, K> {
+export interface IViewKey<S, C, K> {
   id: string;
 
   // These don't exist at runtime,
   // but they tell TypeScript what T and C are.
-  inputType: T;
+  inputType: S;
   outputType: K;
   contextType: C;
 }
@@ -15,12 +15,12 @@ export interface IViewKey<T, C, K> {
  * C: What context this view needs (e.g. { url: string })
  * K:  What this view expects the cache to contain (MUST match CacheKey<TStored>)
  */
-export class ViewKey<T, C, K> implements IViewKey<T, C, K> {
+export class ViewKey<S, C, K> implements IViewKey<S, C, K> {
   public id: string;
 
   // These don't exist at runtime,
   // but they tell TypeScript what T and C are.
-  public inputType!: T;
+  public inputType!: S;
   public outputType!: K;
   public contextType!: C;
 

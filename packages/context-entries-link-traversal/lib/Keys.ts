@@ -60,6 +60,16 @@ export const KeysQuerySourceIdentifyLinkTraversal = {
   ),
 };
 
+export const KeysQuerySourceIdentifyHypermediaNoneLazy = {
+  /**
+   * Indicates that the current queryQuads call is not the last call
+   * and that multiple clones of the quads is required
+   */
+  nonConsumingQueryQuads: new ActionContextKey<boolean>(
+    '@comunica/bus-query-source-identify-hypermedia:nonConsumingQueryQuads',
+  ),
+}
+
 export const KeysCaching = {
   /**
    * Caching manager that handles the logic between viewing and writing to cache

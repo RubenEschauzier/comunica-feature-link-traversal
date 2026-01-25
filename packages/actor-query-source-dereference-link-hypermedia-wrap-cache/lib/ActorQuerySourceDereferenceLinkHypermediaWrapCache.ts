@@ -18,7 +18,7 @@ import { BindingsFactory } from '@comunica/utils-bindings-factory';
 
 import type * as RDF from '@rdfjs/types';
 import { IActionContext, ILink, ISourceState } from '@comunica/types';
-import { KeysCore, KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
 import { DataFactory } from 'rdf-data-factory';
 import { Factory } from 'sparqlalgebrajs';
 
@@ -43,7 +43,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
 
   public async test(action: IActionQuerySourceDereferenceLink): Promise<TestResult<IActorTest>> {
     if (action.context.get(KEY_WRAPPED)){
-      return failTest("Can only wrap derefernce link once");
+      return failTest("Can only wrap dereference link once");
     }
     return passTestVoid();
   }
@@ -55,7 +55,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
 
     let sourceFromCache: ISourceState | undefined;
     try {
-      sourceFromCache = cacheManager.getFromCache(
+      sourceFromCache = await cacheManager.getFromCache(
           CacheEntrySourceState.cacheSourceState,
           CacheSourceStateView.cacheSourceStateView,
           { url: action.link.url }
@@ -78,18 +78,17 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     }
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);
-    console.log(dereferenceLinkOutput);
-    cacheManager.setCache(
-        CacheEntrySourceState.cacheSourceState,
-        action.link.url,
-        {link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput},
-        {url: action.link.url}
+
+    await cacheManager.setCache(
+      CacheEntrySourceState.cacheSourceState,
+      action.link.url,
+      { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
+      { headers: dereferenceLinkOutput.headers }
     );
 
     if (dereferenceLinkOutput.cachePolicy){
         dereferenceLinkOutput.cachePolicy = { ...dereferenceLinkOutput.cachePolicy, storable: () => false };
     }
-    console.log(dereferenceLinkOutput);
     return dereferenceLinkOutput;
   }
 

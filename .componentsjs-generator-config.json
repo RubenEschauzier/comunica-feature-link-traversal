@@ -3,7 +3,8 @@
   "ignorePackagePaths": [
     "engines/query-sparql-link-traversal",
     "engines/query-sparql-link-traversal-solid",
-    "packages/context-entries-link-traversal"
+    "packages/context-entries-link-traversal",
+    "packages/cache-manager-entries"
   ],
   "ignoreComponents": [
     "Headers",
@@ -16,7 +17,8 @@
     "ILink",
     "IQuerySource",
     "AggregatedStoreMemory",
-    "PersistentCacheManager"
+    "PersistentCacheManager",
+    "Factory"
   ],
   "modulePrefix": {}
 }

@@ -8,7 +8,6 @@ export interface IViewKey<S, C, K> {
   contextType: C;
 }
 
-
 /**
  * Identifies a specific way to read data.
  * T: What this view returns (e.g. ISourceState)

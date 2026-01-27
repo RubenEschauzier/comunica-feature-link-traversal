@@ -1,6 +1,6 @@
 import type { ICacheKey } from '@comunica/cache-manager-entries';
-import { IViewKey } from '@comunica/cache-manager-entries/lib/ViewKey';
-import { ICacheRegistryEntry, ICacheView, ISetFn } from '@comunica/types-link-traversal';
+import type { IViewKey } from '@comunica/cache-manager-entries/lib/ViewKey';
+import type { ICacheRegistryEntry, ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
 
 // TODO: Think about how to set / get in cache without having to go into comunica default. I would prefer
 // to keep this self-contained. Possibly through the use of wrapper around new get links bus. With
@@ -12,8 +12,7 @@ import { ICacheRegistryEntry, ICacheView, ISetFn } from '@comunica/types-link-tr
 // TODO Reimplement caching performance tracking in nice way.
 
 export class PersistentCacheManager {
-  protected registry = new Map<string, ICacheRegistryEntry<any, any, any>>();
-
+  protected cacheRegistry = new Map<string, ICacheRegistryEntry<any, any, any>>();
   protected viewRegistry = new Map<string, ICacheView<any, any, any>>();
 
   /**
@@ -25,24 +24,31 @@ export class PersistentCacheManager {
    */
   public registerCache<I, S, C>(
     cacheKey: ICacheKey<I, S, C>,
-    cache: any,
+    cache: IPersistentCache<S>,
     setFn: ISetFn<I, S, C>,
   ): void {
-    if (this.registry.has(cacheKey.id)) {
+    if (this.cacheRegistry.has(cacheKey.id)) {
       return;
     }
-    this.registry.set(cacheKey.id, { cache, setFn });
+    this.cacheRegistry.set(cacheKey.id, { cache, setFn });
   }
 
+  /**
+   * Registers a view over a cache
+   * @param viewKey The key the view will be available over
+   * @param view The function used to create the view
+   * @returns
+   */
   public registerCacheView<T, C, K>(
     viewKey: IViewKey<T, C, K>,
-    view: ICacheView<T, C, K>, 
-  ){
+    view: ICacheView<T, C, K>,
+  ) {
     if (this.viewRegistry.has(viewKey.id)) {
       return;
     }
     this.viewRegistry.set(viewKey.id, view);
   }
+
   /**
    * Sets a cache using a specified setting strategy defined
    * when the cache was registered
@@ -52,7 +58,7 @@ export class PersistentCacheManager {
    * @param value the value to be set
    * @param context any additional context required for the setFn
    */
-  public setCache<I, S, C>(
+  public async setCache<I, S, C>(
     cacheKey: ICacheKey<I, S, C>,
     key: string,
     value: I,
@@ -82,16 +88,16 @@ export class PersistentCacheManager {
     return view.construct(relevantCache.cache, context);
   }
 
-  public getRegisteredCaches(){
-    return this.registry;
+  public getRegisteredCaches() {
+    return this.cacheRegistry;
   }
 
-  public getRegisteredViews(){
+  public getRegisteredViews() {
     return this.viewRegistry;
   }
 
   protected ensureCache<I, S, C>(cacheKey: ICacheKey<I, S, C>): ICacheRegistryEntry<I, S, C> {
-    const relevantCache = this.registry.get(cacheKey.id);
+    const relevantCache = this.cacheRegistry.get(cacheKey.id);
     if (!relevantCache) {
       throw new Error('Tried to set or get from a cache that was never registered');
     }
@@ -100,7 +106,7 @@ export class PersistentCacheManager {
 
   protected ensureView<S, C, K>(viewKey: IViewKey<S, C, K>): ICacheView<S, C, K> {
     const view = this.viewRegistry.get(viewKey.id);
-    if (!view){
+    if (!view) {
       throw new Error(`Tried to get a cache view that was never registered`);
     }
     return view;

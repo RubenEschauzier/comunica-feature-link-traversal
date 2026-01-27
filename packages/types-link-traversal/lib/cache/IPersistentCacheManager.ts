@@ -7,6 +7,7 @@ export interface IPersistentCache<T> {
   has: (key: string) => Promise<boolean>;
   delete: (key: string) => Promise<boolean>;
   entries: () => AsyncIterator<[string, T]>;
+  size: () => Promise<number>;
   serialize: () => Promise<void>;
 }
 

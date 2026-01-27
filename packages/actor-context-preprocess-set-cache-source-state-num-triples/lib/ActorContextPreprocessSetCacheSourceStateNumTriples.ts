@@ -6,20 +6,18 @@ import type {
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
 import { CacheSourceStateView } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCaching, KeysQuerySourceIdentifyHypermediaNoneLazy } from '@comunica/context-entries-link-traversal';
+import { KeysCaching } from '@comunica/context-entries-link-traversal';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
-import { ActionContext, passTestVoid } from '@comunica/core';
+import { passTestVoid } from '@comunica/core';
 import type { ISourceState } from '@comunica/types';
 
-import { ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
-import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
+import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
-import { RdfStore } from 'rdf-stores';
-import type * as RDF from '@rdfjs/types';
-import { IActorRdfMetadataOutput } from '@comunica/bus-rdf-metadata';
-import { QuerySourceCacheWrapper } from './QuerySourceCacheWrapper';
+import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
 
+//TODO: Make the cache a seperate source, if cache is hit then the source gets updated and on update
+// queryBindings will emit more bindings that match that document, instead of any reindexing?
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.
  */
@@ -29,12 +27,8 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingNumTriples extends
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
     super(args);
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-      { maxNumTriples: args.cacheSizeNumTriples }
-    )
-    // this.cacheSourceState = new LRUCache<string, ISourceState>({
-    //   maxSize: args.cacheSizeNumTriples,
-    //   sizeCalculation: ActorContextPreprocessSetDefaultsTraversalCachingNumTriples.getSizeSource,
-    // });
+      { maxNumTriples: args.cacheSizeNumTriples },
+    );
   }
 
   public async test(_action: IAction): Promise<TestResult<IActorTest>> {
@@ -51,8 +45,8 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingNumTriples extends
     );
     cacheManager.registerCacheView(
       CacheSourceStateView.cacheSourceStateView,
-      new GetSourceStateCacheView()
-    )
+      new GetSourceStateCacheView(),
+    );
     return { context };
   }
 }
@@ -63,43 +57,19 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
 
   public async setInCache(
     key: string,
-    value: ISourceState, 
+    value: ISourceState,
     cache: IPersistentCache<ISourceState>,
     context: { headers: Headers },
   ): Promise<void> {
-    const cacheSource = new QuerySourceCacheWrapper(value.source);
-    await cacheSource.ingestQuads();
-    const cachableSourceState = {...value, source: cacheSource };
-    cache.set(key, cachableSourceState);
-    // const store = RdfStore.createDefault();
-    // const quads = value.source.queryQuads(
-    //   this.AF.createPattern(
-    //       this.DF.variable('s'),
-    //       this.DF.variable('p'),
-    //       this.DF.variable('o'),
-    //       this.DF.variable('g')
-    //   ),
-    //   new ActionContext({ 
-    //     [KeysQuerySourceIdentifyHypermediaNoneLazy.nonConsumingQueryQuads.name]: true
-    //   })
-    // );
-    // const promiseConsumedSource = new Promise<void>((resolve, reject) => {
-    //   quads.on('data', (quad) => store.addQuad(quad));
-    //   quads.on('end', () => {
-    //     cache.set(key, { store, headers: context["headers"] });
-    //     resolve();
-    //   });
-    //   quads.on('error', () => reject("Error importing quads for cached source"));
-    // })
-    // return promiseConsumedSource;
+    cache.set(key, value);
   }
 }
 
-export class GetSourceStateCacheView 
+export class GetSourceStateCacheView
 implements ICacheView<ISourceState, { url: string }, ISourceState> {
   public async construct(cache: IPersistentCache<ISourceState>, context: { url: string }): Promise<ISourceState | undefined> {
     const cacheEntry = await cache.get(context.url);
-    if (!cacheEntry){
+    if (!cacheEntry) {
       return;
     }
     return cacheEntry;

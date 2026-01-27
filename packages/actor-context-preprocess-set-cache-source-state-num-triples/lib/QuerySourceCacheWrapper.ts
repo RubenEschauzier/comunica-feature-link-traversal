@@ -2,7 +2,6 @@ import { KeysQuerySourceIdentifyHypermediaNoneLazy } from '@comunica/context-ent
 import { ActionContext } from '@comunica/core';
 import type {
   BindingsStream,
-  ComunicaDataFactory,
   FragmentSelectorShape,
   IActionContext,
   IQueryBindingsOptions,
@@ -11,23 +10,51 @@ import type {
 } from '@comunica/types';
 import { Algebra, isKnownOperation, AlgebraFactory } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
-import { AsyncIterator } from 'asynciterator';
-import { RdfStore } from 'rdf-stores';
+import { WrappingIterator, type AsyncIterator } from 'asynciterator';
 import { DataFactory } from 'rdf-data-factory';
 
-
 export class QuerySourceCacheWrapper implements IQuerySource {
-  private source: IQuerySource;
-  private store: RdfStore | undefined;
+  private readonly source: IQuerySource;
+  private readonly quads: AsyncIterator<RDF.Quad>;
 
   public referenceValue: QuerySourceReference;
 
+  private readonly sizePromise: Promise<number>;
+  private quadCount = 0;
+
   protected DF: DataFactory = new DataFactory();
   protected AF: AlgebraFactory = new AlgebraFactory(this.DF);
-  
+
   public constructor(
-    source: IQuerySource
+    source: IQuerySource,
   ) {
+    this.quads = new WrappingIterator(source.queryQuads(
+      this.AF.createPattern(
+        this.DF.variable('s'),
+        this.DF.variable('p'),
+        this.DF.variable('o'),
+        this.DF.variable('g'),
+      ),
+      new ActionContext(),
+    ));
+    // const counterClone = this.quads.clone();
+    this.sizePromise = new Promise((resolve)=>resolve(1))
+    // this.sizePromise = new Promise((resolve, reject) => {
+    //   // Every time a quad passes through any clone, this listener sees it.
+    //   counterClone.on('data', () => {
+    //     this.quadCount++;
+    //   });
+
+    //   // Resolves the promise when the source stream naturally ends.
+    //   counterClone.on('end', () => {
+    //     resolve(this.quadCount);
+    //   });
+
+    //   counterClone.on('error', (err) => {
+    //     reject(err);
+    //   });
+    // });
+
     this.source = source;
     this.referenceValue = source.referenceValue;
   }
@@ -40,89 +67,66 @@ export class QuerySourceCacheWrapper implements IQuerySource {
     return this.source.getFilterFactor(context);
   }
 
-  public getSize(){
-    return this.store ? this.store.size : 1;
+  public async getSize(): Promise<number> {
+    return this.sizePromise;
   }
 
-  public async ingestQuads(){
-    const store = RdfStore.createDefault();
-    const quads = this.source.queryQuads(
-      this.AF.createPattern(
-          this.DF.variable('s'),
-          this.DF.variable('p'),
-          this.DF.variable('o'),
-          this.DF.variable('g')
-      ),
-      new ActionContext({ 
-        [KeysQuerySourceIdentifyHypermediaNoneLazy.nonConsumingQueryQuads.name]: true
-      })
-    );
-    const promiseConsumedSource = new Promise<RdfStore>((resolve, reject) => {
-      quads.on('data', (quad) => store.addQuad(quad));
-      quads.on('end', () => {
-        this.store = store;
-        resolve(store);
-      });
-      quads.on('error', () => reject("Error importing quads for cached source"));
-    })
-    return promiseConsumedSource;
-  }
+  // Public async ingestQuads(): Promise<void>{
+  //   const quads = this.source.queryQuads(
+  //     this.AF.createPattern(
+  //         this.DF.variable('s'),
+  //         this.DF.variable('p'),
+  //         this.DF.variable('o'),
+  //         this.DF.variable('g')
+  //     ),
+  //     new ActionContext({
+  //       [KeysQuerySourceIdentifyHypermediaNoneLazy.nonConsumingQueryQuads.name]: true
+  //     })
+  //   );
+  //   const promiseConsumedSource = new Promise<void>((resolve, reject) => {
+  //     quads.on('data', (quad) => this.store.addQuad(quad));
+  //     quads.on('end', () => {
+  //       resolve();
+  //     });
+  //     quads.on('error', () => reject("Error importing quads for cached source"));
+  //   })
+  //   return promiseConsumedSource;
+  // }
 
-  public awaitIngestion(){
-    return this.store;
-  }
   public queryBindings(
-    _operation: Algebra.Operation,
-    _context: IActionContext,
-    _options?: IQueryBindingsOptions,
+    operation: Algebra.Operation,
+    context: IActionContext,
+    options?: IQueryBindingsOptions,
   ): BindingsStream {
-    throw new Error('queryBindings is not implemented in QuerySourceCacheWrapper');
+    return this.source.queryBindings(operation, context, options);
   }
 
   public queryQuads(
     operation: Algebra.Operation,
     _context: IActionContext,
   ): AsyncIterator<RDF.Quad> {
-    if (!this.store){
-      throw new Error("Tried to query quads on cache source before ingesting quads")
-    }
     if (isKnownOperation(operation, Algebra.Types.PATTERN) &&
         operation.subject.termType === 'Variable' &&
         operation.predicate.termType === 'Variable' &&
         operation.object.termType === 'Variable' &&
         operation.graph.termType === 'Variable') {
-      return this.store.match();
+      return this.quads.clone();
     }
     throw new Error('queryQuads is not implemented in QuerySourceCacheWrapper');
   }
 
-  public countQuads(operation: Algebra.Operation, _context: IActionContext){
-    if (!this.store){
-      throw new Error("Tried to query quads on cache source before ingesting quads")
-    }
-    if (isKnownOperation(operation, Algebra.Types.PATTERN)){
-      return this.store.countQuads(
-        operation.subject,
-        operation.predicate,
-        operation.object,
-        operation.graph
-      );
-    }
-    throw new Error('countQuads only supports pattern operations in QuerySourceCacheWrapper');
-
-  }
   public queryBoolean(
-    _operation: Algebra.Ask,
-    _context: IActionContext,
+    operation: Algebra.Ask,
+    context: IActionContext,
   ): Promise<boolean> {
-    throw new Error('queryBoolean is not implemented in QuerySourceCacheWrapper');
+    return this.source.queryBoolean(operation, context);
   }
 
   public queryVoid(
-    _operation: Algebra.Operation,
-    _context: IActionContext,
+    operation: Algebra.Operation,
+    context: IActionContext,
   ): Promise<void> {
-    throw new Error('queryVoid is not implemented in QuerySourceCacheWrapper');
+    return this.source.queryVoid(operation, context);
   }
 
   public toString(): string {

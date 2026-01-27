@@ -68,7 +68,7 @@ export const KeysQuerySourceIdentifyHypermediaNoneLazy = {
   nonConsumingQueryQuads: new ActionContextKey<boolean>(
     '@comunica/bus-query-source-identify-hypermedia:nonConsumingQueryQuads',
   ),
-}
+};
 
 export const KeysCaching = {
   /**

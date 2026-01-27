@@ -3,4 +3,3 @@ export * from './IAggregatedStore';
 export * from './ILinkTraversalManager';
 export * from './LinkFilter';
 export * from './cache/IPersistentCacheManager';
-export * from './cache/IPersistentCacheRdfStoreNumTriples';

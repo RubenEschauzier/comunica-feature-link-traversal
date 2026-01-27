@@ -1,3 +1,4 @@
+import { QuerySourceCacheWrapper } from '@comunica/actor-context-preprocess-set-cache-source-state-num-triples';
 import {
   ActorQuerySourceDereferenceLink,
 } from '@comunica/bus-query-source-dereference-link';
@@ -9,16 +10,16 @@ import type {
 } from '@comunica/bus-query-source-dereference-link';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import type { TestResult, IActorTest } from '@comunica/core';
-import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
-import { KeysCaching } from '@comunica/context-entries-link-traversal';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
 import { CacheSourceStateView } from '@comunica/cache-manager-entries/lib/ViewKeys';
+import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysCaching } from '@comunica/context-entries-link-traversal';
+import type { TestResult, IActorTest } from '@comunica/core';
+import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
+import type { IActionContext, ISourceState } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 
 import type * as RDF from '@rdfjs/types';
-import { IActionContext, ILink, ISourceState } from '@comunica/types';
-import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
 import { DataFactory } from 'rdf-data-factory';
 import { Factory } from 'sparqlalgebrajs';
 
@@ -42,76 +43,65 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
   }
 
   public async test(action: IActionQuerySourceDereferenceLink): Promise<TestResult<IActorTest>> {
-    if (action.context.get(KEY_WRAPPED)){
-      return failTest("Can only wrap dereference link once");
+    if (action.context.get(KEY_WRAPPED)) {
+      return failTest('Can only wrap dereference link once');
     }
     return passTestVoid();
   }
 
   public async run(action: IActionQuerySourceDereferenceLink): Promise<IActorQuerySourceDereferenceLinkOutput> {
-    let context = action.link.context ? action.context.merge(action.link.context) : action.context;
-    
+    const context = action.link.context ? action.context.merge(action.link.context) : action.context;
+
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
 
     let sourceFromCache: ISourceState | undefined;
     try {
       sourceFromCache = await cacheManager.getFromCache(
-          CacheEntrySourceState.cacheSourceState,
-          CacheSourceStateView.cacheSourceStateView,
-          { url: action.link.url }
+        CacheEntrySourceState.cacheSourceState,
+        CacheSourceStateView.cacheSourceStateView,
+        { url: action.link.url },
       );
-    } catch(err: any) {
+    } catch (err: any) {
       action.context.get(KeysCore.log)?.error(`Error when getting from cache: ${err.message}`);
       throw err;
     }
-    if (sourceFromCache && sourceFromCache.cachePolicy?.satisfiesWithoutRevalidation(action)){
-        console.log("Using cached!");
-        // Re-extract traverse metadata so the followed links are up-to-date with current
-        // query
-        const traverse = this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
-        console.log(traverse);
-        sourceFromCache.metadata.traverse = traverse;
-        // Return the source but set storable to false. This way the response won't be stored
-        // multiple times
-        sourceFromCache.cachePolicy = { ...sourceFromCache.cachePolicy, storable: () => false }
-        return sourceFromCache;
+    if (sourceFromCache && await sourceFromCache.cachePolicy?.satisfiesWithoutRevalidation(action)) {
+      // Re-extract traverse metadata so the followed links are up-to-date with current
+      // query
+      await sourceFromCache.source.getSelectorShape(new ActionContext());
+      const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
+      sourceFromCache.metadata.traverse = traverse;
+      // Return the source but set storable to false. This way the response won't be stored
+      // multiple times
+      return sourceFromCache;
     }
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);
-
+    dereferenceLinkOutput.source = new QuerySourceCacheWrapper(dereferenceLinkOutput.source);
     await cacheManager.setCache(
       CacheEntrySourceState.cacheSourceState,
       action.link.url,
       { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
-      { headers: dereferenceLinkOutput.headers }
+      { headers: dereferenceLinkOutput.headers },
     );
-
-    if (dereferenceLinkOutput.cachePolicy){
-        dereferenceLinkOutput.cachePolicy = { ...dereferenceLinkOutput.cachePolicy, storable: () => false };
-    }
     return dereferenceLinkOutput;
   }
 
-  protected async reExtractTraverseMetadata(source: ISourceState, url: string, context: IActionContext){
-    const quads = <RDF.Stream> source.source.queryBindings(
-        this.AF.createPattern(
-            this.DF.variable('s'),
-            this.DF.variable('p'),
-            this.DF.variable('o'),
-            this.DF.variable('g'),
-        ),
-        context.set(KeysQueryOperation.unionDefaultGraph, true),
-        ).map(bindings => (<RDF.DataFactory<RDF.BaseQuad>> this.DF).quad(
-            bindings.get('s')!,
-            bindings.get('p')!,
-            bindings.get('o')!,
-            bindings.get('g'),
-        ));
+  protected async reExtractTraverseMetadata(source: ISourceState, url: string, context: IActionContext) {
+    const quads = <RDF.Stream> source.source.queryQuads(
+      this.AF.createPattern(
+        this.DF.variable('s'),
+        this.DF.variable('p'),
+        this.DF.variable('o'),
+        this.DF.variable('g'),
+      ),
+      context.set(KeysQueryOperation.unionDefaultGraph, true),
+    );
     // Determine the metadata (TODO: We set triples to false, but this should probably be in the metadata
     // of the stored ISourceState so we don't have to just assume its not quads or does it not matter
     // for traverse value)
     const rdfMetadataOutputCachedSource: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-    { context, url, quads, triples: false },
+      { context, url, quads, triples: false },
     );
 
     rdfMetadataOutputCachedSource.data.on('error', () => {
@@ -122,28 +112,23 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     });
 
     const metadataReExtract = (await this.mediatorMetadataExtract.mediate({
-        context,
-        url,
-        metadata: rdfMetadataOutputCachedSource.metadata,
-        headers: source.headers,
-        requestTime: 0,
+      context,
+      url,
+      metadata: rdfMetadataOutputCachedSource.metadata,
+      headers: source.headers,
+      requestTime: 0,
     })).metadata;
 
-    // TODO: CHeck if with headers we also extract the .meta files now?
-    const traverseDotMetaOnly = source.metadata.traverse.filter(
-        (link: ILink) => link.url.endsWith('.meta'),
-    );
-    const traverseNew = [ ...traverseDotMetaOnly, ...metadataReExtract.traverse ];
-    return traverseNew;
+    return metadataReExtract.traverse;
   }
 }
 
 export interface IActorQuerySourceDereferenceLinkHypermediaWrapCacheArgs extends IActorQuerySourceDereferenceLinkArgs {
-  mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink
+  mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
   mediatorMetadata: MediatorRdfMetadata;
   mediatorMetadataExtract: MediatorRdfMetadataExtract;
 }
 
 export const KEY_WRAPPED = new ActionContextKey<boolean>(
-    '@comunica/query-source-dereference-link-hypermedia-wrap-cache:wrapped'
+  '@comunica/query-source-dereference-link-hypermedia-wrap-cache:wrapped',
 );

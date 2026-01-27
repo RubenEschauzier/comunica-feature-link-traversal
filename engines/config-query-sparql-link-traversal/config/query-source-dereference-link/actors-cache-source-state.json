@@ -12,13 +12,13 @@
       "@type": "ActorQuerySourceDereferenceLinkHypermediaWrapCache",
       "mediatorMetadata": { "@id": "urn:comunica:default:rdf-metadata/mediators#main" },
       "mediatorMetadataExtract": { "@id": "urn:comunica:default:rdf-metadata-extract/mediators#main" },
-      "mediatorQuerySourceDereferenceLink": { "@id": "urn:comunica:default:query-source-dereference-link/mediators#main"},
+      "mediatorQuerySourceDereferenceLink": { "@id": "urn:comunica:default:query-source-dereference-link/mediators#main" },
       "beforeActors": [
         {
-            "@id": "urn:comunica:default:query-source-dereference-link/actors#dereference"
+          "@id": "urn:comunica:default:query-source-dereference-link/actors#dereference"
         },
         {
-            "@id": "urn:comunica:default:query-source-dereference-link/actors#force-sparql"
+          "@id": "urn:comunica:default:query-source-dereference-link/actors#force-sparql"
         }
       ]
     }

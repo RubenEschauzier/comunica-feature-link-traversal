@@ -10,8 +10,8 @@ import type {
 } from '@comunica/types';
 import { Algebra, isKnownOperation, AlgebraFactory } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
-import { AsyncIterator, WrappingIterator } from 'asynciterator';
-import { TransformIterator } from 'asynciterator';
+import type { AsyncIterator } from 'asynciterator';
+import { WrappingIterator, TransformIterator } from 'asynciterator';
 
 export class QuerySourceFileLazy implements IQuerySource {
   private quads: RDF.Stream | undefined;
@@ -90,14 +90,14 @@ export class QuerySourceFileLazy implements IQuerySource {
         operation.object.termType === 'Variable' &&
         operation.graph.termType === 'Variable') {
       // Check if context says it is a non-consuming call. This can be when a cache
-      // wants to import the data into its cache before the AggregatedStore imports 
+      // wants to import the data into its cache before the AggregatedStore imports
       // the quads
-      if (context.get(KeysQuerySourceIdentifyHypermediaNoneLazy.nonConsumingQueryQuads)){
+      if (context.get(KeysQuerySourceIdentifyHypermediaNoneLazy.nonConsumingQueryQuads)) {
         this.originalClonedQuads = new WrappingIterator(this.quads);
         return this.originalClonedQuads.clone();
       }
       // If this source has been cloned we only return the clone
-      if (this.originalClonedQuads){
+      if (this.originalClonedQuads) {
         const ret = this.originalClonedQuads.clone();
         this.quads = undefined;
         this.originalClonedQuads = undefined;

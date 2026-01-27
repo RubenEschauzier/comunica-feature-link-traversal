@@ -33,6 +33,8 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   private allIteratorsClosedListener: (() => void) | undefined;
   protected linkParallelization: number;
 
+  protected startTraversal = 0;
+
   public constructor(
     protected readonly linkParallelizationDefault: number,
     protected readonly linkParallelizationLimit: number,
@@ -66,6 +68,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     if (this.started) {
       throw new Error('Tried to start link traversal manager more than once');
     }
+    this.startTraversal = performance.now();
 
     // Reduce parallelization if we have a LIMIT clause
     // This ensures we do not spam the event loop with traverse events if we need to prioritize query processing events.
@@ -122,6 +125,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
         for (const cb of this.stopListeners) {
           cb();
         }
+        console.log(`Stopped - traversal time: ${(performance.now() - this.startTraversal) / 1000}`);
       }
       return;
     }

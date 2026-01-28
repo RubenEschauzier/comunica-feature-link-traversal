@@ -99,6 +99,7 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         await BindingsFactory.create(this.mediatorMergeBindingsContext, action.context, dataFactory),
         this.mediatorRdfResolveHypermediaLinks,
         this.mediatorQuerySourceDereferenceLink,
+        action.context.get(KeysInitQuery.abortSignalQuery),
       );
       linkTraversalContext = linkTraversalContext
         .setDefault(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, linkTraversalManager);

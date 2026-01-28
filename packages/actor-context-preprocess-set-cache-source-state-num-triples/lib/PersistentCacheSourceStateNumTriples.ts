@@ -25,7 +25,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
 
   public async set(key: string, value: ISourceState): Promise<void> {
     this.lruCacheDocuments.set(key, value);
-    // if ('getSize' in value.source &&
+    // If ('getSize' in value.source &&
     //         typeof value.source.getSize === 'function') {
     //   (<Promise<number>>value.source.getSize()).then((finalSize) => {
     //     if (this.lruCacheDocuments.has(key)) {

@@ -16,7 +16,7 @@ import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
 
-//TODO: Make the cache a seperate source, if cache is hit then the source gets updated and on update
+// TODO: Make the cache a seperate source, if cache is hit then the source gets updated and on update
 // queryBindings will emit more bindings that match that document, instead of any reindexing?
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.

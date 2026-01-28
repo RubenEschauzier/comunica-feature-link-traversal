@@ -32,6 +32,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   protected readonly stopListeners: (() => void)[] = [];
   private allIteratorsClosedListener: (() => void) | undefined;
   protected linkParallelization: number;
+  protected readonly abortSignal?: AbortSignal;
 
   protected startTraversal = 0;
 
@@ -46,6 +47,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     protected readonly bindingsFactory: BindingsFactory,
     protected readonly mediatorRdfResolveHypermediaLinks: MediatorRdfResolveHypermediaLinks,
     protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink,
+    abortSignal?: AbortSignal,
   ) {
     this.linkParallelization = linkParallelizationDefault;
     this.querySourceAggregated = new QuerySourceRdfJs(
@@ -54,6 +56,10 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
       this.bindingsFactory,
     );
     this.querySourcesNonAggregated = AsyncReiterableArray.fromInitialEmpty();
+
+    if (abortSignal) {
+      abortSignal.addEventListener('abort', () => this.stop());
+    }
   }
 
   public get started(): boolean {

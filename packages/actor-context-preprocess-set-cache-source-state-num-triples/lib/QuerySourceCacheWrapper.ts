@@ -1,4 +1,3 @@
-import { KeysQuerySourceIdentifyHypermediaNoneLazy } from '@comunica/context-entries-link-traversal';
 import { ActionContext } from '@comunica/core';
 import type {
   BindingsStream,
@@ -20,7 +19,7 @@ export class QuerySourceCacheWrapper implements IQuerySource {
   public referenceValue: QuerySourceReference;
 
   private readonly sizePromise: Promise<number>;
-  private quadCount = 0;
+  private readonly quadCount = 0;
 
   protected DF: DataFactory = new DataFactory();
   protected AF: AlgebraFactory = new AlgebraFactory(this.DF);
@@ -37,9 +36,9 @@ export class QuerySourceCacheWrapper implements IQuerySource {
       ),
       new ActionContext(),
     ));
-    // const counterClone = this.quads.clone();
-    this.sizePromise = new Promise((resolve)=>resolve(1))
-    // this.sizePromise = new Promise((resolve, reject) => {
+    // Const counterClone = this.quads.clone();
+    this.sizePromise = new Promise(resolve => resolve(1));
+    // This.sizePromise = new Promise((resolve, reject) => {
     //   // Every time a quad passes through any clone, this listener sees it.
     //   counterClone.on('data', () => {
     //     this.quadCount++;

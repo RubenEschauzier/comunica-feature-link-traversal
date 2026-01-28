@@ -1,12 +1,13 @@
 import type { ICacheKey } from '@comunica/cache-manager-entries';
-import type { IViewKey } from '@comunica/cache-manager-entries/lib/ViewKey';
+import type { IViewKey } from '@comunica/cache-manager-entries';
 import type { ICacheRegistryEntry, ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
 
-// TODO: Think about how to set / get in cache without having to go into comunica default. I would prefer
-// to keep this self-contained. Possibly through the use of wrapper around new get links bus. With
-// a way of preventing caching by the within query cache.
-// TODO: Test caching
-// TODO Fix endpoint stopping when query times out
+// TODO Implement caching as storing rdf-stores, then the cache will serve as another source in the link traversal manager.
+// on cache hit this cache will then produce results for the document in its cache.
+// this way we can just queryBindings to get the results from cache instead of having to ingest into agg store.
+// Link extraction is done by calling mediatorExtractLinks manually, adding it to metadata of source and making a
+// source with an empty quad stream. This is passed to the link traversal manager
+
 // TODO Then using this view we can also reimplement our sort-cache-cardinality by just getting the
 // view token, issueing a query to the cache view and getting results. Super CLEAN!
 // TODO Reimplement caching performance tracking in nice way.
@@ -88,8 +89,16 @@ export class PersistentCacheManager {
     return view.construct(relevantCache.cache, context);
   }
 
+  public getRegisteredCache<I, S, C>(cacheKey: ICacheKey<I, S, C>){
+    return this.cacheRegistry.get(cacheKey.id);
+  }
+
   public getRegisteredCaches() {
     return this.cacheRegistry;
+  }
+
+  public getRegisteredView<S, C, K>(viewKey: IViewKey<S, C, K>) {
+    return this.viewRegistry.get(viewKey.id)
   }
 
   public getRegisteredViews() {

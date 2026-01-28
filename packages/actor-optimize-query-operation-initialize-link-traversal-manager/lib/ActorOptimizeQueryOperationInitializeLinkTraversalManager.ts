@@ -61,7 +61,7 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         } else if (!(typeof querySource === 'string') && !('match' in querySource) &&
           (traverseAll ?? ActionContext.ensureActionContext(querySource.context)
             .get(KeysQuerySourceIdentify.traverse)) &&
-          typeof querySource.value === 'string') {
+          typeof querySource.value === 'string' ) {
           traversalSeedLinks.push({
             url: querySource.value,
             forceSourceType: querySource.type,

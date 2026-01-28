@@ -11,7 +11,7 @@ import type {
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
-import { CacheSourceStateView } from '@comunica/cache-manager-entries/lib/ViewKeys';
+import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
 import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
 import { KeysCaching } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
@@ -58,7 +58,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     try {
       sourceFromCache = await cacheManager.getFromCache(
         CacheEntrySourceState.cacheSourceState,
-        CacheSourceStateView.cacheSourceStateView,
+        CacheSourceStateViews.cacheSourceStateView,
         { url: action.link.url },
       );
     } catch (err: any) {

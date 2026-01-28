@@ -42,6 +42,7 @@
   },
   "dependencies": {
     "@comunica/actor-query-source-identify-hypermedia": "^5.0.3",
+    "@comunica/cache-manager-entries": "^5.1.0",
     "@comunica/bus-context-preprocess": "^5.0.3",
     "@comunica/context-entries": "^5.0.3",
     "@comunica/context-entries-link-traversal": "^0.8.0",

@@ -18,7 +18,8 @@
     "IQuerySource",
     "AggregatedStoreMemory",
     "PersistentCacheManager",
-    "Factory"
+    "Factory",
+    "AbortSignal"
   ],
   "modulePrefix": {}
 }

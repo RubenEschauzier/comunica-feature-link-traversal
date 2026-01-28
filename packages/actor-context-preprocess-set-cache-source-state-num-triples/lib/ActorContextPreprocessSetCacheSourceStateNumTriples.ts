@@ -5,7 +5,7 @@ import type {
 } from '@comunica/bus-context-preprocess';
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
-import { CacheSourceStateView } from '@comunica/cache-manager-entries/lib/ViewKeys';
+import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
 import { KeysCaching } from '@comunica/context-entries-link-traversal';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
@@ -44,7 +44,7 @@ export class ActorContextPreprocessSetDefaultsTraversalCachingNumTriples extends
       new SetSourceStateCache(),
     );
     cacheManager.registerCacheView(
-      CacheSourceStateView.cacheSourceStateView,
+      CacheSourceStateViews.cacheSourceStateView,
       new GetSourceStateCacheView(),
     );
     return { context };

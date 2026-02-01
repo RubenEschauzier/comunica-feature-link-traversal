@@ -1,6 +1,6 @@
 {
   "name": "@comunica/actor-optimize-query-operation-initialize-source-link-traversal-cache",
-  "version": "1.0.0",
+  "version": "0.8.0",
   "description": "A initialize-source-link-traversal-cache optimize-query-operation actor",
   "lsd:module": true,
   "main": "lib/index.js",

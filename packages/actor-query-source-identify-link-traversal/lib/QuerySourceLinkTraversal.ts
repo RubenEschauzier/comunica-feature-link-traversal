@@ -10,7 +10,7 @@ import type { Algebra } from '@comunica/utils-algebra';
 import { ClosableTransformIterator } from '@comunica/utils-iterator';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
-import { UnionIterator } from 'asynciterator';
+import { UnionIterator, EmptyIterator } from 'asynciterator';
 
 /**
  * A query source that operates sources obtained from a link queue.
@@ -42,18 +42,30 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       this.linkTraversalManager.start(error => iterator.destroy(error), context);
     }
 
-    // Take the union of the bindings produced when querying over the aggregated and non-aggregated sources.
-    // We take the metadata of the aggregated source.
+    // Take the union of the bindings produced when querying over the 
+    // aggregated, non-aggregated, and cache sources. We take the metadata of the aggregated source.
     const firstIterator = this.linkTraversalManager.getQuerySourceAggregated()
       .queryBindings(operation, context, options);
     const nonAggregatedIterators = this.linkTraversalManager.getQuerySourcesNonAggregated()
       .map(source => source.queryBindings(operation, context, options));
-    const iterator = new ClosableTransformIterator(new UnionIterator(nonAggregatedIterators
-      .prepend([ firstIterator ]), { autoStart: false }), {
+    let allIterators = nonAggregatedIterators.prepend([ firstIterator ]);
+
+    const cacheSource = this.linkTraversalManager.getCacheQuerySource();
+    let cacheIterator: BindingsStream;
+    if (cacheSource){
+      cacheIterator = cacheSource.queryBindings(operation, context, options);
+      this.linkTraversalManager.addStopListener(() => cacheIterator.close());
+      allIterators = allIterators.prepend([cacheIterator]);
+    }
+
+    const iterator = new ClosableTransformIterator(new UnionIterator(
+      allIterators,
+      { autoStart: false }), {
       autoStart: false,
       onClose: () => {
         firstIterator.close();
         nonAggregatedIterators.close();
+        cacheIterator.close()
       },
     });
     firstIterator.getProperty('metadata', metadata => iterator.setProperty('metadata', metadata));

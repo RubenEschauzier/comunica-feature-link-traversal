@@ -1,14 +1,14 @@
 {
-  "name": "@comunica/actor-context-preprocess-set-cache-query-source",
+  "name": "@comunica/actor-query-source-dereference-link-hypermedia-wrap-cache-query-source",
   "version": "0.8.0",
-  "description": "A set-cache-query-source context-preprocess actor",
+  "description": "A hypermedia-wrap-cache-query-source query-source-dereference-link actor",
   "lsd:module": true,
   "main": "lib/index.js",
   "typings": "lib/index",
   "repository": {
     "type": "git",
     "url": "https://github.com/comunica/comunica.git",
-    "directory": "packages/actor-context-preprocess-set-cache-query-source"
+    "directory": "packages/actor-query-source-dereference-link-hypermedia-wrap-cache-query-source"
   },
   "publishConfig": {
     "access": "public"
@@ -17,8 +17,8 @@
   "keywords": [
     "comunica",
     "actor",
-    "context-preprocess",
-    "set-cache-query-source"
+    "query-source-dereference-link",
+    "hypermedia-wrap-cache-query-source"
   ],
   "license": "MIT",
   "funding": {
@@ -37,7 +37,7 @@
   ],
   "dependencies": {
     "@comunica/core": "^5.1.0",
-    "@comunica/bus-context-preprocess": "^5.1.0"
+    "@comunica/bus-query-source-dereference-link": "^5.1.0"
   },
   "scripts": {
     "build": "yarn run build:ts && yarn run build:components",

@@ -19,7 +19,8 @@
     "AggregatedStoreMemory",
     "PersistentCacheManager",
     "Factory",
-    "AbortSignal"
+    "AbortSignal",
+    "GetSourceStateCacheView"
   ],
   "modulePrefix": {}
 }

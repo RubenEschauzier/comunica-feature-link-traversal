@@ -35,15 +35,14 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   }
 
   /**
-   * Upon setting of a source, we index it and set it LRUCache.
+   * Upon setting of a source, we index it and set it in the LRUCache.
    * @param key 
    * @param value 
    * @returns 
    */
   public async set(key: string, value: ISourceState): Promise<void> {
-    const cacheSource = new QuerySourceCacheWrapper(value.source);
     const rdfStore = RdfStore.createDefault();
-    const importStream = rdfStore.import(cacheSource.queryQuads(
+    const importStream = rdfStore.import(value.source.queryQuads(
           this.AF.createPattern(
             this.DF.variable('s'),
             this.DF.variable('p'),
@@ -55,6 +54,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     
     return new Promise((resolve, reject) => {
       importStream.on('end', () => {
+        this.sizeMap.set(key, rdfStore.size);
         this.lruCacheDocuments.set(key, 
           { 
             ...value,
@@ -69,7 +69,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       });
       importStream.on('error', () => {
         reject('Import stream error')
-      })
+      });
     })
   }
 

@@ -45,6 +45,10 @@ export interface ILinkTraversalManager {
    */
   getQuerySourcesNonAggregated: () => AsyncIterator<IQuerySource>;
   /**
+   * Manually add a non aggregated query source to the manager
+   */
+  getCacheQuerySource: () => IQuerySource | undefined;
+  /**
    * Register a listener to listen to stop events.
    * @param cb Listener that will be invoked once the traversal stops.
    */

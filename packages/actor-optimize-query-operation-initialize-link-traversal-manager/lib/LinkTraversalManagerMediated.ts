@@ -16,6 +16,7 @@ import type { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type { AsyncIterator } from 'asynciterator';
 import type { AsyncReiterable } from 'asyncreiterable';
 import { AsyncReiterableArray } from 'asyncreiterable';
+import { QuerySourceCache } from '../../actor-query-source-identify-cache/lib/QuerySourceCache';
 
 /**
  * A link traversal manager that traverses over the link queue by resolving query sources for each link, extracting
@@ -26,8 +27,11 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   protected ended = false;
   protected readonly handledUrls: Record<string, boolean> = {};
   protected linksDereferencing: Set<AbortController> = new Set();
+
   protected querySourceAggregated: IQuerySource;
   protected querySourcesNonAggregated: AsyncReiterable<IQuerySource>;
+  protected cacheQuerySource?: IQuerySource;
+
   protected rejectionHandler: ((error: Error) => void) | undefined;
   protected readonly stopListeners: (() => void)[] = [];
   private allIteratorsClosedListener: (() => void) | undefined;
@@ -35,6 +39,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   protected readonly abortSignal?: AbortSignal;
 
   protected startTraversal = 0;
+  protected nTraversed = 0;
 
   public constructor(
     protected readonly linkParallelizationDefault: number,
@@ -48,6 +53,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     protected readonly mediatorRdfResolveHypermediaLinks: MediatorRdfResolveHypermediaLinks,
     protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink,
     abortSignal?: AbortSignal,
+    cacheQuerySource?: IQuerySource,
   ) {
     this.linkParallelization = linkParallelizationDefault;
     this.querySourceAggregated = new QuerySourceRdfJs(
@@ -60,6 +66,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     if (abortSignal) {
       abortSignal.addEventListener('abort', () => this.stop());
     }
+    this.cacheQuerySource = cacheQuerySource;
   }
 
   public get started(): boolean {
@@ -98,6 +105,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   }
 
   public stop(): void {
+    console.log(`Traversed: ${this.nTraversed} links`)
     if (!this.ended) {
       this.running = false;
       this.ended = true;
@@ -113,6 +121,10 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     return this.querySourcesNonAggregated.iterator();
   }
 
+  public getCacheQuerySource(): IQuerySource | undefined {
+    return this.cacheQuerySource;
+  } 
+  
   public addStopListener(cb: () => void): void {
     this.stopListeners.push(cb);
   }
@@ -141,6 +153,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
       const nextLink = this.linkQueue.pop();
       if (nextLink) {
         this.followLink(nextLink);
+        this.nTraversed++
       } else {
         break;
       }

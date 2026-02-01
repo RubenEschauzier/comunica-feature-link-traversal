@@ -32,8 +32,17 @@ export class ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris extends Ac
   }
 
   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
-    const sources = action.context.get(KeysInitQuery.querySourcesUnidentified);
-    if (!sources || sources.length === 0) {
+    const allSources = action.context.get(KeysInitQuery.querySourcesUnidentified) || [];
+
+    // Track non-cache sources as we need to add back the cache sources later after extracting IRIs
+    const nonCacheSources = allSources.filter(
+      source => !((typeof source !== 'string') && ('type' in source) && source.type === 'cache')
+    );
+    const cacheSources = allSources.filter(
+      source => ((typeof source !== 'string') && ('type' in source) && source.type === 'cache')
+    );
+    
+    if (nonCacheSources.length === 0) {
       const links: string[] = [ ...new Set(this.extractIrisFromOperation(action.operation)) ]
         .map((source) => {
           // Remove fragment from URL
@@ -48,7 +57,7 @@ export class ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris extends Ac
 
           return source;
         });
-      action.context = action.context.set(KeysInitQuery.querySourcesUnidentified, links);
+      action.context = action.context.set(KeysInitQuery.querySourcesUnidentified, [...cacheSources, ...links]);
     }
     return { ...action, context: action.context };
   }

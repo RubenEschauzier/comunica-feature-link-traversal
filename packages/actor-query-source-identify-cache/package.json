@@ -1,6 +1,6 @@
 {
   "name": "@comunica/actor-query-source-identify-cache",
-  "version": "1.0.0",
+  "version": "0.8.0",
   "description": "A cache query-source-identify actor",
   "lsd:module": true,
   "main": "lib/index.js",

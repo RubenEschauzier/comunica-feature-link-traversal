@@ -3,6 +3,6 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/config-solid-query-source-state-cache.json"
+    "ccqslt:config/config-solid-source-state-cache.json"
   ]
 }

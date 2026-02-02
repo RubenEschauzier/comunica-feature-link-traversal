@@ -16,7 +16,6 @@ import { passTestVoid, ActionContext } from '@comunica/core';
 import type { IActionContext, ILink, IQuerySource, IQuerySourceCache, QuerySourceUnidentified } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { LinkTraversalManagerMediated } from './LinkTraversalManagerMediated';
-import { QuerySourceCache } from '../../actor-query-source-identify-cache/lib/QuerySourceCache';
 
 /**
  * A comunica Initialize Link Traversal Manager Optimize Query Operation Actor.
@@ -50,7 +49,6 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
 
     // Collect all link traversal seeds
     const querySources: QuerySourceUnidentified[] = [];
-    const cacheQuerySourcesUnIdentified: QuerySourceUnidentified[] = [];
     const traversalSeedLinks: ILink[] = [];
     const traversalContexts: IActionContext[] = [];
     if (context.has(KeysInitQuery.querySourcesUnidentified)) {
@@ -75,15 +73,9 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
             traversalContexts.push(ActionContext.ensureActionContext(querySource.context));
           }
         } 
-        // else if((typeof querySource !== 'string') && ('getSource' in querySource)) {
-        //   cacheQuerySourcesUnIdentified.push(querySource);
-        // } 
         else {
           querySources.push(querySource);
         }
-      }
-      if (cacheQuerySourcesUnIdentified.length > 1){
-        throw new Error(`The link traversal manager accepts a single cache query source, got: ${cacheQuerySourcesUnIdentified.length}`);
       }
     }
 
@@ -91,14 +83,6 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
     if (traversalSeedLinks.length > 0) {
       let linkTraversalContext: IActionContext = new ActionContext().merge(...traversalContexts);
       let cacheQuerySource: IQuerySource | undefined;
-      // if (cacheQuerySourcesUnIdentified.length > 0){
-      //   const source = <IQuerySourceCache> cacheQuerySourcesUnIdentified[0];
-      //   cacheQuerySource = new QuerySourceCache(
-      //     context.getSafe(KeysCaching.cacheManager),
-      //     source.cacheKey,
-      //     source.getSource,
-      //   );
-      // }
 
       // Initialize link traversal manager
       const mergedContext = context.merge(linkTraversalContext);

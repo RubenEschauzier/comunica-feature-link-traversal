@@ -13,7 +13,7 @@ import type { Algebra } from '@comunica/utils-algebra';
 import { ClosableTransformIterator } from '@comunica/utils-iterator';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
-import { UnionIterator, EmptyIterator, wrap as wrapAsyncIterator } from 'asynciterator';
+import { UnionIterator, wrap as wrapAsyncIterator, EmptyIterator } from 'asynciterator';
 
 /**
  * A query source that operates sources obtained from a link queue.
@@ -56,38 +56,32 @@ export class QuerySourceLinkTraversal implements IQuerySource {
 
     // TODO: This should be generalized to work with arbitrary cache and view keys that satisfy the
     // contract
-    // TODO: We moved the cache initialization into the optimize query operation bus, but this
-    // made it unavailable here, so we need a way to get it back. Possibly just make
-    // it in this actor for now for testing but needs a good architecture
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
 
     let cacheIterator: AsyncIterator<BindingsStream>;
-    if (persistentCacheManager){
-      try{
-        const streamPromise = persistentCacheManager.getFromCache(
+    if (persistentCacheManager &&
+      persistentCacheManager.hasCache(CacheEntrySourceState.cacheSourceStateQuerySource) &&
+      persistentCacheManager.hasView(CacheSourceStateViews.cacheQueryView)
+    ){
+      const streamPromise = persistentCacheManager.getFromCache(
+        CacheEntrySourceState.cacheSourceStateQuerySource,
+        CacheSourceStateViews.cacheQueryView,
+        { operation, mode: 'queryBindings' }
+      )
+
+      cacheIterator =  wrapAsyncIterator(
+        <Promise<AsyncIterator<BindingsStream>>> streamPromise, { autoStart: false}
+      );
+
+      const stopIterator = async () => {
+        await persistentCacheManager.getFromCache(
           CacheEntrySourceState.cacheSourceStateQuerySource,
           CacheSourceStateViews.cacheQueryView,
-          { operation, mode: 'queryBindings' }
-        );
-
-        cacheIterator =  wrapAsyncIterator(
-          <Promise<AsyncIterator<BindingsStream>>> streamPromise, { autoStart: false}
-        );
-        const stopIterator = async () => {
-          await persistentCacheManager.getFromCache(
-            CacheEntrySourceState.cacheSourceStateQuerySource,
-            CacheSourceStateViews.cacheQueryView,
-            { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
-          );
-        }
-        this.linkTraversalManager.addStopListener(() => stopIterator())
-        allIterators = allIterators.prepend(cacheIterator);
-      } catch (err) {
-        // TODO: Remove in 'real' code and do some form of logging
-        console.log(err);
-        // Ignore error in case a view was not defined, as this means
-        // we just use the 'default' traversal mode
+          { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
+        )
       }
+      this.linkTraversalManager.addStopListener(() => stopIterator());
+      allIterators = allIterators.prepend(cacheIterator);
     }
 
     const iterator = new ClosableTransformIterator(new UnionIterator(
@@ -97,7 +91,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       onClose: () => {
         firstIterator.close();
         nonAggregatedIterators.close();
-        cacheIterator.close()
+        cacheIterator?.close()
       },
     });
 

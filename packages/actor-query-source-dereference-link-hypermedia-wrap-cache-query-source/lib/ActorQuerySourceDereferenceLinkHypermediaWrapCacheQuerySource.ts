@@ -1,4 +1,4 @@
-import { QuerySourceCacheWrapper } from '@comunica/actor-context-preprocess-set-cache-source-state-num-triples';
+import { QuerySourceCacheWrapper } from '@comunica/actor-context-preprocess-set-cache-source-state';
 import {
   ActorQuerySourceDereferenceLink,
 } from '@comunica/bus-query-source-dereference-link';
@@ -11,7 +11,7 @@ import type {
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
-import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
+import { CacheSourceStateViews } from '@comunica/cache-manager-entries';
 import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
 import { KeysCaching } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';

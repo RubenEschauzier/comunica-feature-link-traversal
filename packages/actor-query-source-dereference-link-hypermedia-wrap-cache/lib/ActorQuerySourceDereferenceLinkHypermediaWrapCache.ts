@@ -1,4 +1,4 @@
-import { QuerySourceCacheWrapper } from '@comunica/actor-context-preprocess-set-cache-source-state-num-triples';
+import { QuerySourceCacheWrapper } from '@comunica/actor-context-preprocess-set-cache-source-state';
 import {
   ActorQuerySourceDereferenceLink,
 } from '@comunica/bus-query-source-dereference-link';

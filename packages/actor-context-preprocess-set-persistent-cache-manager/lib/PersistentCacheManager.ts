@@ -2,15 +2,10 @@ import type { ICacheKey } from '@comunica/cache-manager-entries';
 import type { IViewKey } from '@comunica/cache-manager-entries';
 import type { ICacheRegistryEntry, ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
 
-// TODO Implement caching as storing rdf-stores, then the cache will serve as another source in the link traversal manager.
-// on cache hit this cache will then produce results for the document in its cache.
-// this way we can just queryBindings to get the results from cache instead of having to ingest into agg store.
-// Link extraction is done by calling mediatorExtractLinks manually, adding it to metadata of source and making a
-// source with an empty quad stream. This is passed to the link traversal manager
-
-// TODO Then using this view we can also reimplement our sort-cache-cardinality by just getting the
-// view token, issueing a query to the cache view and getting results. Super CLEAN!
-// TODO Reimplement caching performance tracking in nice way.
+// TODO: Then using this view we can also reimplement our sort-cache-cardinality by just getting the
+// view token, issueing a query to the cache view and getting results. 
+// TODO: Reimplement caching performance tracking in nice way.
+// TODO: Run experiments
 
 export class PersistentCacheManager {
   protected cacheRegistry = new Map<string, ICacheRegistryEntry<any, any, any>>();
@@ -105,6 +100,14 @@ export class PersistentCacheManager {
     return this.viewRegistry;
   }
 
+  public hasCache<I, S, C>(cacheKey: ICacheKey<I, S, C>): boolean {
+    return this.cacheRegistry.has(cacheKey.id);
+  }
+
+  public hasView<S, C, K>(viewKey: IViewKey<S, C, K>): boolean {
+    return this.viewRegistry.has(viewKey.id);
+  }
+  
   protected ensureCache<I, S, C>(cacheKey: ICacheKey<I, S, C>): ICacheRegistryEntry<I, S, C> {
     const relevantCache = this.cacheRegistry.get(cacheKey.id);
     if (!relevantCache) {

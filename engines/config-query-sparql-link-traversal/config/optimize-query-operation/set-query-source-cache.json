@@ -12,6 +12,7 @@
     {
       "@id": "urn:comunica:default:optimize-query-operation/actors#set-cache-query-source",
       "@type": "ActorOptimizeQueryOperationSetCacheQuerySource",
+      "cacheSizeNumTriples": 1000000,
       "beforeActors": [
         { "@id": "urn:comunica:default:optimize-query-operation/actors#initialize-link-traversal-manager" }
       ]

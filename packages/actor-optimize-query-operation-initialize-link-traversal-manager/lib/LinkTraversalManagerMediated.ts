@@ -16,7 +16,6 @@ import type { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type { AsyncIterator } from 'asynciterator';
 import type { AsyncReiterable } from 'asyncreiterable';
 import { AsyncReiterableArray } from 'asyncreiterable';
-import { QuerySourceCache } from '../../actor-query-source-identify-cache/lib/QuerySourceCache';
 
 /**
  * A link traversal manager that traverses over the link queue by resolving query sources for each link, extracting

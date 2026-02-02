@@ -1,4 +1,4 @@
-import { QuerySourceCacheWrapper } from '@comunica/actor-context-preprocess-set-cache-source-state-num-triples';
+import { QuerySourceCacheWrapper } from '../../actor-context-preprocess-set-cache-source-state/lib';
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
 import type { ISourceState } from '@comunica/types';

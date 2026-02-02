@@ -16,12 +16,10 @@ import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
 
-// TODO: Make the cache a seperate source, if cache is hit then the source gets updated and on update
-// queryBindings will emit more bindings that match that document, instead of any reindexing?
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.
  */
-export class ActorContextPreprocessSetDefaultsTraversalCachingNumTriples extends ActorContextPreprocess {
+export class ActorContextPreprocessSetCacheSourceState extends ActorContextPreprocess {
   private readonly cacheSourceState: PersistentCacheSourceStateNumTriples;
 
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
@@ -80,7 +78,7 @@ export interface IActorContextPreprocessSetSourceCacheNumTriplesArgs extends IAc
   /**
    * The maximum number of triples in the cache.
    * @range {integer}
-   * @default {124_000}
+   * @default {124000}
    */
   cacheSizeNumTriples: number;
 }

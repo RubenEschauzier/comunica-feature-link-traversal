@@ -1,7 +1,7 @@
 {
-  "name": "@comunica/actor-context-preprocess-set-cache-source-state-num-triples",
+  "name": "@comunica/actor-context-preprocess-set-cache-source-state",
   "version": "0.8.0",
-  "description": "A set-cache-source-state-num-triples-link-traversal context-preprocess actor",
+  "description": "A set-cache-source-state-link-traversal context-preprocess actor",
   "lsd:module": true,
   "license": "MIT",
   "funding": {
@@ -12,7 +12,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/comunica/comunica-feature-link-traversal.git",
-    "directory": "packages/actor-context-preprocess-set-cache-source-state-num-triples"
+    "directory": "packages/actor-context-preprocess-set-cache-source-state"
   },
   "bugs": {
     "url": "https://github.com/comunica/comunica-feature-link-traversal/issues"
@@ -21,8 +21,7 @@
     "comunica",
     "actor",
     "context-preprocess",
-    "set-cache-source-state",
-    "num-triples"
+    "set-cache-source-state"
   ],
   "sideEffects": false,
   "main": "lib/index.js",

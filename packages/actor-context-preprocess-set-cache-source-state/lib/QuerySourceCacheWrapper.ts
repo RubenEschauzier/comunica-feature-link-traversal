@@ -18,11 +18,16 @@ export class QuerySourceCacheWrapper implements IQuerySource {
 
   public referenceValue: QuerySourceReference;
 
-  private readonly sizePromise: Promise<number>;
-  private readonly quadCount = 0;
 
   protected DF: DataFactory = new DataFactory();
   protected AF: AlgebraFactory = new AlgebraFactory(this.DF);
+
+  private readonly sizePromise: Promise<number>;
+  private resolveSize!: (count: number) => void;
+  private rejectSize!: (error: Error) => void;
+
+  private countWrapDone = false;
+  private quadCount = 0;
 
   public constructor(
     source: IQuerySource,
@@ -36,24 +41,11 @@ export class QuerySourceCacheWrapper implements IQuerySource {
       ),
       new ActionContext(),
     ));
-    // Const counterClone = this.quads.clone();
-    this.sizePromise = new Promise(resolve => resolve(1));
-    // This.sizePromise = new Promise((resolve, reject) => {
-    //   // Every time a quad passes through any clone, this listener sees it.
-    //   counterClone.on('data', () => {
-    //     this.quadCount++;
-    //   });
-
-    //   // Resolves the promise when the source stream naturally ends.
-    //   counterClone.on('end', () => {
-    //     resolve(this.quadCount);
-    //   });
-
-    //   counterClone.on('error', (err) => {
-    //     reject(err);
-    //   });
-    // });
-
+    this.sizePromise = new Promise<number>((resolve, reject) => {
+      this.resolveSize = resolve;
+      this.rejectSize = reject;
+    });
+    
     this.source = source;
     this.referenceValue = source.referenceValue;
   }
@@ -69,28 +61,6 @@ export class QuerySourceCacheWrapper implements IQuerySource {
   public async getSize(): Promise<number> {
     return this.sizePromise;
   }
-
-  // Public async ingestQuads(): Promise<void>{
-  //   const quads = this.source.queryQuads(
-  //     this.AF.createPattern(
-  //         this.DF.variable('s'),
-  //         this.DF.variable('p'),
-  //         this.DF.variable('o'),
-  //         this.DF.variable('g')
-  //     ),
-  //     new ActionContext({
-  //       [KeysQuerySourceIdentifyHypermediaNoneLazy.nonConsumingQueryQuads.name]: true
-  //     })
-  //   );
-  //   const promiseConsumedSource = new Promise<void>((resolve, reject) => {
-  //     quads.on('data', (quad) => this.store.addQuad(quad));
-  //     quads.on('end', () => {
-  //       resolve();
-  //     });
-  //     quads.on('error', () => reject("Error importing quads for cached source"));
-  //   })
-  //   return promiseConsumedSource;
-  // }
 
   public queryBindings(
     operation: Algebra.Operation,
@@ -109,7 +79,24 @@ export class QuerySourceCacheWrapper implements IQuerySource {
         operation.predicate.termType === 'Variable' &&
         operation.object.termType === 'Variable' &&
         operation.graph.termType === 'Variable') {
-      return this.quads.clone();
+      const result = this.quads.clone();
+      if (!this.countWrapDone) {
+        this.countWrapDone = true;
+
+        result.on('end', () => {
+          this.resolveSize(this.quadCount);
+        });
+
+        result.on('error', err => {
+          this.rejectSize(err);
+        });
+
+        return result.map(quad => {
+          this.quadCount++;
+          return quad;
+        });
+      }      
+      return result;
     }
     throw new Error('queryQuads is not implemented in QuerySourceCacheWrapper');
   }

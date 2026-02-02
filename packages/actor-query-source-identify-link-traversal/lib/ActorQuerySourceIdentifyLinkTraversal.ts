@@ -4,12 +4,10 @@ import type {
   IActorQuerySourceIdentifyArgs,
 } from '@comunica/bus-query-source-identify';
 import { ActorQuerySourceIdentify } from '@comunica/bus-query-source-identify';
-import { KeysCaching, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, failTest } from '@comunica/core';
 import { QuerySourceLinkTraversal } from './QuerySourceLinkTraversal';
-import { QuerySourceCache } from '../../actor-query-source-identify-cache/lib/QuerySourceCache';
-import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
 
 /**
  * A comunica Link Traversal Query Source Identify Actor.

@@ -12,8 +12,8 @@
     "ccqslt:config/extract-links/actors/quad-pattern-query.json",
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
-    "ccqslt:config/context-preprocess/actors-caching-indexed.json",
-    "ccqslt:config/optimize-query-operation/actors-query-source-cache.json",
+    "ccqslt:config/context-preprocess/actor-set-cache-manager.json",
+    "ccqslt:config/optimize-query-operation/set-query-source-cache.json",
     "ccqslt:config/query-source-dereference-link/actors-cache-query-source.json"
   ]
 }

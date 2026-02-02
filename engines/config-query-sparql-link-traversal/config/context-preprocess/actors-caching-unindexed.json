@@ -12,11 +12,6 @@
       "@id": "urn:comunica:default:context-preprocess/actors#set-defaults-traversal-caching-num-triples",
       "@type": "ActorContextPreprocessSetDefaultsTraversalCachingNumTriples",
       "cacheSizeNumTriples": 500000
-    },
-    {
-      "@id": "urn:comunica:default:context-preprocess/actors#set-persistent-cache-manager",
-      "@type": "ActorContextPreprocessSetPersistentCacheManager",
-      "beforeActors": [{ "@id": "urn:comunica:default:context-preprocess/actors#set-defaults-traversal-caching-num-triples" }]
     }
   ]
 }

@@ -32,7 +32,7 @@ export class QuerySourceCache implements IQuerySource {
   private readonly getSourceView: IViewKey<
     ISourceState,
     { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
-    BindingsStream | AsyncIterator<RDF.Quad> | ISourceState
+    AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>>  | ISourceState
   >;
   private readonly cacheKey: ICacheKey<ISourceState, ISourceState, { headers: Headers }>
 
@@ -42,7 +42,7 @@ export class QuerySourceCache implements IQuerySource {
     getSourceView: IViewKey<
         ISourceState,
         { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
-        BindingsStream | AsyncIterator<RDF.Quad> | ISourceState
+        AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>>  | ISourceState
     >, 
   ) {
     this.referenceValue = 'cacheSource';
@@ -80,36 +80,36 @@ export class QuerySourceCache implements IQuerySource {
     _context: IActionContext,
     _options?: IQueryBindingsOptions,
   ): BindingsStream {
-    const streamPromise = this.persistentCacheManager.getFromCache(
-        this.cacheKey,
-        this.getSourceView,
-        { operation, mode: 'queryBindings' }
-    );
-    if (streamPromise === undefined){
-      throw new Error("Tried to queryBindings a cache that does not exist");
-    }
-    return wrapAsyncIterator(<Promise<BindingsStream>> streamPromise, { autoStart: false});
+    // const streamPromise = this.persistentCacheManager.getFromCache(
+    //     this.cacheKey,
+    //     this.getSourceView,
+    //     { operation, mode: 'queryBindings' }
+    // );
+    // if (streamPromise === undefined){
+    throw new Error("Tried to queryBindings a cache that does not exist");
+    // }
+    // return wrapAsyncIterator(<Promise<AsyncIterator<BindingsStream>>> streamPromise, { autoStart: false});
   }
 
   public queryQuads(
     operation: Algebra.Operation,
     _context: IActionContext,
   ): AsyncIterator<RDF.Quad> {
-    if (isKnownOperation(operation, Algebra.Types.PATTERN)) {
-      const streamPromise = this.persistentCacheManager.getFromCache(
-          this.cacheKey,
-          this.getSourceView,
-          { operation, mode: 'queryQuads' }
-      );
-      if (streamPromise === undefined){
-        throw new Error("Tried to queryQuads a cache that does not exist");
-      }
+    // if (isKnownOperation(operation, Algebra.Types.PATTERN)) {
+    //   const streamPromise = this.persistentCacheManager.getFromCache(
+    //       this.cacheKey,
+    //       this.getSourceView,
+    //       { operation, mode: 'queryQuads' }
+    //   );
+    //   if (streamPromise === undefined){
+    //     throw new Error("Tried to queryQuads a cache that does not exist");
+    //   }
 
-      return wrapAsyncIterator(
-        <Promise<AsyncIterator<RDF.Quad>>>streamPromise,
-        { autoStart: false },
-      );
-    }
+    //   return wrapAsyncIterator(
+    //     <Promise<AsyncIterator<RDF.Quad>>>streamPromise,
+    //     { autoStart: false },
+    //   );
+    // }
     throw new Error('queryQuads is not implemented in QuerySourceRdfJs');
   }
 

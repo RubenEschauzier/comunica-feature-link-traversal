@@ -74,9 +74,10 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
       await sourceFromCache.source.getSelectorShape(new ActionContext());
       const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
       sourceFromCache.metadata.traverse = traverse;
+      const stubSource = { ...sourceFromCache, source: new QuerySourceStub(this.DF, action.link.url)};
       // If we used cached source the cache will serve any matching bindings of the triple pattern,
       // so we return empty QuerySource for the aggregated store to import
-      return { ...sourceFromCache, source: new QuerySourceStub(this.DF, action.link.url)};
+      return stubSource;
     }
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);

@@ -9,10 +9,8 @@ import { PersistentCacheManager } from './PersistentCacheManager';
  * A comunica Set Persistent Cache Manager Link Traversal Context Preprocess Actor.
  */
 export class ActorContextPreprocessSetPersistentCacheManager extends ActorContextPreprocess {
-  protected persistentCacheManager: PersistentCacheManager;
   public constructor(args: IActorContextPreprocessArgs) {
     super(args);
-    this.persistentCacheManager = new PersistentCacheManager();
   }
 
   public async test(_action: IAction): Promise<TestResult<IActorTest>> {

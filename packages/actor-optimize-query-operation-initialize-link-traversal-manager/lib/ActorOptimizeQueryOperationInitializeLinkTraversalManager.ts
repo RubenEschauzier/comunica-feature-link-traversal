@@ -74,9 +74,11 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
           if (querySource.context) {
             traversalContexts.push(ActionContext.ensureActionContext(querySource.context));
           }
-        } else if((typeof querySource !== 'string') && ('getSource' in querySource)) {
-          cacheQuerySourcesUnIdentified.push(querySource);
-        } else {
+        } 
+        // else if((typeof querySource !== 'string') && ('getSource' in querySource)) {
+        //   cacheQuerySourcesUnIdentified.push(querySource);
+        // } 
+        else {
           querySources.push(querySource);
         }
       }
@@ -89,14 +91,14 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
     if (traversalSeedLinks.length > 0) {
       let linkTraversalContext: IActionContext = new ActionContext().merge(...traversalContexts);
       let cacheQuerySource: IQuerySource | undefined;
-      if (cacheQuerySourcesUnIdentified.length > 0){
-        const source = <IQuerySourceCache> cacheQuerySourcesUnIdentified[0];
-        cacheQuerySource = new QuerySourceCache(
-          context.getSafe(KeysCaching.cacheManager),
-          source.cacheKey,
-          source.getSource,
-        );
-      }
+      // if (cacheQuerySourcesUnIdentified.length > 0){
+      //   const source = <IQuerySourceCache> cacheQuerySourcesUnIdentified[0];
+      //   cacheQuerySource = new QuerySourceCache(
+      //     context.getSafe(KeysCaching.cacheManager),
+      //     source.cacheKey,
+      //     source.getSource,
+      //   );
+      // }
 
       // Initialize link traversal manager
       const mergedContext = context.merge(linkTraversalContext);
@@ -121,7 +123,8 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         cacheQuerySource,
       );
       linkTraversalContext = linkTraversalContext
-        .setDefault(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, linkTraversalManager);
+        .setDefault(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, linkTraversalManager)
+        .setDefault(KeysCaching.cacheManager, context.get(KeysCaching.cacheManager));
 
       // Add grouped query source
       querySources.push({

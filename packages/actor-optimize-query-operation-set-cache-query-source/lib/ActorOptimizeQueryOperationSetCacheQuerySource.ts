@@ -19,29 +19,28 @@ import type * as RDF from '@rdfjs/types';
 import { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import { AsyncReiterableArray } from 'asyncreiterable';
 import { KeysQuerySourceIdentify } from '@comunica/context-entries';
-
+import { ActorOptimizeQueryOperation, IActionOptimizeQueryOperation, IActorOptimizeQueryOperationArgs, IActorOptimizeQueryOperationOutput } from '@comunica/bus-optimize-query-operation';
 /**
- * A comunica Set Cache Query Source Context Preprocess Actor.
+ * A comunica Set Cache Query Source Optimize Query Operation Actor.
  */
-export class ActorContextPreprocessSetCacheQuerySource extends ActorContextPreprocess {
+export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimizeQueryOperation {
   private readonly cacheQuerySourceState: PersistentCacheSourceStateIndexed;
 
-  public constructor(args: IActorContextPreprocessSetCacheQuerySourceArgs) {
+  public constructor(args: IActorOptimizeQueryOperationSetCacheQuerySourceArgs) {
     super(args);
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
       { maxNumTriples: args.cacheSizeNumTriples },
     );
-
   }
 
-  public async test(action: IActionContextPreprocess): Promise<TestResult<IActorTest>> {
-    return passTestVoid();
+  public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
+    return passTestVoid(); 
   }
 
-  public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
+  public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
     const context = action.context;
     if (!action.context.get(KeysQuerySourceIdentify.traverse)){
-      return { context };
+      return { context, operation: action.operation };
     }
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
@@ -56,10 +55,10 @@ export class ActorContextPreprocessSetCacheQuerySource extends ActorContextPrepr
       new GetSourceStateCacheView(),
     );
     
-    return { context };
+    return { context, operation: action.operation };
+
   }
 }
-
 
 
 export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, { headers: Headers }> {
@@ -85,6 +84,9 @@ implements ICacheView<
   protected querySourcesCached: AsyncReiterableArray<ISourceState> = AsyncReiterableArray.fromInitialEmpty();
   protected ended = false;
   protected pendingCount = 0;
+
+  public constructor(){
+  }
 
   protected checkForTermination() {
     // Only close if we have received the 'end' signal AND there are no active lookups
@@ -145,11 +147,13 @@ implements ICacheView<
 }
 
 
-export interface IActorContextPreprocessSetCacheQuerySourceArgs extends IActorContextPreprocessArgs {
-  /**
+
+export interface IActorOptimizeQueryOperationSetCacheQuerySourceArgs extends IActorOptimizeQueryOperationArgs {
+    /**
    * The maximum number of triples in the cache.
    * @range {integer}
-   * @default {124_000}
+   * @default {124000}
    */
   cacheSizeNumTriples: number;
 }
+

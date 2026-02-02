@@ -2,6 +2,8 @@ import type { ICacheKey } from '@comunica/cache-manager-entries';
 import type { IViewKey } from '@comunica/cache-manager-entries';
 import type { ICacheRegistryEntry, ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
 
+
+// TODO: Move cache keys back to this repo and remove the query source we dont use anymore
 // TODO: Then using this view we can also reimplement our sort-cache-cardinality by just getting the
 // view token, issueing a query to the cache view and getting results. 
 // TODO: Reimplement caching performance tracking in nice way.
@@ -107,7 +109,7 @@ export class PersistentCacheManager {
   public hasView<S, C, K>(viewKey: IViewKey<S, C, K>): boolean {
     return this.viewRegistry.has(viewKey.id);
   }
-  
+
   protected ensureCache<I, S, C>(cacheKey: ICacheKey<I, S, C>): ICacheRegistryEntry<I, S, C> {
     const relevantCache = this.cacheRegistry.get(cacheKey.id);
     if (!relevantCache) {

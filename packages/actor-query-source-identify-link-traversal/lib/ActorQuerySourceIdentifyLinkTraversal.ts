@@ -8,13 +8,21 @@ import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, failTest } from '@comunica/core';
 import { QuerySourceLinkTraversal } from './QuerySourceLinkTraversal';
+import { CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
 
 /**
  * A comunica Link Traversal Query Source Identify Actor.
  */
 export class ActorQuerySourceIdentifyLinkTraversal extends ActorQuerySourceIdentify {
-  public constructor(args: IActorQuerySourceIdentifyArgs) {
+  protected readonly cacheEntryKey?: ICacheKey<unknown, unknown, unknown>;
+  protected readonly cacheViewKey?: IViewKey<unknown, unknown, unknown>;
+
+  public constructor(args: IActorQuerySourceIdentifyLinkTraversalArgs) {
     super(args);
+    if (args.cacheEntryName && args.cacheViewName){
+      this.cacheEntryKey = new CacheKey(args.cacheEntryName);
+      this.cacheViewKey = new ViewKey(args.cacheViewName);
+    }
   }
 
   public async test(action: IActionQuerySourceIdentify): Promise<TestResult<IActorTest>> {
@@ -33,9 +41,14 @@ export class ActorQuerySourceIdentifyLinkTraversal extends ActorQuerySourceIdent
     const linkTraversalManager = querySourceContext.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
     return {
       querySource: {
-        source: new QuerySourceLinkTraversal(linkTraversalManager),
+        source: new QuerySourceLinkTraversal(linkTraversalManager, this.cacheEntryKey, this.cacheViewKey),
         context: querySourceContext,
       },
     };
   }
+}
+
+export interface IActorQuerySourceIdentifyLinkTraversalArgs extends IActorQuerySourceIdentifyArgs {
+  cacheEntryName?: string;
+  cacheViewName?: string;
 }

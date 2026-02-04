@@ -10,7 +10,8 @@ import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-sou
 import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
-import { KeysCaching, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, ActionContext } from '@comunica/core';
 import type { IActionContext, ILink, IQuerySource, IQuerySourceCache, QuerySourceUnidentified } from '@comunica/types';

@@ -5,12 +5,12 @@ import type {
 } from '@comunica/bus-context-preprocess';
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
-import { KeysCaching } from '@comunica/context-entries-link-traversal';
+import { KeysCaching } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { Bindings, BindingsStream, ISourceState } from '@comunica/types';
 
-import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
+import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateIndexed } from './PersistentCacheSourceStateIndexed';

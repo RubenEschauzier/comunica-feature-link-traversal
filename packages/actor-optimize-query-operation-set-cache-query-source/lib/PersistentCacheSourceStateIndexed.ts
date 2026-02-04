@@ -2,7 +2,7 @@ import { QuerySourceCacheWrapper } from '../../actor-context-preprocess-set-cach
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
 import type { ISourceState } from '@comunica/types';
-import type { IPersistentCache } from '@comunica/types-link-traversal';
+import type { ICacheMetrics, IPersistentCache } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
@@ -13,25 +13,44 @@ import { Factory } from 'sparqlalgebrajs';
 
 export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISourceState> {
   private readonly sizeMap = new Map<string, number>();
+  private readonly maxNumTriples: number;
   private readonly lruCacheDocuments: LRUCache<string, ISourceState>;
 
   public readonly DF: DataFactory = new DataFactory();
   public readonly AF: Factory = new Factory(this.DF);
   public readonly BF: BindingsFactory = new BindingsFactory(this.DF, {});
 
+  private isTracking: boolean = false;
+  private cacheMetrics: ICacheMetrics;
+  
+
   public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
+    this.maxNumTriples = args.maxNumTriples;
     this.lruCacheDocuments = new LRUCache<string, ISourceState>({
-      maxSize: args.maxNumTriples,
+      maxSize: this.maxNumTriples,
       sizeCalculation: (value, key) => this.sizeMap.get(key) || 1,
+      dispose: this.onDispose.bind(this),
     });
+    this.cacheMetrics = this.resetMetrics();
   }
 
   public async get(key: string): Promise<ISourceState | undefined> {
-    return this.lruCacheDocuments.get(key);
+    console.log(await this.size());
+    return this.getSync(key);
+  }
+
+  public getSync(key: string): ISourceState | undefined{
+    const cachedState = this.lruCacheDocuments.get(key);
+
+    if (this.isTracking) {
+      cachedState ? this.cacheMetrics.hits++ : this.cacheMetrics.misses++;
+    }
+
+    return cachedState;
   }
 
   public async getMany(keys: string[]): Promise<(ISourceState | undefined)[]> {
-    return keys.map(key => this.lruCacheDocuments.get(key));
+    return keys.map(key => this.getSync(key));
   }
 
   /**
@@ -68,9 +87,21 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
         resolve()
       });
       importStream.on('error', () => {
-        reject('Import stream error')
+        reject('Import stream to cache error')
       });
     })
+  }
+
+  protected onDispose(value: ISourceState, key: string, reason: LRUCache.DisposeReason): void {
+    if (reason === 'evict' && this.isTracking){
+      this.cacheMetrics.evictions++;
+      this.cacheMetrics.evictionsCalculatedSize += this.sizeMap.get(key) ?? 1;
+      this.cacheMetrics.evictionPercentage = 
+        (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriples)*100;
+      if (this.sizeMap.has(key)) {
+        this.sizeMap.delete(key);
+      }
+    }
   }
 
   public async has(key: string): Promise<boolean> {
@@ -94,6 +125,28 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
   public serialize(): Promise<void> {
     throw new Error('Serialize implemented for this in-memory cache');
+  }
+
+
+  public startSession(){
+    this.isTracking = true;
+    this.cacheMetrics = this.resetMetrics();
+    return this.cacheMetrics;
+  }
+
+  public endSession(){
+    this.isTracking = false;
+    return this.cacheMetrics;
+  }
+
+  public resetMetrics(): ICacheMetrics{
+    return {
+      hits: 0,
+      misses: 0,
+      evictions: 0,
+      evictionsCalculatedSize: 0,
+      evictionPercentage: 0,
+    }
   }
 }
 

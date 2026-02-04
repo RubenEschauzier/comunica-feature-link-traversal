@@ -1,14 +1,14 @@
 import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
-import { KeysCaching } from '@comunica/context-entries-link-traversal';
+import { KeysCaching } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContext, passTestVoid } from '@comunica/core';
 import type { BindingsStream, ISourceState, ISourceStateBloomFilter } from '@comunica/types';
 
-import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
+import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateIndexedBloomFilter } from './PersistentCacheSourceStateIndexedBloomFilter';
-import { ArrayIterator, AsyncIterator, EmptyIterator, SimpleTransformIterator, TransformIterator} from 'asynciterator';
+import { AsyncIterator, EmptyIterator} from 'asynciterator';
 import type * as RDF from '@rdfjs/types';
 import { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import { AsyncReiterableArray } from 'asyncreiterable';
@@ -103,9 +103,6 @@ implements ICacheView<
       return true;
     }
     if (operation.subject.termType !== 'Variable' && !source.bloomFilter.has(operation.subject.value)) {
-      return false;
-    }
-    if (operation.object.termType !== 'Variable' && !source.bloomFilter.has(operation.object.value)) {
       return false;
     }
     return true;

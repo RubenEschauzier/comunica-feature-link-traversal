@@ -10,10 +10,10 @@ import type {
 } from '@comunica/bus-query-source-dereference-link';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
+import { CacheEntrySourceState, CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries';
 import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
-import { KeysCaching } from '@comunica/context-entries-link-traversal';
+import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { IActionContext, ISourceState } from '@comunica/types';
@@ -32,6 +32,11 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
   public readonly mediatorMetadata: MediatorRdfMetadata;
   public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
+  //TODO: Figure out a way to do keys based on contract, for example it should return
+  // a ISourceState or extension of it
+  public readonly cacheEntryKey: ICacheKey<unknown, unknown, unknown>;
+  public readonly cacheViewKey: IViewKey<unknown, unknown, unknown>;
+
   public readonly DF: DataFactory = new DataFactory();
   public readonly BF: BindingsFactory = new BindingsFactory(this.DF, {});
   public readonly AF: Factory = new Factory(this.DF);
@@ -41,6 +46,8 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
     this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
     this.mediatorMetadata = args.mediatorMetadata;
     this.mediatorMetadataExtract = args.mediatorMetadataExtract;
+    this.cacheEntryKey = new CacheKey(args.cacheEntryKeyName);
+    this.cacheViewKey = new ViewKey(args.cacheViewKeyName);
   }
 
   public async test(action: IActionQuerySourceDereferenceLink): Promise<TestResult<IActorTest>> {
@@ -65,8 +72,8 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
       //   { url: action.link.url, mode: 'get', action },
       // );
       sourceFromCache = <ISourceState> await cacheManager.getFromCache(
-        CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
-        CacheSourceStateViews.cacheQueryViewBloomFilter,
+        this.cacheEntryKey,
+        this.cacheViewKey,
         { url: action.link.url, mode: 'get', action },
       );
 
@@ -97,7 +104,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
     //   { headers: dereferenceLinkOutput.headers },
     // );   
     await cacheManager.setCache(
-      CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
+      this.cacheEntryKey,
       action.link.url,
       { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
       { headers: dereferenceLinkOutput.headers },
@@ -148,6 +155,8 @@ export interface IActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySourceA
   mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
   mediatorMetadata: MediatorRdfMetadata;
   mediatorMetadataExtract: MediatorRdfMetadataExtract;
+  cacheEntryKeyName: string;
+  cacheViewKeyName: string;
 }
 
 export const KEY_WRAPPED = new ActionContextKey<boolean>(

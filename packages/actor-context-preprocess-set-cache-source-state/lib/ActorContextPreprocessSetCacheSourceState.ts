@@ -6,12 +6,12 @@ import type {
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCaching } from '@comunica/context-entries-link-traversal';
+import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
 import type { ISourceState } from '@comunica/types';
 
-import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types-link-traversal';
+import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
@@ -25,7 +25,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
     super(args);
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-      { maxNumTriples: args.cacheSizeNumTriples },
+      { maxNumTriples: args.cacheSizeNumTriples, },
     );
   }
 

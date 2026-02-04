@@ -13,7 +13,7 @@ import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extr
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
 import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
-import { KeysCaching } from '@comunica/context-entries-link-traversal';
+import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { IActionContext, ISourceState } from '@comunica/types';

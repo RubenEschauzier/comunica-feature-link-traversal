@@ -10,7 +10,7 @@
     {
       "@id": "urn:comunica:default:context-preprocess/actors#set-cache-source-state",
       "@type": "ActorContextPreprocessSetCacheSourceState",
-      "cacheSizeNumTriples": 1000000
+      "cacheSizeNumTriples": 2000
     }
   ]
 }

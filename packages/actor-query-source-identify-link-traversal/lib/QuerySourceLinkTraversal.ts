@@ -1,5 +1,5 @@
-import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
-import { KeysCaching } from '@comunica/context-entries-link-traversal';
+import { CacheEntrySourceState, CacheSourceStateViews, ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
+import { KeysCaching } from '@comunica/context-entries';
 import { ActionContext } from '@comunica/core';
 import type {
   BindingsStream,
@@ -13,7 +13,7 @@ import type { Algebra } from '@comunica/utils-algebra';
 import { ClosableTransformIterator } from '@comunica/utils-iterator';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
-import { UnionIterator, wrap as wrapAsyncIterator, EmptyIterator } from 'asynciterator';
+import { UnionIterator, wrap as wrapAsyncIterator } from 'asynciterator';
 
 /**
  * A query source that operates sources obtained from a link queue.
@@ -23,6 +23,8 @@ export class QuerySourceLinkTraversal implements IQuerySource {
 
   public constructor(
     public readonly linkTraversalManager: ILinkTraversalManager,
+    protected readonly cacheEntryKey?: ICacheKey<unknown, unknown, unknown>,
+    protected readonly cacheViewKey?: IViewKey<unknown, unknown, unknown>,
   ) {
     this.referenceValue = this.linkTraversalManager.seeds.map(link => link.url).join(',');
   }
@@ -59,9 +61,9 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
 
     let cacheIterator: AsyncIterator<BindingsStream> | undefined = undefined;
-    if (persistentCacheManager &&
-      persistentCacheManager.hasCache(CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter) &&
-      persistentCacheManager.hasView(CacheSourceStateViews.cacheQueryViewBloomFilter)
+    if (persistentCacheManager && this.cacheEntryKey && this.cacheViewKey &&
+      persistentCacheManager.hasCache(this.cacheEntryKey) &&
+      persistentCacheManager.hasView(this.cacheViewKey)
     ){
       // const streamPromise = persistentCacheManager.getFromCache(
       //   CacheEntrySourceState.cacheSourceStateQuerySource,
@@ -69,8 +71,8 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       //   { operation, mode: 'queryBindings' }
       // )
       const streamPromise = persistentCacheManager.getFromCache(
-        CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
-        CacheSourceStateViews.cacheQueryViewBloomFilter,
+          this.cacheEntryKey,
+          this.cacheViewKey,
         { operation, mode: 'queryBindings' }
       )
 
@@ -85,8 +87,8 @@ export class QuerySourceLinkTraversal implements IQuerySource {
         //   { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
         // )
         await persistentCacheManager.getFromCache(
-          CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
-          CacheSourceStateViews.cacheQueryViewBloomFilter,
+          this.cacheEntryKey!,
+          this.cacheViewKey!,
           { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
         )
       }
@@ -105,11 +107,6 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       },
     });
     firstIterator.getProperty('metadata', metadata => iterator.setProperty('metadata', metadata));
-    // if (cacheIterator){
-    //   cacheIterator.getProperty('metadata', metadata => console.log(metadata))
-    // }
-    // else{
-    // }
     return iterator;
   }
 

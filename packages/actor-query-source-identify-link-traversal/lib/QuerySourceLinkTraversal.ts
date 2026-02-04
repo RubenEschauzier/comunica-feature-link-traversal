@@ -51,32 +51,42 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       .queryBindings(operation, context, options);
     const nonAggregatedIterators = this.linkTraversalManager.getQuerySourcesNonAggregated()
       .map(source => source.queryBindings(operation, context, options));
-    let allIterators = nonAggregatedIterators.prepend([ firstIterator ]);
 
+    let allIterators = nonAggregatedIterators.prepend([ firstIterator ]);
 
     // TODO: This should be generalized to work with arbitrary cache and view keys that satisfy the
     // contract
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
 
-    let cacheIterator: AsyncIterator<BindingsStream>;
+    let cacheIterator: AsyncIterator<BindingsStream> | undefined = undefined;
     if (persistentCacheManager &&
-      persistentCacheManager.hasCache(CacheEntrySourceState.cacheSourceStateQuerySource) &&
-      persistentCacheManager.hasView(CacheSourceStateViews.cacheQueryView)
+      persistentCacheManager.hasCache(CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter) &&
+      persistentCacheManager.hasView(CacheSourceStateViews.cacheQueryViewBloomFilter)
     ){
+      // const streamPromise = persistentCacheManager.getFromCache(
+      //   CacheEntrySourceState.cacheSourceStateQuerySource,
+      //   CacheSourceStateViews.cacheQueryView,
+      //   { operation, mode: 'queryBindings' }
+      // )
       const streamPromise = persistentCacheManager.getFromCache(
-        CacheEntrySourceState.cacheSourceStateQuerySource,
-        CacheSourceStateViews.cacheQueryView,
+        CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
+        CacheSourceStateViews.cacheQueryViewBloomFilter,
         { operation, mode: 'queryBindings' }
       )
 
-      cacheIterator =  wrapAsyncIterator(
+      cacheIterator = wrapAsyncIterator(
         <Promise<AsyncIterator<BindingsStream>>> streamPromise, { autoStart: false}
       );
 
       const stopIterator = async () => {
+        // await persistentCacheManager.getFromCache(
+        //   CacheEntrySourceState.cacheSourceStateQuerySource,
+        //   CacheSourceStateViews.cacheQueryView,
+        //   { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
+        // )
         await persistentCacheManager.getFromCache(
-          CacheEntrySourceState.cacheSourceStateQuerySource,
-          CacheSourceStateViews.cacheQueryView,
+          CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
+          CacheSourceStateViews.cacheQueryViewBloomFilter,
           { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
         )
       }
@@ -94,9 +104,12 @@ export class QuerySourceLinkTraversal implements IQuerySource {
         cacheIterator?.close()
       },
     });
-
     firstIterator.getProperty('metadata', metadata => iterator.setProperty('metadata', metadata));
-    // iterator.getProperty('metadata', (metadata) => console.log(metadata));
+    // if (cacheIterator){
+    //   cacheIterator.getProperty('metadata', metadata => console.log(metadata))
+    // }
+    // else{
+    // }
     return iterator;
   }
 

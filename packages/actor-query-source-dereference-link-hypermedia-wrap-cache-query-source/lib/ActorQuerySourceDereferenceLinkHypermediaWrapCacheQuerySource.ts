@@ -59,11 +59,17 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
 
     let sourceFromCache: ISourceState | undefined;
     try {
+      // sourceFromCache = <ISourceState> await cacheManager.getFromCache(
+      //   CacheEntrySourceState.cacheSourceStateQuerySource,
+      //   CacheSourceStateViews.cacheQueryView,
+      //   { url: action.link.url, mode: 'get', action },
+      // );
       sourceFromCache = <ISourceState> await cacheManager.getFromCache(
-        CacheEntrySourceState.cacheSourceStateQuerySource,
-        CacheSourceStateViews.cacheQueryView,
+        CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
+        CacheSourceStateViews.cacheQueryViewBloomFilter,
         { url: action.link.url, mode: 'get', action },
       );
+
     } catch (err: any) {
       action.context.get(KeysCore.log)?.error(`Error when getting from cache: ${err.message}`);
       throw err;
@@ -84,12 +90,19 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
     
     dereferenceLinkOutput.source = new QuerySourceCacheWrapper(dereferenceLinkOutput.source);
     
+    // await cacheManager.setCache(
+    //   CacheEntrySourceState.cacheSourceStateQuerySource,
+    //   action.link.url,
+    //   { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
+    //   { headers: dereferenceLinkOutput.headers },
+    // );   
     await cacheManager.setCache(
-      CacheEntrySourceState.cacheSourceStateQuerySource,
+      CacheEntrySourceState.cacheSourceStateQuerySourceBloomFilter,
       action.link.url,
       { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
       { headers: dereferenceLinkOutput.headers },
     );
+
     return dereferenceLinkOutput;
   }
 

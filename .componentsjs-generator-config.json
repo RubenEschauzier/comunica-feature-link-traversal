@@ -20,7 +20,8 @@
     "PersistentCacheManager",
     "Factory",
     "AbortSignal",
-    "GetSourceStateCacheView"
+    "GetSourceStateCacheView",
+    "GetSourceStateCacheViewBloomFilter"
   ],
   "modulePrefix": {}
 }

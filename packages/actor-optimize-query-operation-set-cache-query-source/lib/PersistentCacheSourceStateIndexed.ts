@@ -35,7 +35,6 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   }
 
   public async get(key: string): Promise<ISourceState | undefined> {
-    console.log(await this.size());
     return this.getSync(key);
   }
 

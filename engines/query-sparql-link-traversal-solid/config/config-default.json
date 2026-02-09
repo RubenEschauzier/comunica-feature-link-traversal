@@ -3,6 +3,6 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/config-solid-query-source-state-cache-bloom-filter.json"
+    "ccqslt:config/config-solid-query-source-state-cache-no-bind-estimate-cardinality.json"
   ]
 }

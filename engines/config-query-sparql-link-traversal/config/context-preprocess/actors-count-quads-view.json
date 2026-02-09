@@ -2,22 +2,21 @@
   "@context": [
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
 
-    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-context-preprocess-set-cache-source-state/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-context-preprocess-set-cache-count-view/^0.0.0/components/context.jsonld",
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-context-preprocess-set-persistent-cache-manager/^5.0.0/components/context.jsonld"
   ],
   "@id": "urn:comunica:default:Runner",
   "@type": "Runner",
   "actors": [
     {
-      "@id": "urn:comunica:default:context-preprocess/actors#set-cache-source-state",
-      "@type": "ActorContextPreprocessSetCacheSourceState",
-      "cacheSizeNumTriples": 2000
+      "@id": "urn:comunica:default:context-preprocess/actors#set-cache-count-view",
+      "@type": "ActorContextPreprocessSetCacheCountView"
     },
     {
       "@id": "urn:comunica:default:context-preprocess/actors#set-persistent-cache-manager",
       "@type": "ActorContextPreprocessSetPersistentCacheManager",
       "trackCacheMetrics": true,
-      "beforeActors": {"@id": "urn:comunica:default:context-preprocess/actors#set-cache-source-state" }
+      "beforeActors": { "@id": "urn:comunica:default:context-preprocess/actors#set-cache-count-view" }
     }
   ]
 }

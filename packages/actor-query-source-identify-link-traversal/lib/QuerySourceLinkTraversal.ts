@@ -14,6 +14,7 @@ import { ClosableTransformIterator } from '@comunica/utils-iterator';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
 import { UnionIterator, wrap as wrapAsyncIterator } from 'asynciterator';
+import { MetadataBindings } from '@comunica/types';
 
 /**
  * A query source that operates sources obtained from a link queue.
@@ -25,6 +26,9 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     public readonly linkTraversalManager: ILinkTraversalManager,
     protected readonly cacheEntryKey?: ICacheKey<unknown, unknown, unknown>,
     protected readonly cacheViewKey?: IViewKey<unknown, unknown, unknown>,
+    // A view over the cache that allows cache queries using quads
+    protected readonly cacheCountViewKey?: IViewKey<unknown, {operation: Algebra.Operation; [key: string]: any }, number>,
+    protected readonly setCardinalityFromCacheMinLimit?: number,
   ) {
     this.referenceValue = this.linkTraversalManager.seeds.map(link => link.url).join(',');
   }
@@ -65,11 +69,6 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       persistentCacheManager.hasCache(this.cacheEntryKey) &&
       persistentCacheManager.hasView(this.cacheViewKey)
     ){
-      // const streamPromise = persistentCacheManager.getFromCache(
-      //   CacheEntrySourceState.cacheSourceStateQuerySource,
-      //   CacheSourceStateViews.cacheQueryView,
-      //   { operation, mode: 'queryBindings' }
-      // )
       const streamPromise = persistentCacheManager.getFromCache(
           this.cacheEntryKey,
           this.cacheViewKey,
@@ -81,11 +80,6 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       );
 
       const stopIterator = async () => {
-        // await persistentCacheManager.getFromCache(
-        //   CacheEntrySourceState.cacheSourceStateQuerySource,
-        //   CacheSourceStateViews.cacheQueryView,
-        //   { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
-        // )
         await persistentCacheManager.getFromCache(
           this.cacheEntryKey!,
           this.cacheViewKey!,
@@ -106,7 +100,46 @@ export class QuerySourceLinkTraversal implements IQuerySource {
         cacheIterator?.close()
       },
     });
-    firstIterator.getProperty('metadata', metadata => iterator.setProperty('metadata', metadata));
+    if (this.setCardinalityFromCacheMinLimit){
+      firstIterator.getProperty('metadata', (metadata: MetadataBindings) => {
+        if (persistentCacheManager && this.cacheCountViewKey && this.cacheEntryKey &&
+          persistentCacheManager.hasCache(this.cacheEntryKey) &&
+          persistentCacheManager.hasView(this.cacheCountViewKey)
+        ){
+          const metadataPromise = (async () => {
+            try {
+              // Ensure the cache is sufficiently full before using it to estimate cardinality
+              const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
+              if (sizeCache > this.setCardinalityFromCacheMinLimit!) return metadata;
+              
+              // Query cache for cardinalities
+              const count = await persistentCacheManager.getFromCache(
+                this.cacheEntryKey!,
+                this.cacheCountViewKey!, 
+                { operation }
+              );
+
+              if (count) {
+                metadata.cardinality = { type: 'estimate', value: count };
+                console.log(`Cardinality from cache: ${count}`);
+              }
+            } catch (error) {
+              console.error('Failed to retrieve cache operation count:', error);
+            }
+
+            return metadata;
+          })();
+          console.log("SEtting")
+          iterator.setProperty('metadata', metadataPromise)
+        }
+        else{
+          iterator.setProperty('metadata', metadata)
+        }
+      });
+    }
+    else{
+      firstIterator.getProperty('metadata', metadata => iterator.setProperty('metadata', metadata));
+    }
     return iterator;
   }
 

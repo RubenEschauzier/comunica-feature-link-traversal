@@ -7,6 +7,7 @@ import { ActorQuerySourceIdentify } from '@comunica/bus-query-source-identify';
 import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, failTest } from '@comunica/core';
+import type { Algebra } from '@comunica/utils-algebra';
 import { QuerySourceLinkTraversal } from './QuerySourceLinkTraversal';
 import { CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
 
@@ -16,6 +17,8 @@ import { CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-
 export class ActorQuerySourceIdentifyLinkTraversal extends ActorQuerySourceIdentify {
   protected readonly cacheEntryKey?: ICacheKey<unknown, unknown, unknown>;
   protected readonly cacheViewKey?: IViewKey<unknown, unknown, unknown>;
+  protected readonly cacheCountViewKey?: IViewKey<unknown, {operation: Algebra.Operation; [key: string]: any }, number>;
+  protected readonly setCardinalityFromCacheMinLimit: number;
 
   public constructor(args: IActorQuerySourceIdentifyLinkTraversalArgs) {
     super(args);
@@ -23,6 +26,10 @@ export class ActorQuerySourceIdentifyLinkTraversal extends ActorQuerySourceIdent
       this.cacheEntryKey = new CacheKey(args.cacheEntryName);
       this.cacheViewKey = new ViewKey(args.cacheViewName);
     }
+    if (args.cacheCountViewName){
+      this.cacheCountViewKey = new ViewKey(args.cacheCountViewName);
+    }
+    this.setCardinalityFromCacheMinLimit = args.setCardinalityFromCacheMinLimit;
   }
 
   public async test(action: IActionQuerySourceIdentify): Promise<TestResult<IActorTest>> {
@@ -41,7 +48,13 @@ export class ActorQuerySourceIdentifyLinkTraversal extends ActorQuerySourceIdent
     const linkTraversalManager = querySourceContext.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
     return {
       querySource: {
-        source: new QuerySourceLinkTraversal(linkTraversalManager, this.cacheEntryKey, this.cacheViewKey),
+        source: new QuerySourceLinkTraversal(
+          linkTraversalManager,
+          this.cacheEntryKey,
+          this.cacheViewKey,
+          this.cacheCountViewKey,
+          this.setCardinalityFromCacheMinLimit,
+        ),
         context: querySourceContext,
       },
     };
@@ -51,4 +64,13 @@ export class ActorQuerySourceIdentifyLinkTraversal extends ActorQuerySourceIdent
 export interface IActorQuerySourceIdentifyLinkTraversalArgs extends IActorQuerySourceIdentifyArgs {
   cacheEntryName?: string;
   cacheViewName?: string;
+  cacheCountViewName?: string;
+  /**
+   * If the cardinality of queryBinding calls should be obtained from the
+   * cache. If undefined the normal procedure for cardinality estimation will be used.
+   * @range {integer}
+   * @default {20000}
+   */
+
+  setCardinalityFromCacheMinLimit: number;
 }

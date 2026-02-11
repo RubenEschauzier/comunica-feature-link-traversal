@@ -26,7 +26,6 @@ export class ActorRdfJoinEntriesSortCardinalityCache extends ActorRdfJoinEntries
     super(args);
     this.cacheEntryKey = new CacheKey(args.cacheEntryName);
     this.minCacheSize = args.minCacheSize;
-  
   }
 
   public async test(action: IActionRdfJoinEntriesSort): Promise<TestResult<IActorRdfJoinEntriesSortTest>> {

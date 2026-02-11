@@ -13,7 +13,7 @@ import type { Algebra } from '@comunica/utils-algebra';
 import { ClosableTransformIterator } from '@comunica/utils-iterator';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
-import { UnionIterator, wrap as wrapAsyncIterator } from 'asynciterator';
+import { TransformIterator, UnionIterator, wrap as wrapAsyncIterator } from 'asynciterator';
 import { MetadataBindings } from '@comunica/types';
 
 /**
@@ -100,40 +100,30 @@ export class QuerySourceLinkTraversal implements IQuerySource {
         cacheIterator?.close()
       },
     });
-    if (this.setCardinalityFromCacheMinLimit){
-      firstIterator.getProperty('metadata', (metadata: MetadataBindings) => {
+
+    // If we have this set we attempt to query the cache for cardinality estimates of 
+    // the operation. 
+    if (this.setCardinalityFromCacheMinLimit) {
+      firstIterator.getProperty('metadata', async (metadata: MetadataBindings) => {
         if (persistentCacheManager && this.cacheCountViewKey && this.cacheEntryKey &&
           persistentCacheManager.hasCache(this.cacheEntryKey) &&
           persistentCacheManager.hasView(this.cacheCountViewKey)
         ){
-          const metadataPromise = (async () => {
-            try {
-              // Ensure the cache is sufficiently full before using it to estimate cardinality
-              const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
-              if (sizeCache > this.setCardinalityFromCacheMinLimit!) return metadata;
-              
-              // Query cache for cardinalities
-              const count = await persistentCacheManager.getFromCache(
-                this.cacheEntryKey!,
-                this.cacheCountViewKey!, 
-                { operation }
-              );
+          const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
+          if (sizeCache > this.setCardinalityFromCacheMinLimit!){
+            // Query cache for cardinalities
+            const count = await persistentCacheManager.getFromCache(
+              this.cacheEntryKey!,
+              this.cacheCountViewKey!, 
+              { operation }
+            );
 
-              if (count) {
-                metadata.cardinality = { type: 'estimate', value: count };
-                console.log(`Cardinality from cache: ${count}`);
-              }
-            } catch (error) {
-              console.error('Failed to retrieve cache operation count:', error);
+            if (count) {
+              metadata.cardinality = { type: 'estimate', value: count };
+              console.log(`Cardinality from cache: ${count}`);
             }
-
-            return metadata;
-          })();
-          console.log("SEtting")
-          iterator.setProperty('metadata', metadataPromise)
-        }
-        else{
-          iterator.setProperty('metadata', metadata)
+          }
+          iterator.setProperty('metadata', metadata);
         }
       });
     }

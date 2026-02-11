@@ -60,9 +60,7 @@ export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistent
    * @returns 
    */
   public async set(key: string, value: ISourceStateBloomFilter): Promise<void> {
-    // const bloomFilter = BloomFilter.create(500, .01)
     const bloomFilter = new BloomFilterOwn();
-    // const bloomFilter = new BloomFilter(10000, .01);
     const rdfStore = RdfStore.createDefault();
     const importStream = rdfStore.import(value.source.queryQuads(
       this.AF.createPattern(
@@ -75,6 +73,7 @@ export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistent
     ));
     importStream.on('data', (data: RDF.Quad) => {
       bloomFilter.add(data.subject.value);
+      bloomFilter.add(data.object.value);
     });
     return new Promise((resolve, reject) => {
       importStream.on('end', () => {

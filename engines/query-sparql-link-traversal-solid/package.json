@@ -71,6 +71,8 @@
     "@comunica/actor-context-preprocess-set-defaults-link-traversal": "^0.8.0",
     "@comunica/actor-context-preprocess-source-to-destination": "^5.0.3",
     "@comunica/actor-context-preprocess-set-cache-source-state": "^0.8.0",
+    "@comunica/actor-context-preprocess-set-cache-count-view": "^0.8.0",
+    "@comunica/actor-context-preprocess-set-cache-count-bloom-filter-view": "^0.8.0",
     "@comunica/actor-context-preprocess-set-persistent-cache-manager": "^5.0.3",
     "@comunica/actor-dereference-fallback": "^5.0.3",
     "@comunica/actor-dereference-http": "^5.0.3",

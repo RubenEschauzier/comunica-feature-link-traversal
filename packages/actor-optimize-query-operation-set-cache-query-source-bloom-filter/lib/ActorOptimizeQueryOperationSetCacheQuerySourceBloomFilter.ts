@@ -105,6 +105,9 @@ implements ICacheView<
     if (operation.subject.termType !== 'Variable' && !source.bloomFilter.has(operation.subject.value)) {
       return false;
     }
+    if (operation.object.termType !== 'Variable' && !source.bloomFilter.has(operation.object.value)) {
+      return false;
+    }
     return true;
   }
 

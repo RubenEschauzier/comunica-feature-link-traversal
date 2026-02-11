@@ -11,7 +11,6 @@ import { CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-
 import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult } from '@comunica/core';
 import { failTest, passTest } from '@comunica/core';
-import type { Algebra } from '@comunica/utils-algebra';
 
 /**
  * An actor that sorts join entries by increasing cardinality.

@@ -14,7 +14,7 @@ ARG NPM_REGISTRY=https://registry.npmjs.org/
 RUN npm config set @comunica:registry $NPM_REGISTRY
 
 # Install the node module
-RUN cd ${dir} && npm install --only=production
+RUN cd ${dir} && npm install --only=production --verbose
 
 # Run base binary (generated from package.json!bin)
 WORKDIR ${dir}

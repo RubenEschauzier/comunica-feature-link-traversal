@@ -89,7 +89,6 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       this.linkTraversalManager.addStopListener(() => stopIterator());
       allIterators = allIterators.prepend(cacheIterator);
     }
-
     const iterator = new ClosableTransformIterator(new UnionIterator(
       allIterators,
       { autoStart: false }), {
@@ -103,12 +102,11 @@ export class QuerySourceLinkTraversal implements IQuerySource {
 
     // If we have this set we attempt to query the cache for cardinality estimates of 
     // the operation. 
-    if (this.setCardinalityFromCacheMinLimit) {
-      firstIterator.getProperty('metadata', async (metadata: MetadataBindings) => {
-        if (persistentCacheManager && this.cacheCountViewKey && this.cacheEntryKey &&
+    if (this.setCardinalityFromCacheMinLimit && persistentCacheManager
+       && this.cacheCountViewKey && this.cacheEntryKey &&
           persistentCacheManager.hasCache(this.cacheEntryKey) &&
-          persistentCacheManager.hasView(this.cacheCountViewKey)
-        ){
+          persistentCacheManager.hasView(this.cacheCountViewKey)) {
+      firstIterator.getProperty('metadata', async (metadata: MetadataBindings) => {
           const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
           if (sizeCache > this.setCardinalityFromCacheMinLimit!){
             // Query cache for cardinalities
@@ -124,7 +122,6 @@ export class QuerySourceLinkTraversal implements IQuerySource {
             }
           }
           iterator.setProperty('metadata', metadata);
-        }
       });
     }
     else{

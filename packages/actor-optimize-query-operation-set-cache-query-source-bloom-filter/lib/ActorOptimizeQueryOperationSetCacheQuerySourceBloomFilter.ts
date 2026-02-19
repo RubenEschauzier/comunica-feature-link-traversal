@@ -1,7 +1,7 @@
 import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
 import { KeysCaching } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { ActionContext, passTestVoid } from '@comunica/core';
+import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
 import type { BindingsStream, ISourceState, ISourceStateBloomFilter } from '@comunica/types';
 
 import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
@@ -24,10 +24,12 @@ import {
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
  */
 export class ActorOptimizeQueryOperationSetCacheQuerySourceBloomFilter extends ActorOptimizeQueryOperation {
-  private readonly cacheQuerySourceState: PersistentCacheSourceStateIndexedBloomFilter;
+  private readonly cacheSizeNumTriples: number;
+  private cacheQuerySourceState: PersistentCacheSourceStateIndexedBloomFilter;
 
   public constructor(args: IActorOptimizeQueryOperationSetCacheQuerySourceBloomFilterArgs) {
     super(args);
+    this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexedBloomFilter(
       { maxNumTriples: args.cacheSizeNumTriples },
     );
@@ -41,6 +43,13 @@ export class ActorOptimizeQueryOperationSetCacheQuerySourceBloomFilter extends A
     const context = action.context;
     if (!action.context.get(KeysQuerySourceIdentify.traverse)){
       return { context, operation: action.operation };
+    }
+    //TODO: Same as context preprocess
+    if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
+      console.log("Cleaned cache.")
+      this.cacheQuerySourceState = new PersistentCacheSourceStateIndexedBloomFilter(
+        { maxNumTriples: this.cacheSizeNumTriples },
+      );
     }
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);

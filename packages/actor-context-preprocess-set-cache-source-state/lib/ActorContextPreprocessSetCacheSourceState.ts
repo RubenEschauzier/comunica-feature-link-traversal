@@ -6,9 +6,9 @@ import type {
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysCaching } from '@comunica/context-entries';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
-import { passTestVoid } from '@comunica/core';
+import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ISourceState } from '@comunica/types';
 
 import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
@@ -20,10 +20,12 @@ import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceSta
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.
  */
 export class ActorContextPreprocessSetCacheSourceState extends ActorContextPreprocess {
-  private readonly cacheSourceState: PersistentCacheSourceStateNumTriples;
+  private readonly cacheSizeNumTriples: number;
+  private cacheSourceState: PersistentCacheSourceStateNumTriples;
 
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
     super(args);
+    this.cacheSizeNumTriples = args.cacheSizeNumTriples
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
       { maxNumTriples: args.cacheSizeNumTriples, },
     );
@@ -36,6 +38,15 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     const context = action.context;
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
+    
+    // TEMP Solution due to my own sparql benchmark runner adjustments
+    if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
+      console.log("Cleaned cache.")
+      this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
+        { maxNumTriples: this.cacheSizeNumTriples, },
+      );
+    }
+
     cacheManager.registerCache(
       CacheEntrySourceState.cacheSourceState,
       this.cacheSourceState,

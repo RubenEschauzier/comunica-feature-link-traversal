@@ -1,20 +1,14 @@
-import type {
-  IActionContextPreprocess,
-  IActorContextPreprocessOutput,
-  IActorContextPreprocessArgs,
-} from '@comunica/bus-context-preprocess';
-import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
 import { KeysCaching } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
-import type { Bindings, BindingsStream, ISourceState } from '@comunica/types';
+import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
+import type {  BindingsStream, ISourceState } from '@comunica/types';
 
 import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateIndexed } from './PersistentCacheSourceStateIndexed';
-import { BufferedIterator, AsyncIterator} from 'asynciterator';
+import { AsyncIterator} from 'asynciterator';
 import type * as RDF from '@rdfjs/types';
 import { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import { AsyncReiterableArray } from 'asyncreiterable';
@@ -24,10 +18,12 @@ import { ActorOptimizeQueryOperation, IActionOptimizeQueryOperation, IActorOptim
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
  */
 export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimizeQueryOperation {
-  private readonly cacheQuerySourceState: PersistentCacheSourceStateIndexed;
+  private readonly cacheSizeNumTriples: number;
+  private cacheQuerySourceState: PersistentCacheSourceStateIndexed;
 
   public constructor(args: IActorOptimizeQueryOperationSetCacheQuerySourceArgs) {
     super(args);
+    this.cacheSizeNumTriples = args.cacheSizeNumTriples
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
       { maxNumTriples: args.cacheSizeNumTriples },
     );
@@ -41,6 +37,14 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
     const context = action.context;
     if (!action.context.get(KeysQuerySourceIdentify.traverse)){
       return { context, operation: action.operation };
+    }
+    
+    //TODO: Same as context preprocess
+    if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
+      console.log("Cleaned cache.")
+      this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
+        { maxNumTriples: this.cacheSizeNumTriples },
+      );
     }
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);

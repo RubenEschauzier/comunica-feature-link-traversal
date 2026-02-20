@@ -7,12 +7,15 @@
   ],
   "ignoreComponents": [
     "Headers",
+    "Set",
     "RDF.Stream",
     "ShapeTree",
     "ContentPolicy",
     "BindingsStreamAdaptiveDestroy",
     "MetadataValidationState",
-    "ILink"
+    "ILink",
+    "IQuerySource",
+    "AggregatedStoreMemory"
   ],
   "modulePrefix": {}
 }

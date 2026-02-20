@@ -1,4 +1,4 @@
-import type { ILink, ILinkQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
+import type { ILink, ILinkQueue } from '@comunica/types';
 
 /**
  * A link queue based on priority, using binary heap.
@@ -48,9 +48,7 @@ export class LinkQueuePriority implements ILinkQueue {
       const endArray = this.links.pop();
 
       // If we remove link, remove it from records to reflect new state of queue
-      if (max) {
-        delete this.urlToLink[max.url];
-      }
+      delete this.urlToLink[max.url];
 
       // Set last element to root and downheap to maintain heap property
       if (this.links.length > 0) {

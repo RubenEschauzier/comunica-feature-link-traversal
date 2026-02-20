@@ -8,12 +8,12 @@ import { KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContext, failTest, passTestVoid } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
+import { Algebra, algebraUtils } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
 import { parse } from 'http-link-header';
 import { storeStream } from 'rdf-store-stream';
 import { resolve } from 'relative-to-absolute-iri';
 import type * as ShEx from 'shexj';
-import { Algebra, Util as AlgebraUtil } from 'sparqlalgebrajs';
 import { ShapeTree } from './ShapeTree';
 
 // eslint-disable-next-line ts/no-require-imports,ts/no-var-requires
@@ -34,6 +34,8 @@ export class ActorRdfMetadataExtractShapetrees extends ActorRdfMetadataExtract {
 
   public constructor(args: IActorRdfMetadataExtractShapetreesArgs) {
     super(args);
+    this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
+    this.mediatorHttp = args.mediatorHttp;
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
   }
 
@@ -206,18 +208,16 @@ export class ActorRdfMetadataExtractShapetrees extends ActorRdfMetadataExtract {
     // Parse as ShEx shape
     const parser = shexParser.construct(shapeIri);
     const schema: ShEx.Schema = parser.parse(data);
-    if (schema.shapes) {
-      for (const shapeDeclaration of schema.shapes) {
-        const shape = <ShEx.Shape> shapeDeclaration.shapeExpr;
+    for (const shapeDeclaration of schema.shapes!) {
+      const shape = <ShEx.Shape> shapeDeclaration.shapeExpr;
 
-        // TODO: workaround for https://github.com/shexjs/shex.js/issues/93
-        if (shapeDeclaration.id === 'https://shapes.pub/ns/medical-record/MedicalRecordShape') {
-          shapeDeclaration.id = 'http://shapes.pub/ns/medical-record/shex#MedicalRecordShape';
-        }
+      // TODO: workaround for https://github.com/shexjs/shex.js/issues/93
+      if (shapeDeclaration.id === 'https://shapes.pub/ns/medical-record/MedicalRecordShape') {
+        shapeDeclaration.id = 'http://shapes.pub/ns/medical-record/shex#MedicalRecordShape';
+      }
 
-        if (shapeDeclaration.id === shapeIri) {
-          return shape;
-        }
+      if (shapeDeclaration.id === shapeIri) {
+        return shape;
       }
     }
 
@@ -247,12 +247,13 @@ export class ActorRdfMetadataExtractShapetrees extends ActorRdfMetadataExtract {
     // Collect all subjects in the original query that match with any of the predicates
     // TODO: we can probably re-organize some things to achieve better performance
     const subjects: RDF.Term[] = [];
-    AlgebraUtil.recurseOperation(query, {
-      [Algebra.types.PATTERN](queryPattern) {
-        if (shapePredicates.includes(queryPattern.predicate.value)) {
-          subjects.push(queryPattern.subject);
-        }
-        return false;
+    algebraUtils.visitOperation(query, {
+      [Algebra.Types.PATTERN]: {
+        visitor: (queryPattern) => {
+          if (shapePredicates.includes(queryPattern.predicate.value)) {
+            subjects.push(queryPattern.subject);
+          }
+        },
       },
     });
 

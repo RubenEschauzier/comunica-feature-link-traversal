@@ -1,0 +1,57 @@
+{
+  "name": "@comunica/actor-factory-aggregated-store-memory",
+  "version": "0.8.0",
+  "description": "A memory factory-aggregated-store actor",
+  "lsd:module": true,
+  "license": "MIT",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/comunica-association"
+  },
+  "homepage": "https://comunica.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/comunica/comunica-feature-link-traversal.git",
+    "directory": "packages/actor-factory-aggregated-store-memory"
+  },
+  "bugs": {
+    "url": "https://github.com/comunica/comunica-feature-link-traversal/issues"
+  },
+  "keywords": [
+    "comunica",
+    "actor",
+    "factory-aggregated-store",
+    "memory"
+  ],
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "scripts": {
+    "build": "yarn run build:ts && yarn run build:components",
+    "build:ts": "node \"../../node_modules/typescript/bin/tsc\"",
+    "build:components": "componentsjs-generator"
+  },
+  "dependencies": {
+    "@comunica/bus-factory-aggregated-store": "^0.8.0",
+    "@comunica/bus-rdf-metadata-accumulate": "^5.0.3",
+    "@comunica/context-entries": "^5.0.3",
+    "@comunica/core": "^5.0.3",
+    "@comunica/types": "^5.0.0",
+    "@comunica/types-link-traversal": "^0.8.0",
+    "@comunica/utils-algebra": "^5.0.0",
+    "@comunica/utils-iterator": "^5.0.0",
+    "@comunica/utils-metadata": "^5.0.0",
+    "@rdfjs/types": "*",
+    "asynciterator": "^3.10.0",
+    "rdf-streaming-store": "^2.1.1"
+  }
+}

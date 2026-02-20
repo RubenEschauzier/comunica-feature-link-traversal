@@ -24,13 +24,13 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ env.DEFAULT_NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.DEFAULT_NODE_VERSION }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules
@@ -56,21 +56,21 @@ jobs:
           - ubuntu-latest
           - windows-latest
         node-version:
-          - 18.x
           - 20.x
           - 22.x
+          - 24.x
     runs-on: ${{ matrix.os }}
     steps:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules
@@ -92,11 +92,12 @@ jobs:
     name: System tests
     strategy:
       fail-fast: false
+      max-parallel: 1 # Avoids overloading SolidBench test server
       matrix:
         node-version:
-          - 18.x
           - 20.x
           - 22.x
+          - 24.x
         os:
           - ubuntu-latest
     runs-on: ${{ matrix.os }}
@@ -104,13 +105,13 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules
@@ -130,6 +131,7 @@ jobs:
     name: Browser tests
     strategy:
       fail-fast: false
+      max-parallel: 1 # Avoids overloading SolidBench test server
       matrix:
         browser:
           - Chrome
@@ -141,13 +143,13 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules
@@ -194,13 +196,13 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ env.DEFAULT_NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.DEFAULT_NODE_VERSION }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules
@@ -237,13 +239,13 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ env.DEFAULT_NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.DEFAULT_NODE_VERSION }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules
@@ -252,7 +254,7 @@ jobs:
         run: yarn install --frozen-lockfile --ignore-engines
       - name: Run benchmarks
         run: cd performance/benchmark-${{ matrix.benchmark }}/ && yarn run performance:ci
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: performance-benchmark-${{ matrix.benchmark }}
           path: performance/benchmark-${{ matrix.benchmark }}/combinations/combination_0/output/
@@ -272,12 +274,12 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ env.DEFAULT_NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.DEFAULT_NODE_VERSION }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: performance-benchmark-solidbench
           path: performance/benchmark-solidbench/combinations/combination_0/output/
@@ -322,7 +324,7 @@ jobs:
       - name: Prepare comment on commit with link to performance results
         run: echo -e "Performance benchmarks succeeded! 🚀\n\n\[[Summarized results](https://comunica.github.io/comunica-performance-results/comunica-feature-link-traversal/${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}/benchmarks-total/)\] \[[Detailed results](https://comunica.github.io/comunica-performance-results/comunica-feature-link-traversal/${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}/benchmarks-detail/)\]" > ./commit-comment-body.txt
       - name: Comment on commit with link to performance results
-        uses: peter-evans/commit-comment@v3
+        uses: peter-evans/commit-comment@v4
         with:
           body-path: ./commit-comment-body.txt
 
@@ -333,13 +335,13 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ env.DEFAULT_NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.DEFAULT_NODE_VERSION }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules
@@ -349,7 +351,7 @@ jobs:
       - name: Build documentation
         run: yarn run doc
       - name: Prepare artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: documentation
           name: documentation
@@ -390,13 +392,13 @@ jobs:
       - name: Ensure line endings are consistent
         run: git config --global core.autocrlf input
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
       - name: Load dependency cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             **/node_modules

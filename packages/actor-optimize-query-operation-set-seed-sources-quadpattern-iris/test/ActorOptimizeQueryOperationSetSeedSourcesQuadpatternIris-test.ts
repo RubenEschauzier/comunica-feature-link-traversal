@@ -1,24 +1,30 @@
-import type { MediatorQuerySourceIdentify } from '@comunica/bus-query-source-identify';
-import { KeysQueryOperation, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysInitQuery } from '@comunica/context-entries';
 import { Bus, ActionContext } from '@comunica/core';
 import { StatisticLinkDiscovery } from '@comunica/statistic-link-discovery';
-import { translate } from 'sparqlalgebrajs';
+import type { Algebra } from '@comunica/utils-algebra';
+import { toAlgebra } from '@traqula/algebra-sparql-1-2';
+import { Parser as SparqlParser } from '@traqula/parser-sparql-1-2';
 import {
   ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris,
 } from '../lib/ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris';
 import '@comunica/utils-jest';
 
+function translate(query: string): Algebra.Operation {
+  const parser = new SparqlParser({ lexerConfig: {
+    positionTracking: 'onlyOffset',
+  }});
+  const parsedSyntax = parser.parse(query);
+  return toAlgebra(parsedSyntax, {
+    quads: true,
+    blankToVariable: true,
+  });
+}
+
 describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
   let bus: any;
-  let mediatorQuerySourceIdentify: MediatorQuerySourceIdentify;
 
   beforeEach(() => {
     bus = new Bus({ name: 'bus' });
-    mediatorQuerySourceIdentify = <any>{
-      mediate: jest.fn((action: any) => {
-        return { querySource: action.querySourceUnidentified.value };
-      }),
-    };
   });
 
   describe('An ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris instance', () => {
@@ -28,7 +34,6 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
       actor = new ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris({
         name: 'actor',
         bus,
-        mediatorQuerySourceIdentify,
         extractSubjects: true,
         extractPredicates: true,
         extractObjects: true,
@@ -43,11 +48,11 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
     });
 
     it('should run on empty context', async() => {
-      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`);
       await expect(actor.run({ operation, context: new ActionContext({}) })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [ 'ex:s', 'ex:p', 'ex:o', 'ex:g' ],
+          [KeysInitQuery.querySourcesUnidentified.name]: [ 'ex:s', 'ex:p', 'ex:o', 'ex:g' ],
         }),
       });
     });
@@ -56,86 +61,57 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
       await expect(actor.run({
         operation: <any> 'bla',
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [ 'a', 'b' ],
+          [KeysInitQuery.querySourcesUnidentified.name]: [ 'a', 'b' ],
         }),
       })).resolves.toEqual({
         operation: <any> 'bla',
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [ 'a', 'b' ],
+          [KeysInitQuery.querySourcesUnidentified.name]: [ 'a', 'b' ],
         }),
       });
     });
 
     it('should run on context with 0 sources', async() => {
-      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [ 'ex:s', 'ex:p', 'ex:o', 'ex:g' ],
+          [KeysInitQuery.querySourcesUnidentified.name]: [ 'ex:s', 'ex:p', 'ex:o', 'ex:g' ],
         }),
-      });
-
-      expect(mediatorQuerySourceIdentify.mediate).toHaveBeenCalledWith({
-        querySourceUnidentified: {
-          value: 'ex:s',
-          context: new ActionContext().set(KeysQuerySourceIdentify.traverse, true),
-        },
-        context: new ActionContext({ [KeysQueryOperation.querySources.name]: []}),
-      });
-      expect(mediatorQuerySourceIdentify.mediate).toHaveBeenCalledWith({
-        querySourceUnidentified: {
-          value: 'ex:p',
-          context: new ActionContext().set(KeysQuerySourceIdentify.traverse, true),
-        },
-        context: new ActionContext({ [KeysQueryOperation.querySources.name]: []}),
-      });
-      expect(mediatorQuerySourceIdentify.mediate).toHaveBeenCalledWith({
-        querySourceUnidentified: {
-          value: 'ex:o',
-          context: new ActionContext().set(KeysQuerySourceIdentify.traverse, true),
-        },
-        context: new ActionContext({ [KeysQueryOperation.querySources.name]: []}),
-      });
-      expect(mediatorQuerySourceIdentify.mediate).toHaveBeenCalledWith({
-        querySourceUnidentified: {
-          value: 'ex:g',
-          context: new ActionContext().set(KeysQuerySourceIdentify.traverse, true),
-        },
-        context: new ActionContext({ [KeysQueryOperation.querySources.name]: []}),
       });
     });
 
     it('should run on context with 2 sources and operation', async() => {
-      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [ 'a', 'b' ],
+          [KeysInitQuery.querySourcesUnidentified.name]: [ 'a', 'b' ],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [ 'a', 'b' ],
+          [KeysInitQuery.querySourcesUnidentified.name]: [ 'a', 'b' ],
         }),
       });
     });
 
     it('should run on context with 0 sources and operation', async() => {
-      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [
+          [KeysInitQuery.querySourcesUnidentified.name]: [
             'ex:s',
             'ex:p',
             'ex:o',
@@ -149,23 +125,22 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
       actor = new ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris({
         name: 'actor',
         bus,
-        mediatorQuerySourceIdentify,
         extractSubjects: true,
         extractPredicates: false,
         extractObjects: true,
         extractGraphs: false,
         extractVocabIris: true,
       });
-      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p> <ex:o> } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [
+          [KeysInitQuery.querySourcesUnidentified.name]: [
             'ex:s',
             'ex:o',
           ],
@@ -177,23 +152,22 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
       actor = new ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris({
         name: 'actor',
         bus,
-        mediatorQuerySourceIdentify,
         extractSubjects: true,
         extractPredicates: false,
         extractObjects: true,
         extractGraphs: false,
         extractVocabIris: true,
       });
-      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s#abc> <ex:p#> <ex:o#xyz> } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s#abc> <ex:p#> <ex:o#xyz> } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [
+          [KeysInitQuery.querySourcesUnidentified.name]: [
             'ex:s',
             'ex:o',
           ],
@@ -202,31 +176,31 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
     });
 
     it('should run on context with 0 sources and operation with variables', async() => {
-      const operation = translate(`SELECT * { GRAPH ?g { ?s ?p ?o } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH ?g { ?s ?p ?o } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       });
     });
 
     it('should run on context with 0 sources and operation with property paths', async() => {
-      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p>* <ex:o> } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH <ex:g> { <ex:s> <ex:p>* <ex:o> } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [
+          [KeysInitQuery.querySourcesUnidentified.name]: [
             'ex:s',
             'ex:o',
             'ex:g',
@@ -236,16 +210,16 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
     });
 
     it('should run on context with 0 sources and operation with property paths with variables', async() => {
-      const operation = translate(`SELECT * { GRAPH ?g { ?s <ex:p>* ?o } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH ?g { ?s <ex:p>* ?o } }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       });
     });
@@ -254,23 +228,22 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
       actor = new ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris({
         name: 'actor',
         bus,
-        mediatorQuerySourceIdentify,
         extractSubjects: true,
         extractPredicates: false,
         extractObjects: true,
         extractGraphs: false,
         extractVocabIris: false,
       });
-      const operation = translate(`SELECT * { <ex:s> a <ex:TYPE>. <ex:s> <ex:p> <ex:o> }`, { quads: true });
+      const operation = translate(`SELECT * { <ex:s> a <ex:TYPE>. <ex:s> <ex:p> <ex:o> }`);
       await expect(actor.run({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [],
+          [KeysInitQuery.querySourcesUnidentified.name]: [],
         }),
       })).resolves.toEqual({
         operation,
         context: new ActionContext({
-          [KeysQueryOperation.querySources.name]: [
+          [KeysInitQuery.querySourcesUnidentified.name]: [
             'ex:s',
             'ex:o',
           ],
@@ -281,7 +254,7 @@ describe('ActorOptimizeQueryOperationSetSeedSourcesQuadpatternIris', () => {
     it('should record extracted IRIs in StatisticLinkDiscovery', async() => {
       const statistic = new StatisticLinkDiscovery();
       const spy = jest.spyOn(statistic, 'updateStatistic');
-      const operation = translate(`SELECT * { GRAPH ?g1 { <ex:s> ?p ?o } }`, { quads: true });
+      const operation = translate(`SELECT * { GRAPH ?g1 { <ex:s> ?p ?o } }`);
       await actor.run({ operation, context: new ActionContext({ [statistic.key.name]: statistic }) });
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy).toHaveBeenCalledWith({ url: 'ex:s', metadata: { seed: true }}, { url: 'root' });

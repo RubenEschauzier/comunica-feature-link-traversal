@@ -1,6 +1,6 @@
 {
   "@context": [
-    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^4.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^5.0.0/components/context.jsonld",
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
@@ -12,6 +12,8 @@
     "ccqslt:config/extract-links/mediators.json",
     "ccqs:config/expression-evaluator-factory/actors.json",
     "ccqs:config/expression-evaluator-factory/mediators.json",
+    "ccqslt:config/factory-aggregated-store/actors.json",
+    "ccqslt:config/factory-aggregated-store/mediators.json",
     "ccqs:config/function-factory/actors.json",
     "ccqs:config/function-factory/mediators.json",
     "ccqs:config/hash-bindings/actors.json",
@@ -25,6 +27,7 @@
     "ccqslt:config/init/actors.json",
     "ccqs:config/merge-bindings-context/actors.json",
     "ccqs:config/merge-bindings-context/mediators.json",
+    "ccqs:config/optimize-query-operation/actors.json",
     "ccqslt:config/optimize-query-operation/actors.json",
     "ccqs:config/optimize-query-operation/mediators.json",
     "ccqs:config/query-operation/actors.json",
@@ -35,8 +38,13 @@
     "ccqs:config/query-process/mediators.json",
     "ccqs:config/query-result-serialize/actors.json",
     "ccqs:config/query-result-serialize/mediators.json",
+    "ccqs:config/query-serialize/actors.json",
+    "ccqs:config/query-serialize/mediators.json",
+    "ccqs:config/query-source-dereference-link/actors.json",
+    "ccqs:config/query-source-dereference-link/mediators.json",
     "ccqslt:config/query-source-identify/actors.json",
     "ccqs:config/query-source-identify/mediators.json",
+    "ccqslt:config/query-source-identify-hypermedia/actors.json",
     "ccqs:config/query-source-identify-hypermedia/actors.json",
     "ccqs:config/query-source-identify-hypermedia/mediators.json",
     "ccqs:config/dereference/actors.json",

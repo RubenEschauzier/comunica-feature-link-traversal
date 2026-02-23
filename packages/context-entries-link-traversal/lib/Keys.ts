@@ -5,6 +5,7 @@ import type {
   IAggregatedStore,
   ILinkTraversalManager,
 } from '@comunica/types-link-traversal';
+import { IDerivedResourceUnidentified } from '../../actor-extract-links-solid-derived-resources/lib';
 
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
@@ -58,3 +59,9 @@ export const KeysQuerySourceIdentifyLinkTraversal = {
     '@comunica/bus-query-source-identify:linkTraversalManager',
   ),
 };
+
+export const KeysDerivedResourceIdentify = {
+  derivedResourcesUnidentified: new ActionContextKey<IDerivedResourceUnidentified[]>(
+    '@comunica/bus-derived-resource-identify:derivedResourcesUnidentified',
+  )
+}

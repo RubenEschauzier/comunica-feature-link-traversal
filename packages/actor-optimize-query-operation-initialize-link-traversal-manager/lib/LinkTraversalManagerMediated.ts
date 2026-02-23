@@ -108,6 +108,10 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     this.stopListeners.push(cb);
   }
 
+  public setHandled(link: ILink) {
+    this.handledUrls[link.url] = true;
+  }
+
   protected tryTraversingNextLinks(): void {
     // Stop traversal if needed
     if (!this.running) {

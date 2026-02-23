@@ -102,7 +102,7 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
       );
       linkTraversalContext = linkTraversalContext
         .setDefault(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, linkTraversalManager);
-
+      context = context.setDefault(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, linkTraversalManager);
       // Add grouped query source
       querySources.push({
         type: 'traverse',

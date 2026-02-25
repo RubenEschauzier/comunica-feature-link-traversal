@@ -3,7 +3,7 @@ import { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActorExtractLinksArgs } from '@comunica/bus-extract-links';
 import { IActorDereferenceOutput, MediatorDereference } from "@comunica/bus-dereference";
 import { KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
-import { KeysRdfJoin } from '@comunica/context-entries-link-traversal';
+import { KeysDerivedResourceIdentify, KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs, ActionContext } from '@comunica/core';
 import { IActionContext, ILink, IQuerySource } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
@@ -34,16 +34,34 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     if (!action.context.get(KeysInitQuery.query)) {
       return failTest(`Actor ${this.name} can only work in the context of a query.`);
     }
+    if (!action.context.get(KeysQuerySourceIdentify.traverse)) {
+      return failTest(`Actor ${this.name} can only work in the context of a traversal query.`);
+    }
     return passTestVoid();
   }
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     // Determine links to derived resources
     const derivedResources = [ ...await this.extractDerivedResourceLinks(action.metadata) ];
+
+    if (derivedResources.length  === 0){
+      return { links: [] }
+    }
+
+    // Set filter immediately to prevent race conditions
+    const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+    derivedResources.forEach(url => {
+      dynamicLinkFilter.add(url);
+      console.log(`Setting ${url} as handled`)
+    });
+
     const derivedResourcesRaw: IDerivedResourceRaw[][] = (await Promise.all(derivedResources
       .map(derivedResource => this.dereferenceDerivedResources(derivedResource, action.context))));
     const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
-      derivedResourcesRaw.flat().map(resource => this.dereferenceFilter(resource)
+      derivedResourcesRaw.flat().map(resource => {
+          dynamicLinkFilter.add(resource.filterUri.url)
+          return this.dereferenceFilter(resource);
+        }
     ));
     const derivedResourcesIdentifyOutputs = await Promise.all(
       derivedResourcesUnidentified.map(resource => 
@@ -63,10 +81,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
-    // console.log(action.context.get(KeysInitQuery.querySourcesUnidentified))
-    console.log(action.context.get(KeysQueryOperation.querySources))
     // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
-    // const traversalManager = action.context.get(Keys)
     return { links: [] };
   }
 

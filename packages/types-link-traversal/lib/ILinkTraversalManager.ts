@@ -49,4 +49,8 @@ export interface ILinkTraversalManager {
    * @param cb Listener that will be invoked once the traversal stops.
    */
   addStopListener: (cb: () => void) => void;
+  /**
+   * Indicate that some outside process already dereferenced some URL
+   */
+  setHandled: (link: ILink) => void;
 }

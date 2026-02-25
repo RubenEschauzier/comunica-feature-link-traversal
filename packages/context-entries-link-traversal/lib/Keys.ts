@@ -6,6 +6,7 @@ import type {
   ILinkTraversalManager,
 } from '@comunica/types-link-traversal';
 import { IDerivedResourceUnidentified } from '../../actor-extract-links-solid-derived-resources/lib';
+import { IDerivedResourcesContainer } from '../../actor-context-preprocess-set-defaults-link-traversal/lib';
 
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
@@ -27,6 +28,11 @@ export const KeysRdfResolveHypermediaLinks = {
   linkFilters: new ActionContextKey<LinkFilter[]>(
     '@comunica/bus-rdf-resolve-hypermedia-links:linkFilters',
   ),
+
+  dynamicFilter: new ActionContextKey<Set<string>>(
+    '@comunica/bus-rdf-resolve-hypermedia-links-queue:filterDynamic'
+  ),
+
 };
 
 export const KeysExtractLinksTree = {
@@ -63,5 +69,9 @@ export const KeysQuerySourceIdentifyLinkTraversal = {
 export const KeysDerivedResourceIdentify = {
   derivedResourcesUnidentified: new ActionContextKey<IDerivedResourceUnidentified[]>(
     '@comunica/bus-derived-resource-identify:derivedResourcesUnidentified',
+  ),
+  //TODO: Rename this properly when things work
+  derivedResourcesContainer: new ActionContextKey<IDerivedResourcesContainer>(
+    '@comunica/bus-derived-resource-identify:derivedResourcesContainer',
   )
 }

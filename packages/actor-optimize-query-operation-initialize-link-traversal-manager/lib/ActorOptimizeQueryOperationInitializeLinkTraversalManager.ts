@@ -10,7 +10,7 @@ import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-sou
 import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
-import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import { KeysDerivedResourceIdentify, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, ActionContext } from '@comunica/core';
 import type { IActionContext, ILink, QuerySourceUnidentified } from '@comunica/types';
@@ -109,7 +109,14 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         value: traversalSeedLinks,
         context: linkTraversalContext,
       });
+
+      //TODO: Figure out if this is the best way to do things
       context = context.set(KeysInitQuery.querySourcesUnidentified, querySources);
+      const derivedResourcesContainer = context.get(KeysDerivedResourceIdentify.derivedResourcesContainer);
+      if (derivedResourcesContainer){
+        derivedResourcesContainer.traversalManager = linkTraversalManager
+      }
+
     }
 
     return { context, operation: action.operation };

@@ -1,45 +1,33 @@
 import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs } from '@comunica/bus-derived-resource-identify';
-import { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
-import { TestResult, IActorTest, passTestVoid, failTest, ActionContext } from '@comunica/core';
-import { ComunicaDataFactory } from '@comunica/types';
-import { AlgebraFactory } from '@comunica/utils-algebra';
-import { DataFactory } from 'rdf-data-factory';
-import * as path from 'node:path';
 import { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
-import { KeysInitQuery } from '@comunica/context-entries';
-/**
- * A comunica Qpf Derived Resource Identify Actor.
- */
-export class ActorDerivedResourceIdentifyQpf extends ActorDerivedResourceIdentify {
-  protected dataFactory: ComunicaDataFactory = new DataFactory();
-  protected algebraFactory: AlgebraFactory = new AlgebraFactory(this.dataFactory);
+import { TestResult, IActorTest, passTestVoid, failTest, ActionContext } from '@comunica/core';
+import * as path from 'node:path';
 
+/**
+ * A comunica Triple Pattern Query Derived Resource Identify Actor.
+ */
+export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerivedResourceIdentify {
   protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
 
-  public constructor(args: IActorDerivedResourceIdentifyQpfArgs) {
+  public constructor(args: IActorDerivedResourceIdentifyTriplePatternQueryArgs) {
     super(args);
     this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
   }
 
   public async test(action: IActionDerivedResourceIdentify): Promise<TestResult<IActorTest>> {
-    if (action.derivedResourceUnidentified.filter !== 'qpf'){
-      return failTest(`${this.name} can only identify qpf derived resources`);
-    }
-    return passTestVoid();
+    return failTest(`${this.name}: not yet implemented`); 
   }
 
   public async run(action: IActionDerivedResourceIdentify): Promise<IActorDerivedResourceIdentifyOutput> {
+    //TODO: Implement this for testing, this is QPF implementation
     const url = path.join(
       action.derivedResourceUnidentified.baseUrl,
       action.derivedResourceUnidentified.template
     );
-    console.log(url)
     const querySourceQpf = await this.mediatorQuerySourceDereferenceLink.mediate({
       link: { url },
-      context: new ActionContext({[KeysInitQuery.dataFactory.name]: this.dataFactory })
+      context: new ActionContext()
     });
-    console.log("OUTPUT")
-    console.log(querySourceQpf)
 
     const derivedResource: IActorDerivedResourceIdentifyOutput = {
       derivedResourceIdentified: {
@@ -47,8 +35,8 @@ export class ActorDerivedResourceIdentifyQpf extends ActorDerivedResourceIdentif
         querySource: querySourceQpf.source,
         resourceCoefficients:  {
           selecitivty: 1,
-          requests: 10,
-          compute: 1
+          requests: 1,
+          compute: 10
         }        
       }
     }
@@ -57,6 +45,7 @@ export class ActorDerivedResourceIdentifyQpf extends ActorDerivedResourceIdentif
   }
 }
 
-export interface IActorDerivedResourceIdentifyQpfArgs extends IActorDerivedResourceIdentifyArgs {
+export interface IActorDerivedResourceIdentifyTriplePatternQueryArgs 
+extends IActorDerivedResourceIdentifyArgs {
   mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
 }

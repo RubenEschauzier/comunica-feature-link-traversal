@@ -5,10 +5,11 @@ import { IActorDereferenceOutput, MediatorDereference } from "@comunica/bus-dere
 import { KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
 import { KeysRdfJoin } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs, ActionContext } from '@comunica/core';
-import { IActionContext, ILink } from '@comunica/types';
+import { IActionContext, ILink, IQuerySource } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 import { storeStream } from 'rdf-store-stream';
 import { FragmentSelectorShape } from '@comunica/types';
+import { IActorDerivedResourceIdentifyOutput, MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
 
 /**
  * A comunica Solid Derived Resources Extract Links Actor.
@@ -17,6 +18,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   protected readonly derivedResourcePredicates: string[];
   public readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
   public readonly mediatorDereference: MediatorDereference;
+  public readonly mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
   public readonly queryEngine: QueryEngineBase;
 
   public constructor(args: IActorExtractLinksSolidDerivedResourcesArgs) {
@@ -24,6 +26,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     this.derivedResourcePredicates = args.derivedResourcePredicates;
     this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
     this.mediatorDereference = args.mediatorDereference
+    this.mediatorDerivedResourceIdentify = args.mediatorDerivedResourceIdentify;
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
   }
 
@@ -35,13 +38,31 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   }
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
-    // Determine links to type indexes
+    // Determine links to derived resources
     const derivedResources = [ ...await this.extractDerivedResourceLinks(action.metadata) ];
     const derivedResourcesRaw: IDerivedResourceRaw[][] = (await Promise.all(derivedResources
       .map(derivedResource => this.dereferenceDerivedResources(derivedResource, action.context))));
     const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
       derivedResourcesRaw.flat().map(resource => this.dereferenceFilter(resource)
     ));
+    const derivedResourcesIdentifyOutputs = await Promise.all(
+      derivedResourcesUnidentified.map(resource => 
+        this.mediatorDerivedResourceIdentify.mediate({
+          derivedResourceUnidentified: resource,
+          context: new ActionContext(),
+        })
+        .catch((err) => {
+          return null; // Return a fallback value on error
+        })
+      )
+    );
+    const successfullyIdentified = derivedResourcesIdentifyOutputs.filter(
+      result => result !== null
+    );
+    console.log(successfullyIdentified)
+    const derivedResourcesIdentified = successfullyIdentified.map(
+      output => output!.derivedResourceIdentified
+    );
     // console.log(action.context.get(KeysInitQuery.querySourcesUnidentified))
     console.log(action.context.get(KeysQueryOperation.querySources))
     // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
@@ -54,6 +75,8 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
    * @param metadata A metadata quad stream.
    */
   public extractDerivedResourceLinks(metadata: RDF.Stream): Promise<Set<string>> {
+    // The metadata has more than 10 extract links actors operating on it, giving warnings
+    // so we slightly increase the limit
     metadata.setMaxListeners(20);
     return new Promise<Set<string>>((resolve, reject) => {
       const derivedResourcesInner: Set<string> = new Set();
@@ -104,6 +127,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       const resourceIdentifier = bindings.get('resource')!.value;
       if (!derivedResourcesRaw[resourceIdentifier]){
         derivedResourcesRaw[resourceIdentifier] = {
+          baseUrl: derivedResource.split(".meta")[0],
           template: bindings.get('template')!.value,
           selectors: [],
           filterUri: { url: bindings.get('filter')!.value }
@@ -245,9 +269,17 @@ export interface IActorExtractLinksSolidDerivedResourcesArgs
    * The dereference mediator for obtaining the filter files
    */
   mediatorDereference: MediatorDereference;
+  /**
+   * The identify mediator for derived resources
+   */
+  mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
 }
 
-export interface IDerivedResourceRaw{
+export interface IDerivedResourceRaw {
+  /**
+   * The base URL where the derived resource is found
+   */
+  baseUrl: string;
   /**
    * Derived resource template name
    */
@@ -263,7 +295,11 @@ export interface IDerivedResourceRaw{
   filterUri: ILink
 }
 
-export interface IDerivedResourceUnidentified{
+export interface IDerivedResourceUnidentified {
+  /**
+   * The base URL where the derived resource is found
+   */
+  baseUrl: string;
   /**
    * Derived resource template name
    */
@@ -296,9 +332,9 @@ export interface IDerivedResource {
    */
   filter: string
   /**
-   * The selector shape of the derived resouce.
+   * The query source obtained from identifying and dereferencing the derived resource
    */
-  selectorShape: FragmentSelectorShape  
+  querySource: IQuerySource;  
   /**
    * Performance coefficients, used to determine the best resource for a given task when multiple resources
    * can be used

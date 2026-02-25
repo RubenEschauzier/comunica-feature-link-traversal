@@ -11,7 +11,8 @@
       "@id": "urn:comunica:default:extract-links/actors#solid-derived-resources",
       "@type": "ActorExtractLinksSolidDerivedResources",
       "mediatorDereferenceRdf": { "@id": "urn:comunica:default:dereference-rdf/mediators#main" },
-      "mediatorDereference": { "@id": "urn:comunica:default:dereference/mediators#main"}
+      "mediatorDereference": { "@id": "urn:comunica:default:dereference/mediators#main"},
+      "mediatorDerivedResourceIdentify": { "@id": "urn:comunica:default:derived-resource-identify/mediators#main" }
     }
   ]
 }

@@ -11,6 +11,9 @@
     "ccqslt:config/extract-links/actors/predicates-solidstorage.json",
     "ccqslt:config/extract-links/actors/quad-pattern-query.json",
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
-    "ccqslt:config/extract-links/actors/solid-derived-resources.json"
+
+    "ccqslt:config/extract-links/actors/solid-derived-resources.json",
+    "ccqslt:config/derived-resource-identify/mediator.json",
+    "ccqslt:config/derived-resource-identify/actors/qpf.json"
   ]
 }

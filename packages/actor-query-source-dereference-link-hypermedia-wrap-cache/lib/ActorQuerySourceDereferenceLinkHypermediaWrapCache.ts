@@ -66,15 +66,17 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
       throw err;
     }
     if (sourceFromCache && await sourceFromCache.cachePolicy?.satisfiesWithoutRevalidation(action)) {
+      console.log("CACHED")
       // Re-extract traverse metadata so the followed links are up-to-date with current
       // query
-      await sourceFromCache.source.getSelectorShape(new ActionContext());
+      // await sourceFromCache.source.getSelectorShape(new ActionContext());
       const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
       sourceFromCache.metadata.traverse = traverse;
       // Return the source but set storable to false. This way the response won't be stored
       // multiple times
       return sourceFromCache;
     }
+    console.log("MISSED")
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);
     dereferenceLinkOutput.source = new QuerySourceCacheWrapper(dereferenceLinkOutput.source);

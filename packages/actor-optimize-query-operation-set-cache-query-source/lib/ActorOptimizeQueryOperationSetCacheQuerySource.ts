@@ -39,9 +39,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
       return { context, operation: action.operation };
     }
     
-    //TODO: Same as context preprocess
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
-      console.log("Cleaned cache.")
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
         { maxNumTriples: this.cacheSizeNumTriples },
       );

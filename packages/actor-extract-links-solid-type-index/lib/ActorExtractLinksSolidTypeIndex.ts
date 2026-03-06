@@ -3,7 +3,7 @@ import type { ActorInitQueryBase } from '@comunica/actor-init-query';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
-import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
 import { KeysRdfJoin } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
@@ -132,6 +132,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
         [KeysCaching.cacheManager.name]: context.get(KeysCaching.cacheManager),
         [KeysQuerySourceIdentify.traverse.name]: false,
         [KeysRdfJoin.skipAdaptiveJoin.name]: true,
+        [KeysStatistics.skipStatisticTracking.name]: true,
         lenient: true,
       })).toArray();
 

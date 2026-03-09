@@ -4,6 +4,7 @@ import { KeysCaching } from '@comunica/context-entries';
 import { TestResult, IActorTest, passTestVoid, ActionContext } from '@comunica/core';
 import { ICacheView, IPersistentCache, ISourceState } from '@comunica/types';
 import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
+import { PersistentCacheManager } from '@comunica/actor-context-preprocess-set-persistent-cache-manager';
 
 /**
  * A comunica Set Cache Count View Context Preprocess Actor.
@@ -19,7 +20,7 @@ export class ActorContextPreprocessSetCacheCountView extends ActorContextPreproc
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     const context = action.context;
-    const cacheManager = context.getSafe(KeysCaching.cacheManager);
+    const cacheManager: PersistentCacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCacheView(
       CacheSourceStateViews.cacheCountView,
       new CacheCountView(),

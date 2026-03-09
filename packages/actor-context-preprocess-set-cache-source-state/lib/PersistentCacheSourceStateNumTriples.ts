@@ -8,7 +8,6 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   private readonly sizeMap = new Map<string, number>();
   private readonly maxNumTriples: number;
   private readonly lruCacheDocuments: LRUCache<string, ISourceState>;
-  private isTracking: boolean = false;
   private cacheMetrics: ICacheMetrics
 
 
@@ -29,10 +28,9 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   public getSync(key: string): ISourceState | undefined{
     const cachedState = this.lruCacheDocuments.get(key);
 
-    if (this.isTracking) {
-      cachedState ? this.cacheMetrics.hits++ : this.cacheMetrics.misses++;
-    }
-
+    // Track metrics
+    cachedState ? this.cacheMetrics.hits++ : this.cacheMetrics.misses++;
+    
     return cachedState;
   }
 
@@ -94,13 +92,13 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   }
 
   public startSession(){
-    this.isTracking = true;
+    console.log(`Start new tracking session.`);
     this.cacheMetrics = this.resetMetrics();
     return this.cacheMetrics;
   }
 
   public endSession(){
-    this.isTracking = false;
+    console.log(`End tracking session`);
     return this.cacheMetrics;
   }
 

@@ -66,11 +66,6 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
 
     let sourceFromCache: ISourceState | undefined;
     try {
-      // sourceFromCache = <ISourceState> await cacheManager.getFromCache(
-      //   CacheEntrySourceState.cacheSourceStateQuerySource,
-      //   CacheSourceStateViews.cacheQueryView,
-      //   { url: action.link.url, mode: 'get', action },
-      // );
       sourceFromCache = <ISourceState> await cacheManager.getFromCache(
         this.cacheEntryKey,
         this.cacheViewKey,
@@ -94,15 +89,8 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
     }
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);
-    
     dereferenceLinkOutput.source = new QuerySourceCacheWrapper(dereferenceLinkOutput.source);
     
-    // await cacheManager.setCache(
-    //   CacheEntrySourceState.cacheSourceStateQuerySource,
-    //   action.link.url,
-    //   { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
-    //   { headers: dereferenceLinkOutput.headers },
-    // );   
     await cacheManager.setCache(
       this.cacheEntryKey,
       action.link.url,

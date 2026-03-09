@@ -69,6 +69,8 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       persistentCacheManager.hasCache(this.cacheEntryKey) &&
       persistentCacheManager.hasView(this.cacheViewKey)
     ){
+      // TODO: Try to make this work in same way as firstIterator, by using just [ ] and returning
+      // a single stream.
       const streamPromise = persistentCacheManager.getFromCache(
           this.cacheEntryKey,
           this.cacheViewKey,

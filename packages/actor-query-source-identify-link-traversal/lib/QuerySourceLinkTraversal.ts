@@ -64,7 +64,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     // contract
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
 
-    let cacheIterator: AsyncIterator<BindingsStream> | undefined = undefined;
+    let cacheIterator: BindingsStream | undefined = undefined;
     if (persistentCacheManager && this.cacheEntryKey && this.cacheViewKey &&
       persistentCacheManager.hasCache(this.cacheEntryKey) &&
       persistentCacheManager.hasView(this.cacheViewKey)
@@ -78,7 +78,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       )
 
       cacheIterator = wrapAsyncIterator(
-        <Promise<AsyncIterator<BindingsStream>>> streamPromise, { autoStart: false}
+        <Promise<BindingsStream>> streamPromise, { autoStart: false}
       );
 
       const stopIterator = async () => {
@@ -89,7 +89,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
         )
       }
       this.linkTraversalManager.addStopListener(() => stopIterator());
-      allIterators = allIterators.prepend(cacheIterator);
+      allIterators = allIterators.prepend([ cacheIterator ]);
     }
     const iterator = new ClosableTransformIterator(new UnionIterator(
       allIterators,

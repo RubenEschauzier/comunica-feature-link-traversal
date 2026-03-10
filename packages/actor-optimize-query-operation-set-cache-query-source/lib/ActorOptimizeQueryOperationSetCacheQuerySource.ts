@@ -17,6 +17,7 @@ import {  StreamingStore } from 'rdf-streaming-store';
 import { quadsToBindings } from '@comunica/bus-query-source-identify';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { visitOperation } from '@comunica/utils-algebra/lib/utils';
+import { ClosableTransformIterator } from '@comunica/utils-iterator';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -40,6 +41,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
     const context = action.context;
     if (!action.context.get(KeysQuerySourceIdentify.traverse)){
+      console.log("Here!")
       return { context, operation: action.operation };
     }
     
@@ -103,7 +105,7 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
 export class GetStreamingCacheView implements ICacheView<
   ISourceState, 
   { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
-  AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>> | ISourceState
+  BindingsStream | AsyncIterator<RDF.Quad> | ISourceState
 > {
   protected ended = false;
   protected pendingCount = 0;
@@ -116,6 +118,9 @@ export class GetStreamingCacheView implements ICacheView<
   protected readonly quadPatterns: Algebra.Pattern[];
   protected readonly unionDefaultGraph: boolean;
 
+  protected isEnded: boolean = false;
+  protected nImportingStreams = 0;
+
   public constructor(topLevelQuadPatterns: Algebra.Pattern[], unionDefaultGraph?: boolean) {
     this.cachedStore = new StreamingStore();
 
@@ -123,19 +128,42 @@ export class GetStreamingCacheView implements ICacheView<
     this.unionDefaultGraph = Boolean(unionDefaultGraph);
   }
 
+  protected checkForTermination(){
+    // If the query execution is marked as ended (when traversal ends for example)
+    // and we finished importing all streams, we end the cached store.
+    if (this.ended && this.pendingCount === 0) {
+      this.cachedStore.end();
+    }
+  }
 
   public async construct(
     cache: IPersistentCache<ISourceState>,
     context: { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink} | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
-  ): Promise<AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>>  | ISourceState | undefined> {
+  ): Promise<BindingsStream | AsyncIterator<RDF.Quad> | ISourceState | undefined> {
     if (context.mode === 'get') {
+        // When passed end event, traversal is done and the source can end if we finished 
+        // importing all data from previous 'get' requests to cache
+        if (context.url === 'end'){
+          if (!this.ended) {
+            this.ended = true;
+            this.checkForTermination();
+          }
+          return;
+        }
+
         const cacheEntry = await cache.get(context.url);
-        
         // Only push if valid and policy satisfied
         if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)){
           for (const quadPattern of this.quadPatterns){
             // Directly import only matching quads from source to the store.
-            this.cachedStore.import(cacheEntry.source.queryQuads(quadPattern, new ActionContext()));
+            this.pendingCount++
+            const importStream = this.cachedStore.import(
+              cacheEntry.source.queryQuads(quadPattern, new ActionContext())
+            );
+            importStream.on('end' , () => {
+              this.pendingCount--;
+              this.checkForTermination();
+            })
           }
           return cacheEntry;
         }
@@ -149,24 +177,24 @@ export class GetStreamingCacheView implements ICacheView<
           context.operation.object,
           context.operation.graph,
         );
-        return new ArrayIterator([quadsToBindings(
+        return quadsToBindings(
           wrapAsyncIterator(result, { "autoStart": false }),
           context.operation,
           this.DF,
           this.BF,
           this.unionDefaultGraph,
-        )]);
+        );
       }
       throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
     }
     else if (context.mode === 'queryQuads') {
       if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
-        return new ArrayIterator([wrapAsyncIterator(this.cachedStore.match(
+        return wrapAsyncIterator(this.cachedStore.match(
           context.operation.subject,
           context.operation.predicate,
           context.operation.object,
           context.operation.graph,
-        ), { "autoStart": false })]);
+        ));
       }
       throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
     }

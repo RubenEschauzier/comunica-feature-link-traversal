@@ -138,7 +138,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     return this.cacheMetrics;
   }
 
-  public resetMetrics(): ICacheMetrics{
+  public resetMetrics(): ICacheMetrics {
     return {
       hits: 0,
       misses: 0,

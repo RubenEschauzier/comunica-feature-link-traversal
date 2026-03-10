@@ -12,7 +12,7 @@ import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { CacheEntrySourceState, CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries';
-import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysCore, KeysQueryOperation, KeysStatistics } from '@comunica/context-entries';
 import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
@@ -76,7 +76,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
       action.context.get(KeysCore.log)?.error(`Error when getting from cache: ${err.message}`);
       throw err;
     }
-    if (sourceFromCache) {      
+    if (sourceFromCache) {   
       // Re-extract traverse metadata so the followed links are up-to-date with current
       // query
       await sourceFromCache.source.getSelectorShape(new ActionContext());
@@ -85,6 +85,14 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
       const stubSource = { ...sourceFromCache, source: new QuerySourceStub(this.DF, action.link.url)};
       // If we used cached source the cache will serve any matching bindings of the triple pattern,
       // so we return empty QuerySource for the aggregated store to import
+      context.get(KeysStatistics.dereferencedLinks)?.updateStatistic(
+        { 
+          url: action.link.url, 
+          metadata: { ... sourceFromCache.metadata, cached: true }  
+        }, 
+        sourceFromCache
+      );
+
       return stubSource;
     }
     action.context = action.context.set(KEY_WRAPPED, true);

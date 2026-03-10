@@ -13,6 +13,7 @@
       "@id": "urn:comunica:default:optimize-query-operation/actors#set-cache-query-source",
       "@type": "ActorOptimizeQueryOperationSetCacheQuerySource",
       "cacheSizeNumTriples": 1000000,
+      "mediatorFactoryAggregatedStore": { "@id": "urn:comunica:default:factory-aggregated-store/mediators#main" },
       "beforeActors": [
         { "@id": "urn:comunica:default:optimize-query-operation/actors#initialize-link-traversal-manager" }
       ]

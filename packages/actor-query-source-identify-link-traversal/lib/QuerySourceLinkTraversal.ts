@@ -21,6 +21,7 @@ import { MetadataBindings } from '@comunica/types';
  */
 export class QuerySourceLinkTraversal implements IQuerySource {
   public readonly referenceValue: string;
+  public callToThis = 0;
 
   public constructor(
     public readonly linkTraversalManager: ILinkTraversalManager,
@@ -57,9 +58,8 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       .queryBindings(operation, context, options);
     const nonAggregatedIterators = this.linkTraversalManager.getQuerySourcesNonAggregated()
       .map(source => source.queryBindings(operation, context, options));
-
+    
     let allIterators = nonAggregatedIterators.prepend([ firstIterator ]);
-
     // TODO: This should be generalized to work with arbitrary cache and view keys that satisfy the
     // contract
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
@@ -69,8 +69,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       persistentCacheManager.hasCache(this.cacheEntryKey) &&
       persistentCacheManager.hasView(this.cacheViewKey)
     ){
-      // TODO: Try to make this work in same way as firstIterator, by using just [ ] and returning
-      // a single stream.
+      
       const streamPromise = persistentCacheManager.getFromCache(
           this.cacheEntryKey,
           this.cacheViewKey,
@@ -80,7 +79,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       cacheIterator = wrapAsyncIterator(
         <Promise<BindingsStream>> streamPromise, { autoStart: false}
       );
-
+      
       const stopIterator = async () => {
         await persistentCacheManager.getFromCache(
           this.cacheEntryKey!,
@@ -91,6 +90,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       this.linkTraversalManager.addStopListener(() => stopIterator());
       allIterators = allIterators.prepend([ cacheIterator ]);
     }
+
     const iterator = new ClosableTransformIterator(new UnionIterator(
       allIterators,
       { autoStart: false }), {
@@ -126,7 +126,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
           iterator.setProperty('metadata', metadata);
       });
     }
-    else{
+    else {
       firstIterator.getProperty('metadata', metadata => iterator.setProperty('metadata', metadata));
     }
     return iterator;

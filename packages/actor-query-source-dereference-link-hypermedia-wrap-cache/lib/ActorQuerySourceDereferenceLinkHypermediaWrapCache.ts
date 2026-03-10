@@ -12,7 +12,7 @@ import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCore, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysCore, KeysQueryOperation, KeysStatistics } from '@comunica/context-entries';
 import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
@@ -71,8 +71,15 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
       // await sourceFromCache.source.getSelectorShape(new ActionContext());
       const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
       sourceFromCache.metadata.traverse = traverse;
-      // Return the source but set storable to false. This way the response won't be stored
-      // multiple times
+      
+      context.get(KeysStatistics.dereferencedLinks)?.updateStatistic(
+        { 
+          url: action.link.url, 
+          metadata: { ... sourceFromCache.metadata, cached: true }  
+        }, 
+        sourceFromCache
+      );
+
       return sourceFromCache;
     }
     action.context = action.context.set(KEY_WRAPPED, true);

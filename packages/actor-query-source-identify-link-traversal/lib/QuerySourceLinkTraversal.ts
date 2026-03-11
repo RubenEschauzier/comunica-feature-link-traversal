@@ -73,7 +73,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       const streamPromise = persistentCacheManager.getFromCache(
           this.cacheEntryKey,
           this.cacheViewKey,
-        { operation, mode: 'queryBindings' }
+        { operation, mode: 'queryBindings', context }
       )
 
       cacheIterator = wrapAsyncIterator(
@@ -84,7 +84,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
         await persistentCacheManager.getFromCache(
           this.cacheEntryKey!,
           this.cacheViewKey!,
-          { url: "end", mode: 'get', action: { link: { url: 'end' }, context: new ActionContext() } }
+          { url: "end", mode: 'get', action: { link: { url: 'end' }, context } }
         )
       }
       this.linkTraversalManager.addStopListener(() => stopIterator());

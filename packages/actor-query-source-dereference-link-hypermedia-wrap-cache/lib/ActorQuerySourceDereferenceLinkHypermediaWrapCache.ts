@@ -12,10 +12,9 @@ import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCore, KeysQueryOperation, KeysStatistics } from '@comunica/context-entries';
-import { KeysCaching } from '@comunica/context-entries';
+import { KeysCore, KeysQueryOperation, KeysStatistics, KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
-import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
+import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { IActionContext, ISourceState } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 
@@ -71,13 +70,13 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
       // await sourceFromCache.source.getSelectorShape(new ActionContext());
       const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
       sourceFromCache.metadata.traverse = traverse;
-      
+
       context.get(KeysStatistics.dereferencedLinks)?.updateStatistic(
-        { 
-          url: action.link.url, 
-          metadata: { ... sourceFromCache.metadata, cached: true }  
-        }, 
-        sourceFromCache
+        {
+          url: action.link.url,
+          metadata: { ...sourceFromCache.metadata, cached: true },
+        },
+        sourceFromCache,
       );
 
       return sourceFromCache;

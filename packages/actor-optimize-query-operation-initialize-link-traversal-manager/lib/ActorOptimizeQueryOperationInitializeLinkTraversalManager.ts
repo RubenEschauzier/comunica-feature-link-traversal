@@ -9,12 +9,11 @@ import { ActorOptimizeQueryOperation } from '@comunica/bus-optimize-query-operat
 import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysInitQuery, KeysQuerySourceIdentify, KeysCaching } from '@comunica/context-entries';
 import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
-import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, ActionContext } from '@comunica/core';
-import type { IActionContext, ILink, IQuerySource, IQuerySourceCache, QuerySourceUnidentified } from '@comunica/types';
+import type { IActionContext, ILink, IQuerySource, QuerySourceUnidentified } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { LinkTraversalManagerMediated } from './LinkTraversalManagerMediated';
 
@@ -59,12 +58,11 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         const traverseAll = context.get(KeysQuerySourceIdentify.traverse);
         if (traverseAll && typeof querySource === 'string') {
           traversalSeedLinks.push({ url: querySource });
-        } else if (!(typeof querySource === 'string') && 
+        } else if (!(typeof querySource === 'string') &&
           !('getSource' in querySource) && !('match' in querySource) &&
           (traverseAll ?? ActionContext.ensureActionContext(querySource.context)
             .get(KeysQuerySourceIdentify.traverse)) &&
-          typeof querySource.value === 'string' ) 
-        {
+          typeof querySource.value === 'string') {
           traversalSeedLinks.push({
             url: querySource.value,
             forceSourceType: querySource.type,
@@ -73,8 +71,7 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
           if (querySource.context) {
             traversalContexts.push(ActionContext.ensureActionContext(querySource.context));
           }
-        } 
-        else {
+        } else {
           querySources.push(querySource);
         }
       }

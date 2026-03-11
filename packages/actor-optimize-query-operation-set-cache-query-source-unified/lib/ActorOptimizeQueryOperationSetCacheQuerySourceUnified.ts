@@ -1,4 +1,4 @@
-// import { ActorOptimizeQueryOperation, IActionOptimizeQueryOperation, IActorOptimizeQueryOperationOutput, IActorOptimizeQueryOperationArgs } from '@comunica/bus-optimize-query-operation';
+// Import { ActorOptimizeQueryOperation, IActionOptimizeQueryOperation, IActorOptimizeQueryOperationOutput, IActorOptimizeQueryOperationArgs } from '@comunica/bus-optimize-query-operation';
 // import { TestResult, IActorTest, passTestVoid, ActionContextKey, ActionContext } from '@comunica/core';
 
 // import type * as RDF from '@rdfjs/types';
@@ -58,10 +58,10 @@
 //       CacheSourceStateViews.cacheQueryViewBloomFilter,
 //       new GetUnifiedCacheView(),
 //     );
-    
+
 //     return { context, operation: action.operation };
 
-//   }  
+//   }
 // }
 
 // export class SetSourceStateCache implements ISetFn<ISourceState, AsyncIterator<RDF.Quad>, { headers: Headers }> {
@@ -90,16 +90,16 @@
 // }
 
 // export class QueryUnifiedCacheView implements ICacheView<
-//   ISourceState, 
+//   ISourceState,
 //   { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
 //   AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>> | AsyncIterator<RDF.Quad>
 // > {
 //   protected pendingStreams: PendingStreamsIndex<RDF.Quad> = new PendingStreamsIndex();
 //   protected releasedUrls: Set<string> = new Set();
-  
+
 //   protected ended = false;
 //   protected pendingCount = 0;
-  
+
 //   protected unifiedStore: UnifiedStoreCache;
 //   protected DF: DataFactory = new DataFactory();
 //   protected BF: BindingsFactory = new BindingsFactory(this.DF, {});
@@ -124,7 +124,7 @@
 //     cache: IPersistentCache<AsyncIterator<RDF.Quad>>,
 //     context: { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink} | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
 //   ): Promise<any> {
-    
+
 //     if (context.mode === 'get') {
 //       if (context.url === 'end') {
 //         if (!this.ended) {
@@ -136,11 +136,11 @@
 
 //       this.pendingCount++;
 //       const cachedQuads = await cache.get(context.url);
-      
+
 //       // Return a dummy ISourceState to satisfy engine requirements if necessary
 //       return cachedQuads
-//     } 
-    
+//     }
+
 //     else if (context.mode === 'queryQuads' || context.mode === 'queryBindings') {
 //       if (context.operation.type === 'pattern') {
 //         const pattern = context.operation as Algebra.Pattern;
@@ -162,7 +162,7 @@
 //             this.BF,
 //             true
 //           );
-          
+
 //           const bindingsStream = this.quadsToBindings(stream, pattern);
 //           return AsyncReiterableArray.fromFixed([bindingsStream]).iterator();
 //         }
@@ -172,7 +172,7 @@
 //       } else {
 //         throw new Error(`GetSourceStateCacheView only supports pattern operations.`);
 //       }
-//     } 
+//     }
 //     else {
 //       throw new Error(`Unknown view mode.`);
 //     }
@@ -180,13 +180,13 @@
 // }
 
 // export class GetUnifiedCacheView implements ICacheView<
-//   ISourceState, 
+//   ISourceState,
 //   { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
 //   AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>> | ISourceState
 // > {
 //   protected pendingStreams: PendingStreamsIndex<RDF.Quad> = new PendingStreamsIndex();
 //   protected releasedUrls: Set<string> = new Set();
-  
+
 //   protected ended = false;
 //   protected pendingCount = 0;
 
@@ -212,7 +212,7 @@
 //     cache: IPersistentCache<ISourceState>,
 //     context: { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink} | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
 //   ): Promise<AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>> | ISourceState | undefined> {
-    
+
 //     if (context.mode === 'get') {
 //       if (context.url === 'end') {
 //         if (!this.ended) {
@@ -225,11 +225,11 @@
 //       this.pendingCount++;
 //       try {
 //         const cacheEntry = await cache.get(context.url);
-        
+
 //         if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
 //           if (!this.releasedUrls.has(context.url)) {
 //             this.releasedUrls.add(context.url);
-            
+
 //             const cachedQuads = cache.getQuadsByUrl(context.url);
 //             if (cachedQuads) {
 //               for (const quad of cachedQuads) {
@@ -246,8 +246,8 @@
 //         this.pendingCount--;
 //         this.checkForTermination();
 //       }
-//     } 
-    
+//     }
+
 //     else if (context.mode === 'queryQuads' || context.mode === 'queryBindings') {
 //       if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
 //         const pattern = context.operation as Algebra.Pattern;
@@ -274,8 +274,8 @@
 //       } else {
 //         throw new Error(`${this.constructor.name} only supports pattern operations.`);
 //       }
-//     } 
-    
+//     }
+
 //     else {
 //       throw new Error(`Unknown view mode: ${context.mode}`);
 //     }
@@ -294,4 +294,3 @@
 //    */
 //   cacheSizeNumTriples: number;
 // }
-

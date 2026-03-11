@@ -69,7 +69,7 @@ export const KeysQuerySourceIdentifyHypermediaNoneLazy = {
   ),
 };
 
-// export const KeysCaching = {
+// Export const KeysCaching = {
 //   /**
 //    * Caching manager that handles the logic between viewing and writing to cache
 //    */

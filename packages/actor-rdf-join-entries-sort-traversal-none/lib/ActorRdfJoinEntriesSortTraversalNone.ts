@@ -22,6 +22,6 @@ export class ActorRdfJoinEntriesSortTraversalNone extends ActorRdfJoinEntriesSor
   }
 
   public async run(action: IActionRdfJoinEntriesSort): Promise<IActorRdfJoinEntriesSortOutput> {
-    return { entries: [...action.entries] };
+    return { entries: [ ...action.entries ]};
   }
 }

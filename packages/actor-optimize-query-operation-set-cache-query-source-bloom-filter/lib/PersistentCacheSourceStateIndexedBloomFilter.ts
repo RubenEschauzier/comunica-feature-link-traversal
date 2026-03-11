@@ -1,17 +1,15 @@
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
-import type { ISourceStateBloomFilter } from '@comunica/types';
-import type { ICacheMetrics, IPersistentCache } from '@comunica/types';
+import type { ISourceStateBloomFilter, ICacheMetrics, IPersistentCache } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
+import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
+import MurmurHash3 from 'imurmurhash';
 import { LRUCache } from 'lru-cache';
 import { DataFactory } from 'rdf-data-factory';
 import { RdfStore } from 'rdf-stores';
 import { Factory } from 'sparqlalgebrajs';
-import { BloomFilter } from 'bloom-filters';
-import type * as RDF from '@rdfjs/types';
-
 
 export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistentCache<ISourceStateBloomFilter> {
   private readonly sizeMap = new Map<string, number>();
@@ -22,7 +20,7 @@ export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistent
   public readonly AF: Factory = new Factory(this.DF);
   public readonly BF: BindingsFactory = new BindingsFactory(this.DF, {});
 
-  private isTracking: boolean = false;
+  private isTracking = false;
   private cacheMetrics: ICacheMetrics;
 
   public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
@@ -39,7 +37,7 @@ export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistent
     return this.getSync(key);
   }
 
-  public getSync(key: string): ISourceStateBloomFilter | undefined{
+  public getSync(key: string): ISourceStateBloomFilter | undefined {
     const cachedState = this.lruCacheDocuments.get(key);
 
     if (this.isTracking) {
@@ -55,9 +53,9 @@ export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistent
 
   /**
    * Upon setting of a source, we index it and set it in the LRUCache.
-   * @param key 
-   * @param value 
-   * @returns 
+   * @param key
+   * @param value
+   * @returns
    */
   public async set(key: string, value: ISourceStateBloomFilter): Promise<void> {
     const bloomFilter = new BloomFilterOwn();
@@ -78,32 +76,29 @@ export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistent
     return new Promise((resolve, reject) => {
       importStream.on('end', () => {
         this.sizeMap.set(key, rdfStore.size);
-        this.lruCacheDocuments.set(key, 
-          { 
-            ...value,
-            source: new QuerySourceRdfJs(
-              rdfStore,
-              this.DF,
-              this.BF
-            ),
-            bloomFilter: <any> bloomFilter
-          }
-        )
-        resolve()
+        this.lruCacheDocuments.set(key, {
+          ...value,
+          source: new QuerySourceRdfJs(
+            rdfStore,
+            this.DF,
+            this.BF,
+          ),
+          bloomFilter: <any> bloomFilter,
+        });
+        resolve();
       });
       importStream.on('error', () => {
-        reject('Import stream error')
+        reject('Import stream error');
       });
-    })
+    });
   }
 
-
   protected onDispose(value: ISourceStateBloomFilter, key: string, reason: LRUCache.DisposeReason): void {
-    if (reason === 'evict' && this.isTracking){
+    if (reason === 'evict' && this.isTracking) {
       this.cacheMetrics.evictions++;
       this.cacheMetrics.evictionsCalculatedSize += this.sizeMap.get(key) ?? 1;
-      this.cacheMetrics.evictionPercentage = 
-        (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriples)*100;
+      this.cacheMetrics.evictionPercentage =
+        (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriples) * 100;
       if (this.sizeMap.has(key)) {
         this.sizeMap.delete(key);
       }
@@ -133,25 +128,25 @@ export class PersistentCacheSourceStateIndexedBloomFilter implements IPersistent
     throw new Error('Serialize implemented for this in-memory cache');
   }
 
-  public startSession(){
+  public startSession() {
     this.isTracking = true;
     this.cacheMetrics = this.resetMetrics();
     return this.cacheMetrics;
   }
 
-  public endSession(){
+  public endSession() {
     this.isTracking = false;
     return this.cacheMetrics;
   }
 
-  public resetMetrics(): ICacheMetrics{
+  public resetMetrics(): ICacheMetrics {
     return {
       hits: 0,
       misses: 0,
       evictions: 0,
       evictionsCalculatedSize: 0,
       evictionPercentage: 0,
-    }
+    };
   }
 }
 
@@ -159,17 +154,14 @@ export interface IPersistentCacheSourceStateNumTriplesArgs {
   maxNumTriples: number;
 }
 
-
-import MurmurHash3 from 'imurmurhash';
-
 export class BloomFilterOwn {
-  private bitArray: Uint32Array;
-  private sizeMask: number; // Used for bitwise wrapping instead of modulo
-  private hashCount: number;
+  private readonly bitArray: Uint32Array;
+  private readonly sizeMask: number; // Used for bitwise wrapping instead of modulo
+  private readonly hashCount: number;
 
-  constructor(size: number = 8192, hashCount: number = 11) {
+  constructor(size = 8192, hashCount = 11) {
     this.sizeMask = size - 1;
-    this.hashCount = hashCount
+    this.hashCount = hashCount;
     this.bitArray = new Uint32Array(Math.ceil(size / 32));
   }
 
@@ -178,14 +170,14 @@ export class BloomFilterOwn {
     // Seed 1
     const h1 = MurmurHash3(key, 0).result();
     // Seed 2 (0x5bd1e995 is a common mixing constant)
-    const h2 = MurmurHash3(key, 0x5bd1e995).result();
+    const h2 = MurmurHash3(key, 0x5BD1E995).result();
 
     for (let i = 0; i < this.hashCount; i++) {
       // OPTIMIZATION: Bitwise AND (&) is faster than Modulo (%)
       // This works because size is guaranteed to be a power of 2
       const index = (h1 + i * h2) & this.sizeMask;
-      
-      // index >>> 5 is equivalent to Math.floor(index / 32)
+
+      // Index >>> 5 is equivalent to Math.floor(index / 32)
       // index & 31 is equivalent to index % 32
       this.bitArray[index >>> 5] |= (1 << (index & 31));
     }
@@ -193,16 +185,15 @@ export class BloomFilterOwn {
 
   public has(key: string): boolean {
     const h1 = MurmurHash3(key, 0).result();
-    const h2 = MurmurHash3(key, 0x5bd1e995).result();
+    const h2 = MurmurHash3(key, 0x5BD1E995).result();
 
     for (let i = 0; i < this.hashCount; i++) {
       const index = (h1 + i * h2) & this.sizeMask;
-      
+
       if ((this.bitArray[index >>> 5] & (1 << (index & 31))) === 0) {
         return false;
       }
     }
     return true;
   }
-
 }

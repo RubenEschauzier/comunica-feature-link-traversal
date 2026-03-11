@@ -22,18 +22,18 @@
   ],
   "@graph": [
     {
-        "@id": "urn:comunica:default:Runner",
-        "@type": "Runner",
-        "actors": [
-          {
-            "@id": "urn:comunica:default:optimize-query-operation/actors#set-cache-query-source",
-            "@type": "ActorOptimizeQueryOperationSetCacheQuerySource",
-            "cacheSizeNumTriples": 700000,
-            "beforeActors": [
-              { "@id": "urn:comunica:default:optimize-query-operation/actors#initialize-link-traversal-manager" }
-            ]
-          }
-        ]
+      "@id": "urn:comunica:default:Runner",
+      "@type": "Runner",
+      "actors": [
+        {
+          "@id": "urn:comunica:default:optimize-query-operation/actors#set-cache-query-source",
+          "@type": "ActorOptimizeQueryOperationSetCacheQuerySource",
+          "cacheSizeNumTriples": 700000,
+          "beforeActors": [
+            { "@id": "urn:comunica:default:optimize-query-operation/actors#initialize-link-traversal-manager" }
+          ]
+        }
+      ]
     }
   ]
 }

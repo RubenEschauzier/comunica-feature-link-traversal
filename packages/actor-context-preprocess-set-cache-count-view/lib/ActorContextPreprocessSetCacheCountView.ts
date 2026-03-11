@@ -1,10 +1,12 @@
-import { ActorContextPreprocess, IActionContextPreprocess, IActorContextPreprocessOutput, IActorContextPreprocessArgs } from '@comunica/bus-context-preprocess';
+import type { PersistentCacheManager } from '@comunica/actor-context-preprocess-set-persistent-cache-manager';
+import type { IActionContextPreprocess, IActorContextPreprocessOutput, IActorContextPreprocessArgs } from '@comunica/bus-context-preprocess';
+import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries';
 import { KeysCaching } from '@comunica/context-entries';
-import { TestResult, IActorTest, passTestVoid, ActionContext } from '@comunica/core';
-import { ICacheView, IPersistentCache, ISourceState } from '@comunica/types';
+import type { TestResult, IActorTest } from '@comunica/core';
+import { passTestVoid, ActionContext } from '@comunica/core';
+import type { ICacheView, IPersistentCache, ISourceState } from '@comunica/types';
 import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
-import { PersistentCacheManager } from '@comunica/actor-context-preprocess-set-persistent-cache-manager';
 
 /**
  * A comunica Set Cache Count View Context Preprocess Actor.
@@ -30,16 +32,16 @@ export class ActorContextPreprocessSetCacheCountView extends ActorContextPreproc
 }
 
 export class CacheCountView
-implements ICacheView<ISourceState, { operation: Algebra.Operation, documents: string[] }, number> {
+implements ICacheView<ISourceState, { operation: Algebra.Operation; documents: string[] }, number> {
   public async construct(
     cache: IPersistentCache<ISourceState>,
-    context: { operation: Algebra.Operation, documents: string[] }
+    context: { operation: Algebra.Operation; documents: string[] },
   ): Promise<number | undefined> {
     if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
       let totalCount = 0;
       const cacheEntryStream = cache.entries();
 
-      for await (const [key, source] of cacheEntryStream) {
+      for await (const [ key, source ] of cacheEntryStream) {
         if (source.source.countQuads) {
           const quadCount = await source.source.countQuads(context.operation, new ActionContext());
           totalCount += quadCount;
@@ -47,6 +49,6 @@ implements ICacheView<ISourceState, { operation: Algebra.Operation, documents: s
       }
       return totalCount;
     }
-    throw new Error("Count view only accepts quad patterns");
+    throw new Error('Count view only accepts quad patterns');
   }
 }

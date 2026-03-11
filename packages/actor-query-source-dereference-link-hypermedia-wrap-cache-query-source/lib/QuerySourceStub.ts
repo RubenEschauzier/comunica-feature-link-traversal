@@ -7,7 +7,8 @@ import type {
   IQuerySource,
   QuerySourceReference,
 } from '@comunica/types';
-import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
+import type { Algebra } from '@comunica/utils-algebra';
+import { AlgebraFactory } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
 import { EmptyIterator } from 'asynciterator';
@@ -55,14 +56,14 @@ export class QuerySourceStub implements IQuerySource {
     _context: IActionContext,
     _options?: IQueryBindingsOptions,
   ): BindingsStream {
-    return new EmptyIterator<RDF.Bindings>;
+    return new EmptyIterator<RDF.Bindings>();
   }
 
   public queryQuads(
     _operation: Algebra.Operation,
     _context: IActionContext,
   ): AsyncIterator<RDF.Quad> {
-    return new EmptyIterator<RDF.Quad>;
+    return new EmptyIterator<RDF.Quad>();
   }
 
   public queryBoolean(

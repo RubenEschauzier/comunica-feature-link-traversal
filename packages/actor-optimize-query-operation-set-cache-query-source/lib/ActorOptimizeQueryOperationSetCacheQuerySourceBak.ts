@@ -1,4 +1,4 @@
-// import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
+// Import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
 // import { KeysCaching } from '@comunica/context-entries';
 // import type { IActorTest, TestResult } from '@comunica/core';
 // import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
@@ -30,7 +30,7 @@
 //   }
 
 //   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
-//     return passTestVoid(); 
+//     return passTestVoid();
 //   }
 
 //   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
@@ -38,7 +38,7 @@
 //     if (!action.context.get(KeysQuerySourceIdentify.traverse)){
 //       return { context, operation: action.operation };
 //     }
-    
+
 //     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
 //       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
 //         { maxNumTriples: this.cacheSizeNumTriples },
@@ -56,12 +56,11 @@
 //       CacheSourceStateViews.cacheQueryView,
 //       new GetSourceStateCacheView(),
 //     );
-    
+
 //     return { context, operation: action.operation };
 
 //   }
 // }
-
 
 // export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, { headers: Headers }> {
 //   protected DF: DataFactory = new DataFactory();
@@ -79,7 +78,7 @@
 
 // export class GetSourceStateCacheView
 // implements ICacheView<
-//   ISourceState, 
+//   ISourceState,
 //   { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
 //   AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>> | ISourceState
 // > {
@@ -97,7 +96,6 @@
 //     }
 //   }
 
-
 //   public async construct(
 //     cache: IPersistentCache<ISourceState>,
 //     context: { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink} | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
@@ -113,7 +111,7 @@
 //       this.pendingCount++;
 //       try {
 //         const cacheEntry = await cache.get(context.url);
-        
+
 //         // Only push if valid and policy satisfied
 //         if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)){
 //           this.querySourcesCached.push(cacheEntry);
@@ -148,8 +146,6 @@
 //   }
 // }
 
-
-
 // export interface IActorOptimizeQueryOperationSetCacheQuerySourceArgs extends IActorOptimizeQueryOperationArgs {
 //     /**
 //    * The maximum number of triples in the cache.
@@ -158,4 +154,3 @@
 //    */
 //   cacheSizeNumTriples: number;
 // }
-

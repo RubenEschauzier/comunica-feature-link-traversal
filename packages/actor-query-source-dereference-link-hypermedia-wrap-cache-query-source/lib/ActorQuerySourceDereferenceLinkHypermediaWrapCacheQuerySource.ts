@@ -10,13 +10,12 @@ import type {
 } from '@comunica/bus-query-source-dereference-link';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import { CacheEntrySourceState, CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
-import { CacheSourceStateViews } from '@comunica/cache-manager-entries';
-import { KeysCore, KeysQueryOperation, KeysStatistics } from '@comunica/context-entries';
-import { KeysCaching } from '@comunica/context-entries';
+import type { ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
+import { CacheKey, ViewKey } from '@comunica/cache-manager-entries';
+import { KeysCore, KeysQueryOperation, KeysStatistics, KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
-import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
-import type { IActionContext, ILink, ISourceState } from '@comunica/types';
+import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
+import type { IActionContext, ISourceState } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 
 import type * as RDF from '@rdfjs/types';
@@ -32,7 +31,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
   public readonly mediatorMetadata: MediatorRdfMetadata;
   public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
-  //TODO: Figure out a way to do keys based on contract, for example it should return
+  // TODO: Figure out a way to do keys based on contract, for example it should return
   // a ISourceState or extension of it
   public readonly cacheEntryKey: ICacheKey<unknown, unknown, unknown>;
   public readonly cacheViewKey: IViewKey<unknown, unknown, unknown>;
@@ -69,31 +68,30 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
       sourceFromCache = <ISourceState> await cacheManager.getFromCache(
         this.cacheEntryKey,
         this.cacheViewKey,
-        { url: action.link.url, mode: 'get', action },
+        { url: action.link.url, mode: 'get', action, extractLinksQuadPattern: true },
       );
-
     } catch (err: any) {
       action.context.get(KeysCore.log)?.error(`Error when getting from cache: ${err.message}`);
       throw err;
     }
-    if (sourceFromCache) {   
-      console.log(sourceFromCache.metadata.traverse.forEach((traverse: ILink) => {
-        console.log(traverse.metadata?.producedByActor)
-      }))
+    if (sourceFromCache) {
+      // Console.log(sourceFromCache.metadata.traverse.forEach((traverse: ILink) => {
+      //   console.log(traverse.metadata?.producedByActor)
+      // }))
       // Re-extract traverse metadata so the followed links are up-to-date with current
       // query
       // await sourceFromCache.source.getSelectorShape(new ActionContext());
       // const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
       // sourceFromCache.metadata.traverse = traverse;
-      const stubSource = { ...sourceFromCache, source: new QuerySourceStub(this.DF, action.link.url)};
+      const stubSource = { ...sourceFromCache, source: new QuerySourceStub(this.DF, action.link.url) };
       // If we used cached source the cache will serve any matching bindings of the triple pattern,
       // so we return empty QuerySource for the aggregated store to import
       context.get(KeysStatistics.dereferencedLinks)?.updateStatistic(
-        { 
-          url: action.link.url, 
-          metadata: { ... sourceFromCache.metadata, cached: true }  
-        }, 
-        sourceFromCache
+        {
+          url: action.link.url,
+          metadata: { ...sourceFromCache.metadata, cached: true },
+        },
+        sourceFromCache,
       );
 
       return stubSource;
@@ -101,7 +99,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);
     dereferenceLinkOutput.source = new QuerySourceCacheWrapper(dereferenceLinkOutput.source);
-    
+
     await cacheManager.setCache(
       this.cacheEntryKey,
       action.link.url,
@@ -147,8 +145,6 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
     return metadataReExtract.traverse;
   }
 }
-
-
 
 export interface IActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySourceArgs extends IActorQuerySourceDereferenceLinkArgs {
   mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;

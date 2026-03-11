@@ -18,7 +18,6 @@ export class QuerySourceCacheWrapper implements IQuerySource {
 
   public referenceValue: QuerySourceReference;
 
-
   protected DF: DataFactory = new DataFactory();
   protected AF: AlgebraFactory = new AlgebraFactory(this.DF);
 
@@ -45,7 +44,7 @@ export class QuerySourceCacheWrapper implements IQuerySource {
       this.resolveSize = resolve;
       this.rejectSize = reject;
     });
-    
+
     this.source = source;
     this.referenceValue = source.referenceValue;
   }
@@ -87,15 +86,15 @@ export class QuerySourceCacheWrapper implements IQuerySource {
           this.resolveSize(this.quadCount);
         });
 
-        result.on('error', err => {
+        result.on('error', (err) => {
           this.rejectSize(err);
         });
 
-        return result.map(quad => {
+        return result.map((quad) => {
           this.quadCount++;
           return quad;
         });
-      }      
+      }
       return result;
     }
     throw new Error('queryQuads is not implemented in QuerySourceCacheWrapper');

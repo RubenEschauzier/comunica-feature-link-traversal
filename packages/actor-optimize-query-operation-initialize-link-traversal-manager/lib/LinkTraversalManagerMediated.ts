@@ -104,7 +104,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   }
 
   public stop(): void {
-    console.log(`Traversed: ${this.nTraversed} links`)
+    console.log(`Traversed: ${this.nTraversed} links`);
     if (!this.ended) {
       this.running = false;
       this.ended = true;
@@ -122,8 +122,8 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
 
   public getCacheQuerySource(): IQuerySource | undefined {
     return this.cacheQuerySource;
-  } 
-  
+  }
+
   public addStopListener(cb: () => void): void {
     this.stopListeners.push(cb);
   }
@@ -152,7 +152,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
       const nextLink = this.linkQueue.pop();
       if (nextLink) {
         this.followLink(nextLink);
-        this.nTraversed++
+        this.nTraversed++;
       } else {
         break;
       }

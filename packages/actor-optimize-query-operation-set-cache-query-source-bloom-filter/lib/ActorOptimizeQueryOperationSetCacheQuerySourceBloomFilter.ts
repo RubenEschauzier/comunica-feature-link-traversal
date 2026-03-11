@@ -1,24 +1,25 @@
+import type {
+  IActionOptimizeQueryOperation,
+  IActorOptimizeQueryOperationArgs,
+  IActorOptimizeQueryOperationOutput,
+} from '@comunica/bus-optimize-query-operation';
+import {
+  ActorOptimizeQueryOperation,
+} from '@comunica/bus-optimize-query-operation';
+import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
-import { KeysCaching } from '@comunica/context-entries';
+import { KeysCaching, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
-import type { BindingsStream, ISourceState, ISourceStateBloomFilter } from '@comunica/types';
+import type { BindingsStream, ISourceStateBloomFilter, ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 
-import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
+import type * as RDF from '@rdfjs/types';
+import type { AsyncIterator } from 'asynciterator';
+import { EmptyIterator } from 'asynciterator';
+import { AsyncReiterableArray } from 'asyncreiterable';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateIndexedBloomFilter } from './PersistentCacheSourceStateIndexedBloomFilter';
-import { AsyncIterator, EmptyIterator} from 'asynciterator';
-import type * as RDF from '@rdfjs/types';
-import { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
-import { AsyncReiterableArray } from 'asyncreiterable';
-import { KeysQuerySourceIdentify } from '@comunica/context-entries';
-import { 
-  ActorOptimizeQueryOperation, 
-  IActionOptimizeQueryOperation, 
-  IActorOptimizeQueryOperationArgs, 
-  IActorOptimizeQueryOperationOutput 
-} from '@comunica/bus-optimize-query-operation';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -36,17 +37,17 @@ export class ActorOptimizeQueryOperationSetCacheQuerySourceBloomFilter extends A
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
-    return passTestVoid(); 
+    return passTestVoid();
   }
 
   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
     const context = action.context;
-    if (!action.context.get(KeysQuerySourceIdentify.traverse)){
+    if (!action.context.get(KeysQuerySourceIdentify.traverse)) {
       return { context, operation: action.operation };
     }
-    //TODO: Same as context preprocess
+    // TODO: Same as context preprocess
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
-      console.log("Cleaned cache.")
+      console.log('Cleaned cache.');
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexedBloomFilter(
         { maxNumTriples: this.cacheSizeNumTriples },
       );
@@ -63,12 +64,10 @@ export class ActorOptimizeQueryOperationSetCacheQuerySourceBloomFilter extends A
       CacheSourceStateViews.cacheQueryViewBloomFilter,
       new GetSourceStateCacheViewBloomFilter(),
     );
-    
-    return { context, operation: action.operation };
 
+    return { context, operation: action.operation };
   }
 }
-
 
 export class SetSourceStateCache implements ISetFn<ISourceStateBloomFilter, ISourceStateBloomFilter, { headers: Headers }> {
   protected DF: DataFactory = new DataFactory();
@@ -86,16 +85,15 @@ export class SetSourceStateCache implements ISetFn<ISourceStateBloomFilter, ISou
 
 export class GetSourceStateCacheViewBloomFilter
 implements ICacheView<
-  ISourceStateBloomFilter, 
-  { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
+  ISourceStateBloomFilter,
+  { url: string; mode: 'get'; action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads'; operation: Algebra.Operation },
   AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>> | ISourceStateBloomFilter
 > {
   protected querySourcesCached: AsyncReiterableArray<ISourceStateBloomFilter> = AsyncReiterableArray.fromInitialEmpty();
   protected ended = false;
   protected pendingCount = 0;
 
-  public constructor(){
-  }
+  public constructor() {}
 
   protected checkForTermination() {
     // Only close if we have received the 'end' signal AND there are no active lookups
@@ -122,10 +120,10 @@ implements ICacheView<
 
   public async construct(
     cache: IPersistentCache<ISourceStateBloomFilter>,
-    context: { url: string, mode: 'get', action: IActionQuerySourceDereferenceLink} | { mode: 'queryBindings' | 'queryQuads', operation: Algebra.Operation},
-  ): Promise<AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>>  | ISourceStateBloomFilter | undefined> {
-    if (context.mode === 'get'){
-      if (context.url === 'end'){
+    context: { url: string; mode: 'get'; action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads'; operation: Algebra.Operation },
+  ): Promise<AsyncIterator<BindingsStream> | AsyncIterator<AsyncIterator<RDF.Quad>> | ISourceStateBloomFilter | undefined> {
+    if (context.mode === 'get') {
+      if (context.url === 'end') {
         if (!this.ended) {
           this.ended = true;
           this.checkForTermination();
@@ -135,9 +133,9 @@ implements ICacheView<
       this.pendingCount++;
       try {
         const cacheEntry = await cache.get(context.url);
-        
+
         // Only push if valid and policy satisfied
-        if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)){
+        if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
           this.querySourcesCached.push(cacheEntry);
           return cacheEntry;
         }
@@ -145,24 +143,21 @@ implements ICacheView<
         this.pendingCount--;
         this.checkForTermination();
       }
-    }
-    else if (context.mode === 'queryBindings'){
+    } else if (context.mode === 'queryBindings') {
       if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
         const iteratorSources = this.querySourcesCached.iterator();
-        return iteratorSources.map(source => {
-          if (this.shouldQuerySource(source, <Algebra.Pattern> context.operation)){
-            return source.source.queryBindings(context.operation, new ActionContext())
+        return iteratorSources.map((source) => {
+          if (this.shouldQuerySource(source, <Algebra.Pattern> context.operation)) {
+            return source.source.queryBindings(context.operation, new ActionContext());
           }
           return new EmptyIterator<RDF.Bindings>();
-        })
+        });
       }
-      else {
-        throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
-      }
-    }
-    else if (context.mode === 'queryQuads'){
+
+      throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
+    } else if (context.mode === 'queryQuads') {
       if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
-        const pattern = context.operation as Algebra.Pattern;
+        const pattern = context.operation;
 
         // Filter sources based on Bloom Filter before creating quad streams
         const iteratorSources = this.querySourcesCached.iterator()
@@ -170,23 +165,19 @@ implements ICacheView<
 
         return iteratorSources.map(source => source.source.queryQuads(context.operation, new ActionContext()));
       }
-      else {
-        throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
-      }
-    }
-    else {
-      throw new Error(`Unknown view mode passed to ${this.constructor.name}: ${context.mode}`)
+
+      throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
+    } else {
+      throw new Error(`Unknown view mode passed to ${this.constructor.name}: ${context.mode}`);
     }
   }
 }
 
-
 export interface IActorOptimizeQueryOperationSetCacheQuerySourceBloomFilterArgs extends IActorOptimizeQueryOperationArgs {
-    /**
+  /**
    * The maximum number of triples in the cache.
    * @range {integer}
    * @default {124000}
    */
   cacheSizeNumTriples: number;
 }
-

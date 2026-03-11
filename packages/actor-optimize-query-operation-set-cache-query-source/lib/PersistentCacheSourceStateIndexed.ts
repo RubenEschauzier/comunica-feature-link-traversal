@@ -1,8 +1,6 @@
-import { QuerySourceCacheWrapper } from '../../actor-context-preprocess-set-cache-source-state/lib';
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
-import type { ISourceState } from '@comunica/types';
-import type { ICacheMetrics, IPersistentCache } from '@comunica/types';
+import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
@@ -20,9 +18,8 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   public readonly AF: Factory = new Factory(this.DF);
   public readonly BF: BindingsFactory = new BindingsFactory(this.DF, {});
 
-  private isTracking: boolean = false;
+  private isTracking = false;
   private cacheMetrics: ICacheMetrics;
-  
 
   public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
     this.maxNumTriples = args.maxNumTriples;
@@ -38,7 +35,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     return this.getSync(key);
   }
 
-  public getSync(key: string): ISourceState | undefined{
+  public getSync(key: string): ISourceState | undefined {
     const cachedState = this.lruCacheDocuments.get(key);
 
     if (this.isTracking) {
@@ -54,49 +51,47 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
   /**
    * Upon setting of a source, we index it and set it in the LRUCache.
-   * @param key 
-   * @param value 
-   * @returns 
+   * @param key
+   * @param value
+   * @returns
    */
   public async set(key: string, value: ISourceState): Promise<void> {
     const rdfStore = RdfStore.createDefault();
     const importStream = rdfStore.import(value.source.queryQuads(
-          this.AF.createPattern(
-            this.DF.variable('s'),
-            this.DF.variable('p'),
-            this.DF.variable('o'),
-            this.DF.variable('g'),
-          ),
-          new ActionContext(),
-        ));
-    
+      this.AF.createPattern(
+        this.DF.variable('s'),
+        this.DF.variable('p'),
+        this.DF.variable('o'),
+        this.DF.variable('g'),
+      ),
+      new ActionContext(),
+    ));
+
     return new Promise((resolve, reject) => {
       importStream.on('end', () => {
         this.sizeMap.set(key, rdfStore.size);
-        this.lruCacheDocuments.set(key, 
-          { 
-            ...value,
-            source: new QuerySourceRdfJs(
-              rdfStore,
-              this.DF,
-              this.BF
-            )
-          }
-        )
-        resolve()
+        this.lruCacheDocuments.set(key, {
+          ...value,
+          source: new QuerySourceRdfJs(
+            rdfStore,
+            this.DF,
+            this.BF,
+          ),
+        });
+        resolve();
       });
       importStream.on('error', () => {
-        reject('Import stream to cache error')
+        reject('Import stream to cache error');
       });
-    })
+    });
   }
 
   protected onDispose(value: ISourceState, key: string, reason: LRUCache.DisposeReason): void {
-    if (reason === 'evict' && this.isTracking){
+    if (reason === 'evict' && this.isTracking) {
       this.cacheMetrics.evictions++;
       this.cacheMetrics.evictionsCalculatedSize += this.sizeMap.get(key) ?? 1;
-      this.cacheMetrics.evictionPercentage = 
-        (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriples)*100;
+      this.cacheMetrics.evictionPercentage =
+        (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriples) * 100;
       if (this.sizeMap.has(key)) {
         this.sizeMap.delete(key);
       }
@@ -126,14 +121,13 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     throw new Error('Serialize implemented for this in-memory cache');
   }
 
-
-  public startSession(){
+  public startSession() {
     this.isTracking = true;
     this.cacheMetrics = this.resetMetrics();
     return this.cacheMetrics;
   }
 
-  public endSession(){
+  public endSession() {
     this.isTracking = false;
     return this.cacheMetrics;
   }
@@ -145,7 +139,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       evictions: 0,
       evictionsCalculatedSize: 0,
       evictionPercentage: 0,
-    }
+    };
   }
 }
 

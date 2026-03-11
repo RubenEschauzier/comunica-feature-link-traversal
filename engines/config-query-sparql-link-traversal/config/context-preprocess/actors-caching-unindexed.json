@@ -17,7 +17,7 @@
       "@id": "urn:comunica:default:context-preprocess/actors#set-persistent-cache-manager",
       "@type": "ActorContextPreprocessSetPersistentCacheManager",
       "trackCacheMetrics": true,
-      "beforeActors": {"@id": "urn:comunica:default:context-preprocess/actors#set-cache-source-state" }
+      "beforeActors": { "@id": "urn:comunica:default:context-preprocess/actors#set-cache-source-state" }
     }
   ]
 }

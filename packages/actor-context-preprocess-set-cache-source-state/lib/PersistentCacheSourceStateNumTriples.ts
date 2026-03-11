@@ -1,5 +1,4 @@
-import type { ISourceState } from '@comunica/types';
-import type { ICacheMetrics, IPersistentCache } from '@comunica/types';
+import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
 import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
 import { LRUCache } from 'lru-cache';
@@ -8,8 +7,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   private readonly sizeMap = new Map<string, number>();
   private readonly maxNumTriples: number;
   private readonly lruCacheDocuments: LRUCache<string, ISourceState>;
-  private cacheMetrics: ICacheMetrics
-
+  private cacheMetrics: ICacheMetrics;
 
   public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
     this.maxNumTriples = args.maxNumTriples;
@@ -25,12 +23,12 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
     return this.getSync(key);
   }
 
-  public getSync(key: string): ISourceState | undefined{
+  public getSync(key: string): ISourceState | undefined {
     const cachedState = this.lruCacheDocuments.get(key);
 
     // Track metrics
     cachedState ? this.cacheMetrics.hits++ : this.cacheMetrics.misses++;
-    
+
     return cachedState;
   }
 
@@ -57,11 +55,11 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   }
 
   protected onDispose(value: ISourceState, key: string, reason: LRUCache.DisposeReason): void {
-    if (reason === 'evict'){
+    if (reason === 'evict') {
       this.cacheMetrics.evictions++;
       this.cacheMetrics.evictionsCalculatedSize += this.sizeMap.get(key) ?? 1;
-      this.cacheMetrics.evictionPercentage = 
-        (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriples)*100;
+      this.cacheMetrics.evictionPercentage =
+        (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriples) * 100;
       if (this.sizeMap.has(key)) {
         this.sizeMap.delete(key);
       }
@@ -91,25 +89,25 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
     throw new Error('Serialize implemented for this in-memory cache');
   }
 
-  public startSession(){
+  public startSession() {
     console.log(`Start new tracking session.`);
     this.cacheMetrics = this.resetMetrics();
     return this.cacheMetrics;
   }
 
-  public endSession(){
+  public endSession() {
     console.log(`End tracking session`);
     return this.cacheMetrics;
   }
 
-  public resetMetrics(): ICacheMetrics{
+  public resetMetrics(): ICacheMetrics {
     return {
       hits: 0,
       misses: 0,
       evictions: 0,
       evictionsCalculatedSize: 0,
       evictionPercentage: 0,
-    }
+    };
   }
 }
 

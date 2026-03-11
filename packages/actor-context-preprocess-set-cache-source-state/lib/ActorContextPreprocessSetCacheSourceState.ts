@@ -9,9 +9,8 @@ import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewK
 import { KeysCaching } from '@comunica/context-entries';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
-import type { ISourceState } from '@comunica/types';
+import type { ISourceState, ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 
-import type { ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
@@ -26,9 +25,9 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
-    console.log(`Maximum cache size: ${args.cacheSizeNumTriples}`)
+    console.log(`Maximum cache size: ${args.cacheSizeNumTriples}`);
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-      { maxNumTriples: args.cacheSizeNumTriples, },
+      { maxNumTriples: args.cacheSizeNumTriples },
     );
   }
 
@@ -39,12 +38,12 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
     const context = action.context;
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
-    
+
     // TEMP Solution due to my own sparql benchmark runner adjustments
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       console.log(`Cleaned cache.`);
       this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-        { maxNumTriples: this.cacheSizeNumTriples, },
+        { maxNumTriples: this.cacheSizeNumTriples },
       );
     }
     console.log(`Cache size: ${await this.cacheSourceState.size()}`);

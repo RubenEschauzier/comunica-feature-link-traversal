@@ -3,7 +3,7 @@ import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysInitQuery } from '@comunica/context-entries';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
-import type { IActionContext } from '@comunica/types';
+import type { IActionContext, ILink } from '@comunica/types';
 import { Algebra, algebraUtils } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
 import { DataFactory } from 'rdf-data-factory';
@@ -74,6 +74,47 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
     return matchingPatterns;
   }
 
+  public static extractLinksOnQuad(
+    quad: RDF.Quad,
+    links: ILink[],
+    operation: Algebra.Operation,
+    onlyVariables: boolean,
+    actorName: string,
+  ): void {
+    const matchingPatterns = ActorExtractLinksQuadPatternQuery.matchQuadPatternInOperation(quad, operation);
+
+    if (matchingPatterns.length > 0) {
+      if (onlyVariables) {
+        // --- If we only want to follow links matching with a variable component ---
+
+        // Determine quad term names that we should check
+        const quadTermNames: Partial<Record<QuadTermName, boolean>> = {};
+        for (const quadPattern of matchingPatterns) {
+          for (const quadTermName of filterQuadTermNames(quadPattern, value => value.termType === 'Variable')) {
+            quadTermNames[quadTermName] = true;
+          }
+        }
+
+        for (const quadTermName of <QuadTermName[]>Object.keys(quadTermNames)) {
+          if (quad[quadTermName].termType === 'NamedNode') {
+            links.push({
+              url: quad[quadTermName].value,
+              metadata: { producedByActor: { name: actorName, onlyVariables }},
+            });
+          }
+        }
+      } else {
+        // --- If we want to follow links, irrespective of matching with a variable component ---
+        for (const link of getNamedNodes(getTerms(quad))) {
+          links.push({
+            url: link.value,
+            metadata: { producedByActor: { name: actorName, onlyVariables }},
+          });
+        }
+      }
+    }
+  }
+
   public async test(action: IActionExtractLinks): Promise<TestResult<IActorTest>> {
     if (!ActorExtractLinksQuadPatternQuery.getCurrentQuery(action.context)) {
       return failTest(`Actor ${this.name} can only work in the context of a query.`);
@@ -84,43 +125,17 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     const operation: Algebra.Operation = ActorExtractLinksQuadPatternQuery
       .getCurrentQuery(action.context)!;
+    const onQuadBound = (quad: RDF.Quad, links: ILink[]) =>
+      ActorExtractLinksQuadPatternQuery.extractLinksOnQuad(
+        quad,
+        links,
+        operation,
+        this.onlyVariables,
+        this.name,
+      );
 
     return {
-      links: await ActorExtractLinks.collectStream(action.metadata, (quad, links) => {
-        const matchingPatterns = ActorExtractLinksQuadPatternQuery
-          .matchQuadPatternInOperation(quad, operation);
-        if (matchingPatterns.length > 0) {
-          if (this.onlyVariables) {
-            // --- If we only want to follow links matching with a variable component ---
-
-            // Determine quad term names that we should check
-            const quadTermNames: Partial<Record<QuadTermName, boolean>> = {};
-            for (const quadPattern of matchingPatterns) {
-              for (const quadTermName of filterQuadTermNames(quadPattern, value => value.termType === 'Variable')) {
-                quadTermNames[quadTermName] = true;
-              }
-            }
-
-            // For the discovered quad term names, check extract the named nodes in the quad
-            for (const quadTermName of <QuadTermName[]>Object.keys(quadTermNames)) {
-              if (quad[quadTermName].termType === 'NamedNode') {
-                links.push({
-                  url: quad[quadTermName].value,
-                  metadata: { producedByActor: { name: this.name, onlyVariables: this.onlyVariables }},
-                });
-              }
-            }
-          } else {
-            // --- If we want to follow links, irrespective of matching with a variable component ---
-            for (const link of getNamedNodes(getTerms(quad))) {
-              links.push({
-                url: link.value,
-                metadata: { producedByActor: { name: this.name, onlyVariables: this.onlyVariables }},
-              });
-            }
-          }
-        }
-      }),
+      links: await ActorExtractLinks.collectStream(action.metadata, onQuadBound),
     };
   }
 }

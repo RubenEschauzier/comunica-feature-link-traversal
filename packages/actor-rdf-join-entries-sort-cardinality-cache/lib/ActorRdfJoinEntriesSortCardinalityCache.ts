@@ -7,7 +7,8 @@ import type {
   IActorRdfJoinEntriesSortOutput,
   IActorRdfJoinEntriesSortTest,
 } from '@comunica/bus-rdf-join-entries-sort';
-import { CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
+import type { ICacheKey } from '@comunica/cache-manager-entries';
+import { CacheKey } from '@comunica/cache-manager-entries';
 import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult } from '@comunica/core';
 import { failTest, passTest } from '@comunica/core';
@@ -29,15 +30,15 @@ export class ActorRdfJoinEntriesSortCardinalityCache extends ActorRdfJoinEntries
 
   public async test(action: IActionRdfJoinEntriesSort): Promise<TestResult<IActorRdfJoinEntriesSortTest>> {
     const cacheManager = action.context.get(KeysCaching.cacheManager);
-    if (!cacheManager){
+    if (!cacheManager) {
       return failTest(`${this.name} requires a cacheManager object in context`);
     }
-    const registeredCache = cacheManager.getRegisteredCache(this.cacheEntryKey)
-    if (!registeredCache){
+    const registeredCache = cacheManager.getRegisteredCache(this.cacheEntryKey);
+    if (!registeredCache) {
       return failTest(`${this.name} cacheManager did not have passed cacheKey registered`);
     }
     const cacheSize = await registeredCache.cache.size();
-    if (cacheSize < this.minCacheSize){
+    if (cacheSize < this.minCacheSize) {
       return failTest(`${this.name} cache calculated size (${cacheSize}) smaller than minimal size: ${this.minCacheSize}`);
     }
     return passTest({
@@ -65,7 +66,7 @@ export interface IActorRdfJoinEntriesSortCardinalityCacheArgs extends IActorRdfJ
    * The name of the key that will be used by ActorQuerySourceIdentifyLinkTraversal to query
    * the cache for cardinality counts
    */
-  cacheCountViewName: string
+  cacheCountViewName: string;
   /**
    * Minimal calculated size of the cache before this actor will be invoked (default is in number of triples)
    * @range {integer}

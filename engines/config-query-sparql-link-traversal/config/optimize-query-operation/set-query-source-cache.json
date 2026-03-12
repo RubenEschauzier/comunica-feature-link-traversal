@@ -14,6 +14,7 @@
       "@type": "ActorOptimizeQueryOperationSetCacheQuerySource",
       "cacheSizeNumTriples": 1000000,
       "mediatorFactoryAggregatedStore": { "@id": "urn:comunica:default:factory-aggregated-store/mediators#main" },
+      "actorExtractLinksQuadPatternQuery": { "@id": "urn:comunica:default:extract-links/actors#quad-pattern-query" },
       "beforeActors": [
         { "@id": "urn:comunica:default:optimize-query-operation/actors#initialize-link-traversal-manager" }
       ]

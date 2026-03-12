@@ -25,10 +25,10 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
-    console.log(`Maximum cache size: ${args.cacheSizeNumTriples}`);
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
       { maxNumTriples: args.cacheSizeNumTriples },
     );
+    console.log(`Created cache with maxSize: ${args.cacheSizeNumTriples}`)
   }
 
   public async test(_action: IAction): Promise<TestResult<IActorTest>> {
@@ -41,12 +41,11 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
 
     // TEMP Solution due to my own sparql benchmark runner adjustments
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
-      console.log(`Cleaned cache.`);
       this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
         { maxNumTriples: this.cacheSizeNumTriples },
       );
+      console.log(`Cleaned cache, size: ${await this.cacheSourceState.size()}`);
     }
-    console.log(`Cache size: ${await this.cacheSourceState.size()}`);
 
     cacheManager.registerCache(
       CacheEntrySourceState.cacheSourceState,

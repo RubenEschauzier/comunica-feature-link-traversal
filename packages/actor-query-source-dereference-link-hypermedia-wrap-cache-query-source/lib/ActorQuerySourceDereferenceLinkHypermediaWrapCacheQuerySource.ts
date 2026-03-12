@@ -14,7 +14,7 @@ import type { ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
 import { CacheKey, ViewKey } from '@comunica/cache-manager-entries';
 import { KeysCore, KeysQueryOperation, KeysStatistics, KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
-import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
+import { ActionContext, ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { IActionContext, ISourceState } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 
@@ -75,6 +75,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
       throw err;
     }
     if (sourceFromCache) {
+      console.log("cache");
       // Console.log(sourceFromCache.metadata.traverse.forEach((traverse: ILink) => {
       //   console.log(traverse.metadata?.producedByActor)
       // }))
@@ -83,7 +84,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
       // await sourceFromCache.source.getSelectorShape(new ActionContext());
       // const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
       // sourceFromCache.metadata.traverse = traverse;
-      const stubSource = { ...sourceFromCache, source: new QuerySourceStub(this.DF, action.link.url) };
+      // const stubSource = { ...sourceFromCache, source: new QuerySourceStub(this.DF, action.link.url) };
       // If we used cached source the cache will serve any matching bindings of the triple pattern,
       // so we return empty QuerySource for the aggregated store to import
       context.get(KeysStatistics.dereferencedLinks)?.updateStatistic(
@@ -94,7 +95,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCacheQuerySource exten
         sourceFromCache,
       );
 
-      return stubSource;
+      return sourceFromCache;
     }
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);

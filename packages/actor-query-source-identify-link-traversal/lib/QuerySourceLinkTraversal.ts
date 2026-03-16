@@ -52,7 +52,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     }
 
     // Take the union of the bindings produced when querying over the
-    // aggregated, non-aggregated, and cache sources. We take the metadata of the aggregated source.
+    // aggregated and non-aggregated. We take the metadata of the aggregated source.
     const firstIterator = this.linkTraversalManager.getQuerySourceAggregated()
       .queryBindings(operation, context, options);
     const nonAggregatedIterators = this.linkTraversalManager.getQuerySourcesNonAggregated()
@@ -63,32 +63,32 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     // contract
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
 
-    let cacheIterator: BindingsStream | undefined;
-    if (persistentCacheManager && this.cacheEntryKey && this.cacheViewKey &&
-      persistentCacheManager.hasCache(this.cacheEntryKey) &&
-      persistentCacheManager.hasView(this.cacheViewKey)
-    ) {
-      const streamPromise = persistentCacheManager.getFromCache(
-        this.cacheEntryKey,
-        this.cacheViewKey,
-        { operation, mode: 'queryBindings', context },
-      );
+    // let cacheIterator: BindingsStream | undefined;
+    // if (persistentCacheManager && this.cacheEntryKey && this.cacheViewKey &&
+    //   persistentCacheManager.hasCache(this.cacheEntryKey) &&
+    //   persistentCacheManager.hasView(this.cacheViewKey)
+    // ) {
+    //   const streamPromise = persistentCacheManager.getFromCache(
+    //     this.cacheEntryKey,
+    //     this.cacheViewKey,
+    //     { operation, mode: 'queryBindings', context },
+    //   );
 
-      cacheIterator = wrapAsyncIterator(
-        <Promise<BindingsStream>> streamPromise,
-        { autoStart: false },
-      );
+    //   cacheIterator = wrapAsyncIterator(
+    //     <Promise<BindingsStream>> streamPromise,
+    //     { autoStart: false },
+    //   );
 
-      const stopIterator = async() => {
-        await persistentCacheManager.getFromCache(
-          this.cacheEntryKey!,
-          this.cacheViewKey!,
-          { url: 'end', mode: 'get', action: { link: { url: 'end' }, context }},
-        );
-      };
-      this.linkTraversalManager.addStopListener(() => stopIterator());
-      allIterators = allIterators.prepend([ cacheIterator ]);
-    }
+    //   const stopIterator = async() => {
+    //     await persistentCacheManager.getFromCache(
+    //       this.cacheEntryKey!,
+    //       this.cacheViewKey!,
+    //       { url: 'end', mode: 'get', action: { link: { url: 'end' }, context }},
+    //     );
+    //   };
+    //   this.linkTraversalManager.addStopListener(() => stopIterator());
+    //   allIterators = allIterators.prepend([ cacheIterator ]);
+    // }
 
     const iterator = new ClosableTransformIterator(new UnionIterator(
       allIterators,
@@ -98,12 +98,12 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       onClose: () => {
         firstIterator.close();
         nonAggregatedIterators.close();
-        cacheIterator?.close();
+        // cacheIterator?.close();
       },
     });
 
-    // If we have this set we attempt to query the cache for cardinality estimates of
-    // the operation.
+    // If we have the limit set and are passed a cache view that can count entries in the cache
+    // query the cache for cardinality estimates of the operation.
     if (this.setCardinalityFromCacheMinLimit && persistentCacheManager &&
        this.cacheCountViewKey && this.cacheEntryKey &&
           persistentCacheManager.hasCache(this.cacheEntryKey) &&

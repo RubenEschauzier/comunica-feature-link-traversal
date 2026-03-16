@@ -22,7 +22,7 @@ import { AsyncReiterableArray } from 'asyncreiterable';
  * additional links, and appending those to the queue.
  */
 export class LinkTraversalManagerMediated implements ILinkTraversalManager {
-  protected running = false;
+  private running = false;
   protected ended = false;
   protected readonly handledUrls: Record<string, boolean> = {};
   protected linksDereferencing: Set<AbortController> = new Set();

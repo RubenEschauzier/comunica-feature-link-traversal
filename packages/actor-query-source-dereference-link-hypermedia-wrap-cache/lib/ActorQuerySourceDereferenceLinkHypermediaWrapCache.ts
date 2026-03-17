@@ -8,14 +8,14 @@ import type {
   IActorQuerySourceDereferenceLinkArgs,
   MediatorQuerySourceDereferenceLink,
 } from '@comunica/bus-query-source-dereference-link';
-import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
+import type { MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
+import { CacheEntrySourceState, CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCore, KeysQueryOperation, KeysStatistics, KeysCaching } from '@comunica/context-entries';
+import { KeysCore, KeysStatistics, KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
-import type { IActionContext, ISourceState } from '@comunica/types';
+import type { ISourceState } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 
 import type * as RDF from '@rdfjs/types';
@@ -30,6 +30,9 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
   public readonly mediatorMetadata: MediatorRdfMetadata;
   public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
+  public readonly cacheEntryKey: ICacheKey<unknown, unknown, unknown>;
+  public readonly cacheViewKey: IViewKey<unknown, unknown, unknown>;
+
   public readonly DF: DataFactory = new DataFactory();
   public readonly BF: BindingsFactory = new BindingsFactory(this.DF, {});
   public readonly AF: Factory = new Factory(this.DF);
@@ -39,11 +42,16 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
     this.mediatorMetadata = args.mediatorMetadata;
     this.mediatorMetadataExtract = args.mediatorMetadataExtract;
+    this.cacheEntryKey = new CacheKey(args.cacheEntryKeyName);
+    this.cacheViewKey = new ViewKey(args.cacheViewKeyName);
   }
 
   public async test(action: IActionQuerySourceDereferenceLink): Promise<TestResult<IActorTest>> {
     if (action.context.get(KEY_WRAPPED)) {
       return failTest('Can only wrap dereference link once');
+    }
+    if (!action.context.get(KeysCaching.cacheManager)) {
+      return failTest('Can only wrap dereference link with cache when manager is in context');
     }
     return passTestVoid();
   }
@@ -55,22 +63,16 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
 
     let sourceFromCache: ISourceState | undefined;
     try {
-      sourceFromCache = await cacheManager.getFromCache(
-        CacheEntrySourceState.cacheSourceState,
-        CacheSourceStateViews.cacheSourceStateView,
-        { url: action.link.url },
+      sourceFromCache = <ISourceState | undefined> await cacheManager.getFromCache(
+        this.cacheEntryKey,
+        this.cacheViewKey,
+        { url: action.link.url, action, extractLinksQuadPattern: true },
       );
     } catch (err: any) {
       action.context.get(KeysCore.log)?.error(`Error when getting from cache: ${err.message}`);
       throw err;
     }
     if (sourceFromCache && await sourceFromCache.cachePolicy?.satisfiesWithoutRevalidation(action)) {
-      // Re-extract traverse metadata so the followed links are up-to-date with current
-      // query
-      // await sourceFromCache.source.getSelectorShape(new ActionContext());
-      const traverse = await this.reExtractTraverseMetadata(sourceFromCache, action.link.url, context);
-      sourceFromCache.metadata.traverse = traverse;
-
       context.get(KeysStatistics.dereferencedLinks)?.updateStatistic(
         {
           url: action.link.url,
@@ -85,47 +87,12 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);
     dereferenceLinkOutput.source = new QuerySourceCacheWrapper(dereferenceLinkOutput.source);
     await cacheManager.setCache(
-      CacheEntrySourceState.cacheSourceState,
+      this.cacheEntryKey,
       action.link.url,
       { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
       { headers: dereferenceLinkOutput.headers },
     );
     return dereferenceLinkOutput;
-  }
-
-  protected async reExtractTraverseMetadata(source: ISourceState, url: string, context: IActionContext) {
-    const quads = <RDF.Stream> source.source.queryQuads(
-      this.AF.createPattern(
-        this.DF.variable('s'),
-        this.DF.variable('p'),
-        this.DF.variable('o'),
-        this.DF.variable('g'),
-      ),
-      context.set(KeysQueryOperation.unionDefaultGraph, true),
-    );
-    // Determine the metadata (TODO: We set triples to false, but this should probably be in the metadata
-    // of the stored ISourceState so we don't have to just assume its not quads or does it not matter
-    // for traverse value)
-    const rdfMetadataOutputCachedSource: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-      { context, url, quads, triples: false },
-    );
-
-    rdfMetadataOutputCachedSource.data.on('error', () => {
-    // Silence errors in the data stream,
-    // as they will be emitted again in the metadata stream,
-    // and will result in a promise rejection anyways.
-    // If we don't do this, we end up with an unhandled error message
-    });
-
-    const metadataReExtract = (await this.mediatorMetadataExtract.mediate({
-      context,
-      url,
-      metadata: rdfMetadataOutputCachedSource.metadata,
-      headers: source.headers,
-      requestTime: 0,
-    })).metadata;
-
-    return metadataReExtract.traverse;
   }
 }
 
@@ -133,6 +100,8 @@ export interface IActorQuerySourceDereferenceLinkHypermediaWrapCacheArgs extends
   mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
   mediatorMetadata: MediatorRdfMetadata;
   mediatorMetadataExtract: MediatorRdfMetadataExtract;
+  cacheEntryKeyName: string;
+  cacheViewKeyName: string;
 }
 
 export const KEY_WRAPPED = new ActionContextKey<boolean>(

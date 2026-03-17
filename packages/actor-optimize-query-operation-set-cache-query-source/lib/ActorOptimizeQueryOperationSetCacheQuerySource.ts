@@ -33,14 +33,12 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
   private cacheQuerySourceState: PersistentCacheSourceStateIndexed;
   private readonly cacheSizeNumTriples: number;
 
-  public readonly mediatorFactoryAggregatedStore: MediatorFactoryAggregatedStore;
   public readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   public readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
   public constructor(args: IActorOptimizeQueryOperationSetCacheQuerySourceArgs) {
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
-    this.mediatorFactoryAggregatedStore = args.mediatorFactoryAggregatedStore;
     this.mediatorQuerySourceIdentifyHypermedia = args.mediatorQuerySourceIdentifyHypermedia;
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
 
@@ -73,7 +71,9 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
       this.cacheQuerySourceState,
       new SetSourceStateCache(),
     );
-    const dataFactory = action.context.getSafe(KeysInitQuery.dataFactory);
+    const dataFactory = context.getSafe(KeysInitQuery.dataFactory);
+    const queryOp = context.getSafe(KeysInitQuery.query);
+
     const VAR = dataFactory.variable('__comunica:pp_var');
     const quadPatterns = this.extractQuadPatterns(action.context.getSafe(KeysInitQuery.query), dataFactory, VAR);
 
@@ -82,8 +82,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
       new GetStreamingCacheView(
         action.context.getSafe(KeysInitQuery.dataFactory),
         quadPatterns,
-        ActorExtractLinksQuadPatternQuery.getCurrentQuery(action.context)!,
-        (await this.mediatorFactoryAggregatedStore.mediate({ context })).aggregatedStore,
+        queryOp,
         this.mediatorQuerySourceIdentifyHypermedia,
         this.actorExtractLinksQuadPatternQuery,
         context.get(KeysQueryOperation.unionDefaultGraph),
@@ -174,8 +173,12 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
 
 export class GetStreamingCacheView implements ICacheView<
   ISourceState,
-  { url: string; mode: 'get'; action: IActionQuerySourceDereferenceLink } | { mode: 'queryBindings' | 'queryQuads'; operation: Algebra.Operation; context: IActionContext },
-  BindingsStream | AsyncIterator<RDF.Quad> | ISourceState
+  { 
+    url: string; 
+    action: IActionQuerySourceDereferenceLink,
+    extractLinksQuadPattern?: boolean,
+  },
+  ISourceState
 > {
   protected traverseEnded = false;
   protected pendingCount = 0;
@@ -184,24 +187,17 @@ export class GetStreamingCacheView implements ICacheView<
   protected readonly bindingsFactory: BindingsFactory;
   protected readonly algebraFactory: AlgebraFactory;
 
-  protected readonly cachedStore: IAggregatedStore;
-  protected readonly accumulatedSource: IQuerySource;
-
   protected readonly quadPatterns: Algebra.Pattern[];
   protected readonly queryOperation: Algebra.Operation;
   protected readonly unionDefaultGraph: boolean;
-  protected allIteratorsClosedListener: () => void;
 
   protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   protected readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
-
-  countsPerPattern: Record<string, number> = {}
 
   public constructor(
     dataFactory: ComunicaDataFactory,
     topLevelQuadPatterns: Algebra.Pattern[],
     queryOperation: Algebra.Operation,
-    aggregatedStore: IAggregatedStore,
     mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia,
     actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
     unionDefaultGraph?: boolean,
@@ -209,53 +205,24 @@ export class GetStreamingCacheView implements ICacheView<
     this.dataFactory = dataFactory;
     this.bindingsFactory = new BindingsFactory(this.dataFactory);
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
-    this.cachedStore = aggregatedStore;
 
     this.quadPatterns = topLevelQuadPatterns;
-    for (const pattern of this.quadPatterns){
-      this.countsPerPattern[JSON.stringify(pattern, null, 2)] = 0;
-    }
     this.queryOperation = queryOperation;
     this.unionDefaultGraph = Boolean(unionDefaultGraph);
 
-    this.allIteratorsClosedListener = () => this.checkForTermination();
-    this.cachedStore.addAllIteratorsClosedListener(this.allIteratorsClosedListener);
-
-    this.accumulatedSource = new QuerySourceRdfJs(
-      <RDF.Source | RDF.DatasetCore> this.cachedStore,
-      this.dataFactory,
-      this.bindingsFactory,
-    );
 
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
     this.mediatorQuerySourceIdentifyHypermedia = mediatorQuerySourceIdentifyHypermedia
   }
 
-  protected checkForTermination(cache?: IPersistentCache<ISourceState>) {
-    // If the query execution is marked as ended (when traversal ends for example)
-    // and we finished importing all streams, we end the cached store.
-    if (this.traverseEnded && this.pendingCount === 0 && !this.cachedStore.hasEnded()) {
-      this.cachedStore.end();
-      if (cache) {
-        console.log(cache.endSession());
-      }
-      this.cachedStore.removeAllIteratorsClosedListener(this.allIteratorsClosedListener);
-    }
-  }
-
   public async construct(
     cache: IPersistentCache<ISourceState>,
-    context: { url: string; mode: 'get'; action: IActionQuerySourceDereferenceLink; extractLinksQuadPattern?: boolean } | { mode: 'queryBindings' | 'queryQuads'; operation: Algebra.Operation; context: IActionContext },
-  ): Promise<BindingsStream | AsyncIterator<RDF.Quad> | ISourceState | undefined> {
-    if (context.mode === 'get') {
-      // When passed end event, traversal is done and the source can end if we finished
-      // importing all data from previous 'get' requests to cache
-      if (context.url === 'end') {
-        this.traverseEnded = true;
-        this.checkForTermination(cache);
-        return;
-      }
-
+    context: { 
+      url: string;
+      action: IActionQuerySourceDereferenceLink;
+      extractLinksQuadPattern?: boolean 
+    } 
+  ): Promise<ISourceState | undefined> {
       const cacheEntry = await cache.get(context.url);
       // Only push if valid and policy satisfied
       if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
@@ -265,8 +232,10 @@ export class GetStreamingCacheView implements ICacheView<
         if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery) {
           const links: ILink[] = [];
           const quads = new UnionIterator(this.quadPatterns.map(
-            (quadPattern) => cacheEntry.source.queryQuads(quadPattern, 
-              new ActionContext().set(KeysQueryOperation.unionDefaultGraph, true))
+            (quadPattern) => cacheEntry.source.queryQuads(
+              quadPattern, 
+              context.action.context,
+            )
           ), { "autoStart": false });
 
           const patternLinks = await ActorExtractLinksQuadPatternQuery
@@ -276,7 +245,7 @@ export class GetStreamingCacheView implements ICacheView<
                 arr,
                 this.queryOperation,
                 true,
-                this.constructor.name,
+                this.actorExtractLinksQuadPatternQuery!.name,
               );
           });
 
@@ -297,7 +266,7 @@ export class GetStreamingCacheView implements ICacheView<
           context.url,
           async quads => (await this.mediatorQuerySourceIdentifyHypermedia.mediate({
             quads,
-            context: new ActionContext(),
+            context: context.action.context,
             url: context.url,
             metadata: {},
           })).source,
@@ -307,20 +276,6 @@ export class GetStreamingCacheView implements ICacheView<
       }
       return
     }
-
-    if (context.mode === 'queryBindings') {
-      if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
-        return this.accumulatedSource.queryBindings(context.operation, context.context);
-      }
-      throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
-    } else if (context.mode === 'queryQuads') {
-      if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
-        return this.accumulatedSource.queryQuads(context.operation, context.context);
-      }
-      throw new Error(`${this.construct.name} does not support operations other than quad or triple patterns`);
-    }
-    throw new Error(`Unknown view mode passed to ${this.constructor.name}: ${context.mode}`);
-  }
 }
 
 export interface IActorOptimizeQueryOperationSetCacheQuerySourceArgs extends IActorOptimizeQueryOperationArgs {
@@ -330,10 +285,6 @@ export interface IActorOptimizeQueryOperationSetCacheQuerySourceArgs extends IAc
    * @default {124000}
    */
   cacheSizeNumTriples: number;
-  /**
-   * A mediator for creating aggregated stores
-   */
-  mediatorFactoryAggregatedStore: MediatorFactoryAggregatedStore;
   /**
    * Test
    */

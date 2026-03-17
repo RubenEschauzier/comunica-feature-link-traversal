@@ -1,5 +1,5 @@
 import type { ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
-import { KeysCaching } from '@comunica/context-entries';
+import { KeysCaching, KeysQueryOperation } from '@comunica/context-entries';
 import type {
   BindingsStream,
   FragmentSelectorShape,
@@ -20,7 +20,6 @@ import { UnionIterator, wrap as wrapAsyncIterator } from 'asynciterator';
  */
 export class QuerySourceLinkTraversal implements IQuerySource {
   public readonly referenceValue: string;
-  public callToThis = 0;
 
   public constructor(
     public readonly linkTraversalManager: ILinkTraversalManager,
@@ -59,37 +58,6 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       .map(source => source.queryBindings(operation, context, options));
 
     let allIterators = nonAggregatedIterators.prepend([ firstIterator ]);
-    // TODO: This should be generalized to work with arbitrary cache and view keys that satisfy the
-    // contract
-    const persistentCacheManager = context.get(KeysCaching.cacheManager);
-
-    // let cacheIterator: BindingsStream | undefined;
-    // if (persistentCacheManager && this.cacheEntryKey && this.cacheViewKey &&
-    //   persistentCacheManager.hasCache(this.cacheEntryKey) &&
-    //   persistentCacheManager.hasView(this.cacheViewKey)
-    // ) {
-    //   const streamPromise = persistentCacheManager.getFromCache(
-    //     this.cacheEntryKey,
-    //     this.cacheViewKey,
-    //     { operation, mode: 'queryBindings', context },
-    //   );
-
-    //   cacheIterator = wrapAsyncIterator(
-    //     <Promise<BindingsStream>> streamPromise,
-    //     { autoStart: false },
-    //   );
-
-    //   const stopIterator = async() => {
-    //     await persistentCacheManager.getFromCache(
-    //       this.cacheEntryKey!,
-    //       this.cacheViewKey!,
-    //       { url: 'end', mode: 'get', action: { link: { url: 'end' }, context }},
-    //     );
-    //   };
-    //   this.linkTraversalManager.addStopListener(() => stopIterator());
-    //   allIterators = allIterators.prepend([ cacheIterator ]);
-    // }
-
     const iterator = new ClosableTransformIterator(new UnionIterator(
       allIterators,
       { autoStart: false },
@@ -98,30 +66,39 @@ export class QuerySourceLinkTraversal implements IQuerySource {
       onClose: () => {
         firstIterator.close();
         nonAggregatedIterators.close();
-        // cacheIterator?.close();
       },
     });
 
-    // If we have the limit set and are passed a cache view that can count entries in the cache
-    // query the cache for cardinality estimates of the operation.
-    if (this.setCardinalityFromCacheMinLimit && persistentCacheManager &&
+    const persistentCacheManager = context.get(KeysCaching.cacheManager);
+    // TODO: This should work with any cache view and entries that satisfy the 
+    // contract. (As in allows for cardinality estimation?)
+    
+    // If we 
+    // - Have a limit set 
+    // - Are passed a cache manager, entry and, view that can count entries 
+    // - Are not executing a subquery for bind join
+    // then we query the cache for cardinality estimates of the operation.
+    if (
+       this.setCardinalityFromCacheMinLimit && 
+       persistentCacheManager &&
        this.cacheCountViewKey && this.cacheEntryKey &&
-          persistentCacheManager.hasCache(this.cacheEntryKey) &&
-          persistentCacheManager.hasView(this.cacheCountViewKey)) {
+       persistentCacheManager.hasCache(this.cacheEntryKey) &&
+       persistentCacheManager.hasView(this.cacheCountViewKey) &&
+       context.get(KeysQueryOperation.joinBindings) === undefined
+      ) {
       firstIterator.getProperty('metadata', async(metadata: MetadataBindings) => {
         const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
-        if (sizeCache > this.setCardinalityFromCacheMinLimit!) {
-          // Query cache for cardinalities
+        // We dont update metadata when using fresh cache
+        if (sizeCache > this.setCardinalityFromCacheMinLimit!){
           const count = await persistentCacheManager.getFromCache(
             this.cacheEntryKey!,
             this.cacheCountViewKey!,
             { operation },
           );
-
           if (count) {
             metadata.cardinality = { type: 'estimate', value: count };
-            console.log(`Cardinality from cache: ${count}`);
           }
+          console.log(`Set cardinality: \n ${JSON.stringify(metadata.cardinality, null, 2)}`);
         }
         iterator.setProperty('metadata', metadata);
       });

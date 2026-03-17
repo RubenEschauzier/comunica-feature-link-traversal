@@ -6,19 +6,23 @@ import type {
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCaching } from '@comunica/context-entries';
+import { KeysCaching, KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
-import type { ISourceState, ICacheView, IPersistentCache, ISetFn } from '@comunica/types';
+import type { ISourceState, ICacheView, IPersistentCache, ISetFn, ILink, ComunicaDataFactory } from '@comunica/types';
 
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
+import { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
+import { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.
  */
 export class ActorContextPreprocessSetCacheSourceState extends ActorContextPreprocess {
+  protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
+
   private readonly cacheSizeNumTriples: number;
   private cacheSourceState: PersistentCacheSourceStateNumTriples;
 
@@ -28,6 +32,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
       { maxNumTriples: args.cacheSizeNumTriples },
     );
+    this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
     console.log(`Created cache with maxSize: ${args.cacheSizeNumTriples}`)
   }
 
@@ -52,18 +57,20 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
       this.cacheSourceState,
       new SetSourceStateCache(),
     );
+
+
     cacheManager.registerCacheView(
       CacheSourceStateViews.cacheSourceStateView,
-      new GetSourceStateCacheView(),
+      new GetSourceStateCacheView(
+        new DataFactory(),
+        this.actorExtractLinksQuadPatternQuery,
+      ),
     );
     return { context };
   }
 }
 
 export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, { headers: Headers }> {
-  protected DF: DataFactory = new DataFactory();
-  protected AF: AlgebraFactory = new AlgebraFactory(this.DF);
-
   public async setInCache(
     key: string,
     value: ISourceState,
@@ -75,11 +82,70 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
 }
 
 export class GetSourceStateCacheView
-implements ICacheView<ISourceState, { url: string }, ISourceState> {
-  public async construct(cache: IPersistentCache<ISourceState>, context: { url: string }): Promise<ISourceState | undefined> {
+implements ICacheView<
+    ISourceState, 
+    {       
+      url: string,
+      extractLinksQuadPattern?: boolean,
+      action: IActionQuerySourceDereferenceLink;
+    }, 
+    ISourceState
+  > {
+  protected readonly dataFactory: ComunicaDataFactory;
+  protected readonly algebraFactory: AlgebraFactory;
+  protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
+
+  public constructor(
+    dataFactory: ComunicaDataFactory,
+    actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
+  ){
+    this.dataFactory = dataFactory;
+    this.algebraFactory = new AlgebraFactory(this.dataFactory);
+
+    this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
+  }
+
+  public async construct(
+    cache: IPersistentCache<ISourceState>, 
+    context: { 
+      url: string,
+      extractLinksQuadPattern?: boolean,
+      action: IActionQuerySourceDereferenceLink;
+    }
+  ): Promise<ISourceState | undefined> {
     const cacheEntry = await cache.get(context.url);
     if (!cacheEntry) {
       return;
+    }
+    if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery){
+      const queryOp = context.action.context.getSafe(KeysInitQuery.query);
+      const links: ILink[] = [];
+      const quads = cacheEntry.source.queryQuads(
+        this.algebraFactory.createPattern(
+          this.dataFactory.variable('s'),
+          this.dataFactory.variable('p'),
+          this.dataFactory.variable('o'),
+          this.dataFactory.variable('g'),
+        ),
+        context.action.context,
+      );
+
+      const patternLinks = await ActorExtractLinksQuadPatternQuery
+        .collectStream(quads, (quad, arr) => {
+          ActorExtractLinksQuadPatternQuery.extractLinksOnQuad(
+            quad,
+            arr,
+            queryOp,
+            true,
+            this.actorExtractLinksQuadPatternQuery!.name,
+          );
+      });
+
+      links.push(...patternLinks);
+      const staticTraverseEntries = cacheEntry.metadata.traverse.filter(
+        (x: ILink) => x.metadata?.producedByActor.name !== this.actorExtractLinksQuadPatternQuery!.name
+      );
+      cacheEntry.metadata.traverse = [...staticTraverseEntries, ...links];
     }
     return cacheEntry;
   }
@@ -92,4 +158,10 @@ export interface IActorContextPreprocessSetSourceCacheNumTriplesArgs extends IAc
    * @default {124000}
    */
   cacheSizeNumTriples: number;
+  /**
+   * Optional actor to execute cMatch traversal criterion on cached sources.
+   * This should always be passed when cMatch is used, as cached sources contain stale
+   * traversal metadata entries otherwise.
+   */
+  actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
 }

@@ -9,7 +9,7 @@ import type {
 } from '@comunica/bus-rdf-join-entries-sort';
 import type { ICacheKey } from '@comunica/cache-manager-entries';
 import { CacheKey } from '@comunica/cache-manager-entries';
-import { KeysCaching } from '@comunica/context-entries';
+import { KeysCaching, KeysQueryOperation } from '@comunica/context-entries';
 import type { TestResult } from '@comunica/core';
 import { failTest, passTest } from '@comunica/core';
 
@@ -40,6 +40,9 @@ export class ActorRdfJoinEntriesSortCardinalityCache extends ActorRdfJoinEntries
     const cacheSize = await registeredCache.cache.size();
     if (cacheSize < this.minCacheSize) {
       return failTest(`${this.name} cache calculated size (${cacheSize}) smaller than minimal size: ${this.minCacheSize}`);
+    }
+    if (action.context.get(KeysQueryOperation.joinBindings) !== undefined){
+      return failTest(`${this.name} does not run on bind join subqueries`);
     }
     return passTest({
       accuracy: action.entries.length === 0 ?

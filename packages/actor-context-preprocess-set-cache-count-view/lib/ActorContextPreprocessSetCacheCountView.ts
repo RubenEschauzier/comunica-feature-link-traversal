@@ -33,22 +33,42 @@ export class ActorContextPreprocessSetCacheCountView extends ActorContextPreproc
 
 export class CacheCountView
 implements ICacheView<ISourceState, { operation: Algebra.Operation; documents: string[] }, number> {
+  protected readonly computedCounts: Record<string, number> = {};
+
   public async construct(
     cache: IPersistentCache<ISourceState>,
     context: { operation: Algebra.Operation; documents: string[] },
   ): Promise<number | undefined> {
-    if (isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
-      let totalCount = 0;
-      const cacheEntryStream = cache.entries();
-
-      for await (const [ key, source ] of cacheEntryStream) {
-        if (source.source.countQuads) {
-          const quadCount = await source.source.countQuads(context.operation, new ActionContext());
-          totalCount += quadCount;
-        }
-      }
-      return totalCount;
+    if (!isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
+      throw new Error('Count view only accepts quad patterns');
     }
-    throw new Error('Count view only accepts quad patterns');
+
+    const pattern = context.operation;
+    const patternKey = this.patternKey(pattern);
+
+    if (patternKey in this.computedCounts) {
+      return this.computedCounts[patternKey];
+    }
+    
+    let totalCount = 0;
+    const cacheEntryStream = cache.entries();
+
+    for await (const [ key, source ] of cacheEntryStream) {
+      if (source.source.countQuads) {
+        const quadCount = await source.source.countQuads(context.operation, new ActionContext());
+        totalCount += quadCount;
+      }
+    }
+    this.computedCounts[patternKey] = totalCount;
+    return totalCount;
+  }
+
+  private patternKey(pattern: Algebra.Pattern): string {
+    return [
+      pattern.subject.value,
+      pattern.predicate.value,
+      pattern.object.value,
+      pattern.graph?.value ?? '',
+    ].join('|');
   }
 }

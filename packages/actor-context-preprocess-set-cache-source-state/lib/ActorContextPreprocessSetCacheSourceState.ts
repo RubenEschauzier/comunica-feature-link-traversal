@@ -33,7 +33,8 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
       { maxNumTriples: args.cacheSizeNumTriples },
     );
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
-    console.log(`Created cache with maxSize: ${args.cacheSizeNumTriples}`)
+
+    console.log(`Created unindexed cache with maxSize: ${args.cacheSizeNumTriples}`)
   }
 
   public async test(_action: IAction): Promise<TestResult<IActorTest>> {

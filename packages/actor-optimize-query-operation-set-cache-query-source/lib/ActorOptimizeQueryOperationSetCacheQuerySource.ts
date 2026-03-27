@@ -45,7 +45,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
       { maxNumTriples: args.cacheSizeNumTriples },
     );
-    console.log(`Created cache with maxSize: ${args.cacheSizeNumTriples}`)
+    console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`)
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {

@@ -15,6 +15,7 @@
       "cacheSizeNumTriples": 1000000,
       "mediatorQuerySourceIdentifyHypermedia": { "@id": "urn:comunica:default:query-source-identify-hypermedia/mediators#main" },
       "actorExtractLinksQuadPatternQuery": { "@id": "urn:comunica:default:extract-links/actors#quad-pattern-query" },
+      "probabilityCacheMiss": 0.5,
       "beforeActors": [
         { "@id": "urn:comunica:default:optimize-query-operation/actors#initialize-link-traversal-manager" }
       ]

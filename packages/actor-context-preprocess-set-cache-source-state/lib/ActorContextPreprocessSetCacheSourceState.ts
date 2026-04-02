@@ -16,22 +16,30 @@ import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
 import { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
 import { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
+import { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
 
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.
  */
 export class ActorContextPreprocessSetCacheSourceState extends ActorContextPreprocess {
   protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
+  protected readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
   private readonly cacheSizeNumTriples: number;
   private cacheSourceState: PersistentCacheSourceStateNumTriples;
-
+  private cacheDeserializationDone: Promise<void>;
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
+    this.mediatorQuerySourceIdentifyHypermedia = args.mediatorQuerySourceIdentifyHypermedia;
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-      { maxNumTriples: args.cacheSizeNumTriples },
+      { 
+        maxNumTriples: args.cacheSizeNumTriples, 
+        mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
+        serializationLoc: "testoutputLoc.json" 
+      },
     );
+    this.cacheDeserializationDone = this.cacheSourceState.deserialize();
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
 
     console.log(`Created unindexed cache with maxSize: ${args.cacheSizeNumTriples}`)
@@ -42,15 +50,27 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   }
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {
+    await this.cacheDeserializationDone;
     const context = action.context;
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
 
     // TEMP Solution due to my own sparql benchmark runner adjustments
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-        { maxNumTriples: this.cacheSizeNumTriples },
+        { 
+          maxNumTriples: this.cacheSizeNumTriples, 
+          mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
+          serializationLoc: "testoutputLoc.json" 
+        },
       );
       console.log(`Cleaned cache, size: ${await this.cacheSourceState.size()}`);
+    }
+
+    const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
+    if (timeoutCallbacks){
+      console.log("Adding serialization callback to timeout callbacks");
+      console.log(timeoutCallbacks);
+      timeoutCallbacks.push(() => this.cacheSourceState.serialize());
     }
 
     cacheManager.registerCache(
@@ -159,6 +179,10 @@ export interface IActorContextPreprocessSetSourceCacheNumTriplesArgs extends IAc
    * @default {124000}
    */
   cacheSizeNumTriples: number;
+  /**
+   * Mediator used to rehydrate cache entries
+   */
+  mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
   /**
    * Optional actor to execute cMatch traversal criterion on cached sources.
    * This should always be passed when cMatch is used, as cached sources contain stale

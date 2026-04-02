@@ -35,6 +35,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
 
   public readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   public readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
+  public readonly probabilityCacheMiss?: number;
 
   public constructor(args: IActorOptimizeQueryOperationSetCacheQuerySourceArgs) {
     super(args);
@@ -45,6 +46,8 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
       { maxNumTriples: args.cacheSizeNumTriples },
     );
+    this.probabilityCacheMiss = args.probabilityCacheMiss;
+
     console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`)
   }
 
@@ -86,6 +89,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
         this.mediatorQuerySourceIdentifyHypermedia,
         this.actorExtractLinksQuadPatternQuery,
         context.get(KeysQueryOperation.unionDefaultGraph),
+        this.probabilityCacheMiss,
       ),
     );
 
@@ -194,6 +198,8 @@ export class GetStreamingCacheView implements ICacheView<
   protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   protected readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
+  protected readonly probabilityCacheMiss?: number;
+
   public constructor(
     dataFactory: ComunicaDataFactory,
     topLevelQuadPatterns: Algebra.Pattern[],
@@ -201,6 +207,7 @@ export class GetStreamingCacheView implements ICacheView<
     mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia,
     actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
     unionDefaultGraph?: boolean,
+    probabilityCacheMiss?: number,
   ) {
     this.dataFactory = dataFactory;
     this.bindingsFactory = new BindingsFactory(this.dataFactory);
@@ -213,6 +220,7 @@ export class GetStreamingCacheView implements ICacheView<
 
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
     this.mediatorQuerySourceIdentifyHypermedia = mediatorQuerySourceIdentifyHypermedia
+    this.probabilityCacheMiss = probabilityCacheMiss;
   }
 
   public async construct(
@@ -226,8 +234,15 @@ export class GetStreamingCacheView implements ICacheView<
       const cacheEntry = await cache.get(context.url);
       // Only push if valid and policy satisfied
       if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
+        // Code to simulate cache misses, should not be in final code.
+        if (this.probabilityCacheMiss){
+          if (Math.random() < this.probabilityCacheMiss){
+            return;
+          }
+
+        }
         this.pendingCount += this.quadPatterns.length;
-        
+
         // Re-extract query dependent traverse entries when required. 
         if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery) {
           const links: ILink[] = [];
@@ -295,4 +310,9 @@ export interface IActorOptimizeQueryOperationSetCacheQuerySourceArgs extends IAc
    * traversal metadata entries otherwise.
    */
   actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
+  /**
+   * For simulating query misses
+   * @range {float}
+   */
+  probabilityCacheMiss?: number;
 }

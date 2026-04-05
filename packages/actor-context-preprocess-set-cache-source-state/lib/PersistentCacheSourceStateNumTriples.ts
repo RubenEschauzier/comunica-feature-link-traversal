@@ -107,13 +107,14 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
 
   public async serialize(): Promise<void> {
     console.log("Serializing cache");
+
     if (!this.serializationLoc) {
       return;
     }
 
     const writeStream = fs.createWriteStream(this.serializationLoc, 'utf8');
     let success = false;
-
+    let totalTriples = 0;
     // Fast-path write helper: avoids Promise overhead if the buffer is not full
     const writeAsync = (data: string): Promise<void> | void => {
       if (writeStream.write(data)) return;
@@ -156,6 +157,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
             ),
             new ActionContext(),
           ).toArray();
+          totalTriples += quadsArray.length;
 
           const plainHeaders: Record<string, string> = {};
           if (sourceState.headers instanceof Headers) {
@@ -200,7 +202,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
       console.error(`Failed to stream cache serialization to ${this.serializationLoc}:`, error);
     } finally {
       await new Promise<void>((resolve) => writeStream.end(resolve));
-
+      console.log(`Serialized ${totalTriples} quads`);
       // Delete the file if serialization failed mid-stream to prevent corrupted caches
       if (!success && fs.existsSync(this.serializationLoc)) {
         await fs.promises.unlink(this.serializationLoc);

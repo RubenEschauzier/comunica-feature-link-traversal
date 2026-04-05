@@ -36,7 +36,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
       { 
         maxNumTriples: args.cacheSizeNumTriples, 
         mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
-        serializationLoc: "testoutputLoc.json" 
+        serializationLoc: "temp-cache-content.json" 
       },
     );
     this.cacheDeserializationDone = this.cacheSourceState.deserialize();
@@ -60,7 +60,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
         { 
           maxNumTriples: this.cacheSizeNumTriples, 
           mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
-          serializationLoc: "testoutputLoc.json" 
+          serializationLoc: "temp-cache-content.json"
         },
       );
       console.log(`Cleaned cache, size: ${await this.cacheSourceState.size()}`);
@@ -69,7 +69,6 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
     if (timeoutCallbacks){
       console.log("Adding serialization callback to timeout callbacks");
-      console.log(timeoutCallbacks);
       timeoutCallbacks.push(() => this.cacheSourceState.serialize());
     }
 

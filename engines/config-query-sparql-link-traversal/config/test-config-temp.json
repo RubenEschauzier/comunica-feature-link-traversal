@@ -1,0 +1,37 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-context-preprocess-set-cache-source-state/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld"
+  ],
+  "import": [
+    "ccqslt:config/config-solid-base.json",
+    "ccqslt:config/extract-links/actors/predicates-common.json",
+    "ccqslt:config/extract-links/actors/predicates-ldp.json",
+    "ccqslt:config/extract-links/actors/links-describedby.json",
+    "ccqslt:config/extract-links/actors/predicates-solidstorage.json",
+    "ccqslt:config/extract-links/actors/quad-pattern-query.json",
+    "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
+
+    "ccqslt:config/context-preprocess/actor-set-cache-manager.json",
+    "ccqslt:config/query-source-dereference-link/actors-cache-source.json",
+    "ccqslt:config/http/actors-delay.json"
+  ],
+  "@graph": [
+    {
+      "@id": "urn:comunica:default:Runner",
+      "@type": "Runner",
+      "actors": [
+        {
+          "@id": "urn:comunica:default:context-preprocess/actors#set-cache-source-state",
+          "@type": "ActorContextPreprocessSetCacheSourceState",
+          "mediatorQuerySourceIdentifyHypermedia": { "@id": "urn:comunica:default:query-source-identify-hypermedia/mediators#main" },
+          "cacheSizeNumTriples": 2000000,
+          "probabilityCacheMiss": 0.7,
+          "actorExtractLinksQuadPatternQuery": { "@id": "urn:comunica:default:extract-links/actors#quad-pattern-query" }
+        }
+      ]
+    }
+  ]
+}

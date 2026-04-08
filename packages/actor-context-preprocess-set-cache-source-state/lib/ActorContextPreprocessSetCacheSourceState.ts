@@ -46,7 +46,8 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
     this.probabilityCacheMiss = args.probabilityCacheMiss;
 
-    console.log(`Created unindexed cache with maxSize: ${args.cacheSizeNumTriples}`)
+    console.log(`Created unindexed cache with maxSize: ${args.cacheSizeNumTriples}, 
+      probability miss: ${this.probabilityCacheMiss}`);
   }
 
   public async test(_action: IAction): Promise<TestResult<IActorTest>> {
@@ -82,13 +83,10 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
       new SetSourceStateCache(),
     );
 
-    const debugLogger = this.logDebug.bind(this);
-
     cacheManager.registerCacheView(
       CacheSourceStateViews.cacheSourceStateView,
       new GetSourceStateCacheView(
         new DataFactory(),
-        debugLogger,
         this.actorExtractLinksQuadPatternQuery,
         this.probabilityCacheMiss,
       ),
@@ -118,8 +116,6 @@ implements ICacheView<
     }, 
     ISourceState
   > {
-  protected debugLogger: 
-    (context: IActionContext, message: string, data?: (() => any)) => void;
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly algebraFactory: AlgebraFactory;
   protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
@@ -130,15 +126,11 @@ implements ICacheView<
 
   public constructor(
     dataFactory: ComunicaDataFactory,
-    debugLogger: (context: IActionContext, message: string, data?: (() => any)) => void,
     actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
     probabilityCacheMiss?: number,
   ){
     this.dataFactory = dataFactory;
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
-
-    this.debugLogger = debugLogger;
-
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
     this.probabilityCacheMiss = probabilityCacheMiss;
   }
@@ -161,6 +153,7 @@ implements ICacheView<
         this.simulatedMisses++
         return;
       }
+      
     }
     console.log(`Simulated miss, rate: ${this.simulatedMisses/this.hits}`);
 

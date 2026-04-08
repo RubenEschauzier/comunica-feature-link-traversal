@@ -26,6 +26,9 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   private readonly serializationLoc: string
   private readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
+  // Tracking document size to use as placeholder for adding quads to the cache
+  private averageDocumentSize = 100;
+  private computedDocumentCount = 0;
 
   private cacheMetrics: ICacheMetrics;
 
@@ -33,7 +36,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
     this.maxNumTriples = args.maxNumTriples;
     this.lruCacheDocuments = new LRUCache<string, ISourceState>({
       maxSize: this.maxNumTriples,
-      sizeCalculation: (value, key) => this.sizeMap.get(key) || 1,
+      sizeCalculation: (value, key) => this.sizeMap.get(key) || this.averageDocumentSize,
       dispose: this.onDispose.bind(this),
     });
     this.cacheMetrics = this.resetMetrics();
@@ -63,6 +66,13 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
     if ('getSize' in value.source &&
             typeof value.source.getSize === 'function') {
       (<Promise<number>>value.source.getSize()).then((finalSize) => {
+
+        // Update the running average
+        this.computedDocumentCount++;
+        this.averageDocumentSize = Math.floor(
+          this.averageDocumentSize + (finalSize - this.averageDocumentSize) / this.computedDocumentCount
+        );
+        
         if (this.lruCacheDocuments.has(key)) {
           this.sizeMap.set(key, finalSize);
           // We have to explicitly delete as .set() reuses the previous computed size
@@ -280,7 +290,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
             satisfiesWithoutRevalidation: async () => true,
           } as any,
         };
-
+        this.sizeMap.set(meta.key, quadsArray.length);
         this.lruCacheDocuments.set(meta.key, fullState);
       }
 

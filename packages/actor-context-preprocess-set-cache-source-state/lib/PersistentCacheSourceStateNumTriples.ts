@@ -27,7 +27,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   private readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
   // Tracking document size to use as placeholder for adding quads to the cache
-  private averageDocumentSize = 100;
+  private averageDocumentSize = 1;
   private computedDocumentCount = 0;
 
   private cacheMetrics: ICacheMetrics;
@@ -69,10 +69,10 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
 
         // Update the running average
         this.computedDocumentCount++;
-        this.averageDocumentSize = Math.floor(
+        this.averageDocumentSize = Math.max(1,Math.floor(
           this.averageDocumentSize + (finalSize - this.averageDocumentSize) / this.computedDocumentCount
-        );
-        
+        ));
+
         if (this.lruCacheDocuments.has(key)) {
           this.sizeMap.set(key, finalSize);
           // We have to explicitly delete as .set() reuses the previous computed size
@@ -126,13 +126,15 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
     const quadsPath = `${this.serializationLoc}.nq`;
 
     const metaEntries: any[] = [];
-    const quadsStream = fs.createWriteStream(quadsPath);
-    const writer = new n3.StreamWriter({ format: 'N-Quads' });
-    writer.pipe(quadsStream);
 
     try {
-      // let totalWritten = 0;
-      // let writtenQuadCount = 0;
+      const quadsStream = fs.createWriteStream(quadsPath);
+      const writer = new n3.StreamWriter({ format: 'N-Quads' });
+
+      quadsStream.on('error', (err) => { throw err; });
+
+      writer.pipe(quadsStream);
+
       let sourceIndex = 0;
 
       let totalEntries = 0;
@@ -163,6 +165,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
           );
           return this.dataFactory.quad(q.subject, q.predicate, q.object, keyNode)
         });
+
         await pipeline(
           graphAnnotationStream,
           writer,
@@ -199,13 +202,17 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
 
       await fs.promises.writeFile(metaPath, JSON.stringify(metaEntries), 'utf8');
     } catch (error) {
-      console.error('Serialization failed:', error);
-
+      console.log('Serialization failed:', error);
       // Clean up partial files
       await Promise.allSettled([
-        fs.promises.unlink(metaPath).catch(() => {}),
-        fs.promises.unlink(quadsPath).catch(() => {}),
+        fs.promises.unlink(metaPath).catch(() => {
+          console.log("Failed to clean partial metadata file")
+        }),
+        fs.promises.unlink(quadsPath).catch(() => {
+          console.log("Failed to clean partial quads file")
+        }),
       ]);
+      throw error;
     }
   }
 
@@ -290,7 +297,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
             satisfiesWithoutRevalidation: async () => true,
           } as any,
         };
-        this.sizeMap.set(meta.key, quadsArray.length);
+        this.sizeMap.set(meta.key, Math.max(1, quadsArray.length));
         this.lruCacheDocuments.set(meta.key, fullState);
       }
 

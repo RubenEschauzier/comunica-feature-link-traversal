@@ -1,0 +1,19 @@
+{
+  "comment": "The HTTP request delay actor for simulating network latencies",
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-http-delay/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:http/actors#delay",
+      "@type": "ActorHttpDelay",
+      "mediatorHttp": { "@id": "urn:comunica:default:http/mediators#main" },
+      "beforeActors": { "@id": "urn:comunica:default:http/actors#fetch" },
+      "average": 80,
+      "delta": 10
+    }
+  ]
+}

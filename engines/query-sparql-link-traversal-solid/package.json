@@ -174,6 +174,7 @@
     "@comunica/actor-hash-bindings-murmur": "^5.0.3",
     "@comunica/actor-hash-quads-murmur": "^5.0.3",
     "@comunica/actor-http-fetch": "^5.0.3",
+    "@comunica/actor-http-delay": "^0.8.0",
     "@comunica/actor-http-inrupt-solid-client-authn": "^5.0.1",
     "@comunica/actor-http-limit-rate": "^5.0.3",
     "@comunica/actor-http-proxy": "^5.0.3",

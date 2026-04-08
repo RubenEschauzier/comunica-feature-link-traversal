@@ -13,7 +13,7 @@ import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-ma
 import { KeysCaching, KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
-import type { BindingsStream, IActionContext, ILink, IQuerySource, ISourceState, ICacheView, IPersistentCache, ISetFn, ComunicaDataFactory } from '@comunica/types';
+import type { BindingsStream, IActionContext, ILink, IQuerySource, ISourceState, ICacheView, IPersistentCache, ISetFn, ComunicaDataFactory, Logger } from '@comunica/types';
 
 import type { IAggregatedStore } from '@comunica/types-link-traversal';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
@@ -67,6 +67,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
       );
       console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
     }
+    const debugLogger = this.logDebug.bind(this);
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
@@ -87,6 +88,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
         quadPatterns,
         queryOp,
         this.mediatorQuerySourceIdentifyHypermedia,
+        debugLogger,
         this.actorExtractLinksQuadPatternQuery,
         context.get(KeysQueryOperation.unionDefaultGraph),
         this.probabilityCacheMiss,
@@ -187,6 +189,9 @@ export class GetStreamingCacheView implements ICacheView<
   protected traverseEnded = false;
   protected pendingCount = 0;
 
+  protected debugLogger: 
+    (context: IActionContext, message: string, data?: (() => any)) => void;
+
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly bindingsFactory: BindingsFactory;
   protected readonly algebraFactory: AlgebraFactory;
@@ -199,12 +204,15 @@ export class GetStreamingCacheView implements ICacheView<
   protected readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
   protected readonly probabilityCacheMiss?: number;
+  protected simulatedMisses: number = 0;
+  protected hits: number = 0;
 
   public constructor(
     dataFactory: ComunicaDataFactory,
     topLevelQuadPatterns: Algebra.Pattern[],
     queryOperation: Algebra.Operation,
     mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia,
+    debugLogger: (context: IActionContext, message: string, data?: (() => any)) => void,
     actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
     unionDefaultGraph?: boolean,
     probabilityCacheMiss?: number,
@@ -217,6 +225,7 @@ export class GetStreamingCacheView implements ICacheView<
     this.queryOperation = queryOperation;
     this.unionDefaultGraph = Boolean(unionDefaultGraph);
 
+    this.debugLogger = debugLogger;
 
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
     this.mediatorQuerySourceIdentifyHypermedia = mediatorQuerySourceIdentifyHypermedia
@@ -234,12 +243,17 @@ export class GetStreamingCacheView implements ICacheView<
       const cacheEntry = await cache.get(context.url);
       // Only push if valid and policy satisfied
       if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
+        this.hits++
         // Code to simulate cache misses, should not be in final code.
         if (this.probabilityCacheMiss){
+          console.log("1")
           if (Math.random() < this.probabilityCacheMiss){
+            console.log("2")
+            this.simulatedMisses++
+            this.debugLogger(new ActionContext(),
+               `Simulated miss, rate: ${this.hits/this.simulatedMisses}`);
             return;
           }
-
         }
         this.pendingCount += this.quadPatterns.length;
 

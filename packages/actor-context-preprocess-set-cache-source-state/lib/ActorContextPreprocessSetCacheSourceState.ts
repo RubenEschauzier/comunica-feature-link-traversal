@@ -8,8 +8,8 @@ import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
 import { KeysCaching, KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
-import { ActionContextKey, passTestVoid } from '@comunica/core';
-import type { ISourceState, ICacheView, IPersistentCache, ISetFn, ILink, ComunicaDataFactory } from '@comunica/types';
+import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
+import type { ISourceState, ICacheView, IPersistentCache, ISetFn, ILink, ComunicaDataFactory, IActionContext } from '@comunica/types';
 
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
@@ -28,6 +28,9 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   private readonly cacheSizeNumTriples: number;
   private cacheSourceState: PersistentCacheSourceStateNumTriples;
   private cacheDeserializationDone: Promise<void>;
+
+  public readonly probabilityCacheMiss?: number;
+
   public constructor(args: IActorContextPreprocessSetSourceCacheNumTriplesArgs) {
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
@@ -41,6 +44,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     );
     this.cacheDeserializationDone = this.cacheSourceState.deserialize();
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
+    this.probabilityCacheMiss = args.probabilityCacheMiss;
 
     console.log(`Created unindexed cache with maxSize: ${args.cacheSizeNumTriples}`)
   }
@@ -69,7 +73,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
     if (timeoutCallbacks){
       console.log("Adding serialization callback to timeout callbacks");
-      timeoutCallbacks.push(() => this.cacheSourceState.serialize());
+      timeoutCallbacks.push(async () => await this.cacheSourceState.serialize());
     }
 
     cacheManager.registerCache(
@@ -78,12 +82,15 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
       new SetSourceStateCache(),
     );
 
+    const debugLogger = this.logDebug.bind(this);
 
     cacheManager.registerCacheView(
       CacheSourceStateViews.cacheSourceStateView,
       new GetSourceStateCacheView(
         new DataFactory(),
+        debugLogger,
         this.actorExtractLinksQuadPatternQuery,
+        this.probabilityCacheMiss,
       ),
     );
     return { context };
@@ -111,18 +118,29 @@ implements ICacheView<
     }, 
     ISourceState
   > {
+  protected debugLogger: 
+    (context: IActionContext, message: string, data?: (() => any)) => void;
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly algebraFactory: AlgebraFactory;
   protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
+  protected readonly probabilityCacheMiss?: number;
+
+  protected simulatedMisses: number = 0;
+  protected hits: number = 0;
 
   public constructor(
     dataFactory: ComunicaDataFactory,
+    debugLogger: (context: IActionContext, message: string, data?: (() => any)) => void,
     actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
+    probabilityCacheMiss?: number,
   ){
     this.dataFactory = dataFactory;
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
 
+    this.debugLogger = debugLogger;
+
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
+    this.probabilityCacheMiss = probabilityCacheMiss;
   }
 
   public async construct(
@@ -137,6 +155,15 @@ implements ICacheView<
     if (!cacheEntry) {
       return;
     }
+    this.hits++
+    if (this.probabilityCacheMiss){
+      if (Math.random() < this.probabilityCacheMiss){
+        this.simulatedMisses++
+        return;
+      }
+    }
+    console.log(`Simulated miss, rate: ${this.simulatedMisses/this.hits}`);
+
     if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery){
       const queryOp = context.action.context.getSafe(KeysInitQuery.query);
       const links: ILink[] = [];
@@ -187,5 +214,10 @@ export interface IActorContextPreprocessSetSourceCacheNumTriplesArgs extends IAc
    * This should always be passed when cMatch is used, as cached sources contain stale
    * traversal metadata entries otherwise.
    */
-  actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
+  actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;  /**
+  /**
+   * For simulating cache misses
+   * @range {float}
+   */
+  probabilityCacheMiss?: number;
 }

@@ -1,0 +1,23 @@
+{
+  "name": "@comunica/actor-http-delay",
+  "version": "0.8.0",
+  "author": "https://github.com/surilindur",
+  "lsd:module": true,
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "dependencies": {
+    "@comunica/bus-http": "^5.0.3",
+    "@comunica/core": "^5.0.3"
+  }
+}

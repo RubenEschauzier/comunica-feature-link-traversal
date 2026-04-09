@@ -20,7 +20,6 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
   private readonly lruCacheDocuments: LRUCache<string, ISourceState>;
 
   private readonly dataFactory = new DataFactory();
-  private readonly bindingsFactory = new BindingsFactory(this.dataFactory);
   private readonly algebraFactory = new AlgebraFactory(this.dataFactory);
 
   private readonly serializationLoc: string
@@ -269,7 +268,7 @@ export class PersistentCacheSourceStateNumTriples implements IPersistentCache<IS
           // If the metadata says the document should have quads somethng went wrong with serialization
           // and an error should be thrown
           if (meta.quadCountDocument > 0){
-            throw new Error("Found a metadata entry for URL ${meta.url} in rehydration with missing quads");
+            throw new Error(`Found a metadata entry for URL ${meta.url} in rehydration with missing quads`);
           }
           // If we have a document without quads we still want to add it to cache as this prevents
           // having to re-request the document

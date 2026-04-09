@@ -37,6 +37,8 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
   public readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
   public readonly probabilityCacheMiss?: number;
 
+  private readonly cacheDeserializationDone: Promise<void>;
+
   public constructor(args: IActorOptimizeQueryOperationSetCacheQuerySourceArgs) {
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
@@ -44,8 +46,10 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
 
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-      { maxNumTriples: args.cacheSizeNumTriples },
+      { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: "temp-cache-content.json" },
     );
+    this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
+
     this.probabilityCacheMiss = args.probabilityCacheMiss;
 
     console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`)
@@ -56,6 +60,8 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
   }
 
   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
+    await this.cacheDeserializationDone;
+
     const context = action.context;
     if (!action.context.get(KeysQuerySourceIdentify.traverse)) {
       return { context, operation: action.operation };
@@ -63,11 +69,16 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-        { maxNumTriples: this.cacheSizeNumTriples },
+        { maxNumTriples: this.cacheSizeNumTriples, serializationLoc: "temp-cache-content.json" },
       );
       console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
     }
-    const debugLogger = this.logDebug.bind(this);
+
+    const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
+    if (timeoutCallbacks){
+      console.log("Adding serialization callback to timeout callbacks");
+      timeoutCallbacks.push(async () => await this.cacheQuerySourceState.serialize());
+    }
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
@@ -88,7 +99,6 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
         quadPatterns,
         queryOp,
         this.mediatorQuerySourceIdentifyHypermedia,
-        debugLogger,
         this.actorExtractLinksQuadPatternQuery,
         context.get(KeysQueryOperation.unionDefaultGraph),
         this.probabilityCacheMiss,
@@ -189,8 +199,6 @@ export class GetStreamingCacheView implements ICacheView<
   protected traverseEnded = false;
   protected pendingCount = 0;
 
-  protected debugLogger: 
-    (context: IActionContext, message: string, data?: (() => any)) => void;
 
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly bindingsFactory: BindingsFactory;
@@ -212,7 +220,6 @@ export class GetStreamingCacheView implements ICacheView<
     topLevelQuadPatterns: Algebra.Pattern[],
     queryOperation: Algebra.Operation,
     mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia,
-    debugLogger: (context: IActionContext, message: string, data?: (() => any)) => void,
     actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
     unionDefaultGraph?: boolean,
     probabilityCacheMiss?: number,
@@ -224,8 +231,6 @@ export class GetStreamingCacheView implements ICacheView<
     this.quadPatterns = topLevelQuadPatterns;
     this.queryOperation = queryOperation;
     this.unionDefaultGraph = Boolean(unionDefaultGraph);
-
-    this.debugLogger = debugLogger;
 
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
     this.mediatorQuerySourceIdentifyHypermedia = mediatorQuerySourceIdentifyHypermedia
@@ -246,12 +251,7 @@ export class GetStreamingCacheView implements ICacheView<
         this.hits++
         // Code to simulate cache misses, should not be in final code.
         if (this.probabilityCacheMiss){
-          console.log("1")
           if (Math.random() < this.probabilityCacheMiss){
-            console.log("2")
-            this.simulatedMisses++
-            this.debugLogger(new ActionContext(),
-               `Simulated miss, rate: ${this.hits/this.simulatedMisses}`);
             return;
           }
         }

@@ -27,7 +27,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
 
   private readonly cacheSizeNumTriples: number;
   private cacheSourceState: PersistentCacheSourceStateNumTriples;
-  private cacheDeserializationDone: Promise<void>;
+  private readonly cacheDeserializationDone: Promise<void>;
 
   public readonly probabilityCacheMiss?: number;
 

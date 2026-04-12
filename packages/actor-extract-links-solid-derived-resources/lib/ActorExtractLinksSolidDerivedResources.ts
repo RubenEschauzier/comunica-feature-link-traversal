@@ -52,14 +52,13 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
     derivedResources.forEach(url => {
       dynamicLinkFilter.add(url);
-      console.log(`Setting ${url} as handled`)
     });
 
     const derivedResourcesRaw: IDerivedResourceRaw[][] = (await Promise.all(derivedResources
       .map(derivedResource => this.dereferenceDerivedResources(derivedResource, action.context))));
     const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
       derivedResourcesRaw.flat().map(resource => {
-          dynamicLinkFilter.add(resource.filterUri.url)
+          dynamicLinkFilter.add(resource.filterUri.url);
           return this.dereferenceFilter(resource);
         }
     ));
@@ -70,17 +69,17 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
           context: new ActionContext(),
         })
         .catch((err) => {
-          return null; // Return a fallback value on error
+          return null;
         })
       )
     );
     const successfullyIdentified = derivedResourcesIdentifyOutputs.filter(
       result => result !== null
     );
-    console.log(successfullyIdentified)
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
+    console.log(derivedResourcesIdentified);
     // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
     return { links: [] };
   }
@@ -118,7 +117,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // Parse the type index document
     const response = await this.mediatorDereferenceRdf.mediate({ url: derivedResource, context });
     const store = await storeStream(response.data);
-
     // Query the document to extract all type registrations
     const bindingsArray = await (await this.queryEngine
       .queryBindings(`
@@ -134,7 +132,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         [KeysStatistics.skipStatisticTracking.name]: true,
         lenient: true,
       })).toArray();
-    
     // Collect derived resources, aggregate selectors belonging to same resource
     const derivedResourcesRaw: Record<string, IDerivedResourceRaw> = {};
 
@@ -181,7 +178,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     );
     const rawText = await this.streamToString(response.data);
     const cleanText = rawText.trim();
-
     return { ...derivedResourcesUnidentified, filter: cleanText }
   }
 
@@ -333,6 +329,10 @@ export interface IDerivedResourceUnidentified {
 
 export interface IDerivedResource {
   /**
+   * The IRI of the derived resource.
+   */
+  iri: string;
+  /**
    * Derived resource template name
    */
   template: string;
@@ -346,6 +346,10 @@ export interface IDerivedResource {
    * the selector shape of the resource and the appropriate actor to use this derived resource.
    */
   filter: string
+  /**
+   * The selector shape this derived resource can answer
+   */
+  derivedResourceSelectorShape: FragmentSelectorShape;
   /**
    * The query source obtained from identifying and dereferencing the derived resource
    */
@@ -371,6 +375,6 @@ export interface IDerivedResource {
      * The selectivity of the resource to answer a question
      * e.g. a parameterized join query is highly selective, while a union-based query must be filtered
      */
-    selecitivty: number
+    selectivty: number
   }
 }

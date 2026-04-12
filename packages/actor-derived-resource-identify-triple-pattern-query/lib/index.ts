@@ -1,1 +1,1 @@
-export * from './ActorDerivedResourceIdentifyTriplePatternQuery';
+// export * from './ActorDerivedResourceIdentifyTriplePatternQuery';

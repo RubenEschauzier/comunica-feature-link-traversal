@@ -52,7 +52,8 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
 
     this.probabilityCacheMiss = args.probabilityCacheMiss;
 
-    console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`)
+    console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}, 
+      probability miss: ${this.probabilityCacheMiss}`);
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
@@ -248,13 +249,16 @@ export class GetStreamingCacheView implements ICacheView<
       const cacheEntry = await cache.get(context.url);
       // Only push if valid and policy satisfied
       if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
-        this.hits++
         // Code to simulate cache misses, should not be in final code.
+        this.hits++
         if (this.probabilityCacheMiss){
           if (Math.random() < this.probabilityCacheMiss){
+            this.simulatedMisses++
             return;
           }
+          
         }
+
         this.pendingCount += this.quadPatterns.length;
 
         // Re-extract query dependent traverse entries when required. 

@@ -155,7 +155,6 @@ implements ICacheView<
       }
       
     }
-    console.log(`Simulated miss, rate: ${this.simulatedMisses/this.hits}`);
 
     if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery){
       const queryOp = context.action.context.getSafe(KeysInitQuery.query);

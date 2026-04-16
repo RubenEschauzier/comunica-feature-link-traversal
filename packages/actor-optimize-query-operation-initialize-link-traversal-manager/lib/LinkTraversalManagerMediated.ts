@@ -33,6 +33,8 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   private allIteratorsClosedListener: (() => void) | undefined;
   protected linkParallelization: number;
 
+  protected derivedResourcesDereferencing: Set<AbortController> = new Set();
+
   public constructor(
     protected readonly linkParallelizationDefault: number,
     protected readonly linkParallelizationLimit: number,
@@ -141,7 +143,11 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     }
 
     // If there are no further links to be traversed, we terminate
-    if (this.linksDereferencing.size === 0 && this.linkQueue.isEmpty()) {
+    if (
+      this.linksDereferencing.size === 0 &&
+      this.derivedResourcesDereferencing.size === 0 &&
+      this.linkQueue.isEmpty()
+    ) {
       this.stop();
     }
   }
@@ -200,5 +206,13 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
         this.stop();
         this.rejectionHandler!(error);
       });
+  }
+
+  public addDereferencingDerivedResource(controller: AbortController){
+    this.derivedResourcesDereferencing.add(controller);
+  }
+
+  public removeDereferencingDerivedResource(controller: AbortController){
+    this.derivedResourcesDereferencing.delete(controller);
   }
 }

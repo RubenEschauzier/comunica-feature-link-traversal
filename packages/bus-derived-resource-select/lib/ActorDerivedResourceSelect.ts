@@ -28,10 +28,10 @@ extends Actor<IActionDerivedResourceSelect, IActorTest, IActorDerivedResourceSel
   /**
    * Determines if a derived resource is usable for this actor
    */
-  public abstract derivedResourceIsUsable(
-    derivedResource: IDerivedResource,
+  public abstract hasRequiredResources(
+    derivedResources: IDerivedResource[],
     action: IActionDerivedResourceSelect,
-  ): boolean;
+  ): IRequiredResources;
 }
 
 export interface IActionDerivedResourceSelect extends IAction {
@@ -44,6 +44,18 @@ export interface IActorDerivedResourceSelectOutput extends IActorOutput {
 
 export interface IActorDerivedResourceSelectTestSideData {
   usableResources: IDerivedResource[];
+}
+
+export interface IRequiredResources {
+  /**
+   * Whether the identified resources in a data source are sufficient
+   * to execute the actor's operation.
+   */
+  canAnswer: boolean, 
+  /**
+   * The set of resources that can be used to execute this operation.
+   */
+  usableResources: Set<IDerivedResource>
 }
 
 export type IActorDerivedResourceSelectArgs<

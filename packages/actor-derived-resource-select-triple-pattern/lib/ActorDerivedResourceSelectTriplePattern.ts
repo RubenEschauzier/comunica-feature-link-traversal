@@ -1,5 +1,5 @@
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
-import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData } from '@comunica/bus-derived-resource-select';
+import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
 import { KeysInitQuery } from '@comunica/context-entries';
 import { TestResult, IActorTest, failTest, passTest, passTestWithSideData } from '@comunica/core';
 import { ComunicaDataFactory } from '@comunica/types';
@@ -22,29 +22,49 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
 
   public async test(action: IActionDerivedResourceSelect): 
     Promise<TestResult<IActorTest, IActorDerivedResourceSelectTestSideData>> {
-    const usableResources = action.derivedResourcesIdentified.filter(resource =>
-      this.derivedResourceIsUsable(resource, action)
+    const {canAnswer, usableResources } = this.hasRequiredResources(
+      action.derivedResourcesIdentified, action
     );
 
-    if (usableResources.length === 0) {
-      return failTest(`${this.name}: no matching derived resource for operation`);
+    if (!canAnswer) {
+      return failTest(`${this.name}: does not have the derived 
+        resources required for the operation`);
     }
 
-    // Computed once here, handed directly to run()
-    return passTestWithSideData({}, { usableResources });
+    return passTestWithSideData({}, 
+      { usableResources: Array.from(usableResources.values()) }
+    );
   }
 
   public async run(
     action: IActionDerivedResourceSelect,
     testResult: IActorDerivedResourceSelectTestSideData,
   ): Promise<IActorDerivedResourceSelectOutput> {
-    return true; // TODO implement
+    // First signal to aggregated store that hey we are doing some work here importing data so dont
+    // end the store yet. Do so by adding an abortController (that actually aborts) to the 
+    // link traversal manager.
+
+    // Then we should add the reasoning on what resource to use to actually
+    // do the operation this select actor wants to do. Maybe make this 
+    // a generic reasoner or maybe make it derived resource specific.
+    
+    // Then after deciding the derived resource to use, execute the specific queries
+    // execute them, extract metadata (just as in dereference-link-hypermedia)
+
+    // Then update metadata of aggregatedStore, import the quads (only the ones in query)
+    // and update the link queue to immediately filter URLs in link queue that match
+    // the data source glob pattern.
+
+    // After all is done, remove the abortController.
+
+    return true;
   }
 
-  public override derivedResourceIsUsable(
-    derivedResource: IDerivedResource,
+  public override hasRequiredResources(
+    derivedResources: IDerivedResource[],
     action: IActionDerivedResourceSelect,
-  ): boolean {
+  ): IRequiredResources {
+    const usableResources: Set<IDerivedResource> = new Set();
     const {patterns, paths} = this.extractTriplePatterns(action.context.getSafe(KeysInitQuery.query));
     if (paths.length > 0 ){
       // TODO: For path we need to convert the path to the required predicates to answer the traversal of the path
@@ -55,12 +75,20 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     }
     const canonicalForms = this.triplePatternsToFragmentTest(patterns);
     for (const cForm of canonicalForms){
-      if (!doesShapeAcceptOperation(derivedResource.derivedResourceSelectorShape, cForm)){
-        return false;
+      let canAnswer = false;
+      for (const derivedResource of derivedResources){
+        if (doesShapeAcceptOperation(derivedResource.derivedResourceSelectorShape, cForm)){
+          usableResources.add(derivedResource);
+          canAnswer = true;
+        }
+      }
+      if (!canAnswer){
+        return {canAnswer: false, usableResources: new Set()};
       }
     }
-    return true;
-  };
+    return {canAnswer: true, usableResources};
+
+  }
 
   /**
    * Extract all triple patterns from a query algebra tree.

@@ -10,6 +10,7 @@ import type * as RDF from '@rdfjs/types';
 import { storeStream } from 'rdf-store-stream';
 import { FragmentSelectorShape } from '@comunica/types';
 import { IActorDerivedResourceIdentifyOutput, MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
+import { MediatorDerivedResourceSelect } from '@comunica/bus-derived-resource-select';
 
 /**
  * A comunica Solid Derived Resources Extract Links Actor.
@@ -19,14 +20,18 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
   public readonly mediatorDereference: MediatorDereference;
   public readonly mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
+  public readonly mediatorDerivedResourceSelect: MediatorDerivedResourceSelect;
   public readonly queryEngine: QueryEngineBase;
 
   public constructor(args: IActorExtractLinksSolidDerivedResourcesArgs) {
     super(args);
     this.derivedResourcePredicates = args.derivedResourcePredicates;
+    
     this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
     this.mediatorDereference = args.mediatorDereference
     this.mediatorDerivedResourceIdentify = args.mediatorDerivedResourceIdentify;
+    this.mediatorDerivedResourceSelect = args.mediatorDerivedResourceSelect;
+
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
   }
 
@@ -80,6 +85,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       output => output!.derivedResourceIdentified
     );
     console.log(derivedResourcesIdentified);
+
     // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
     return { links: [] };
   }
@@ -132,6 +138,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         [KeysStatistics.skipStatisticTracking.name]: true,
         lenient: true,
       })).toArray();
+
     // Collect derived resources, aggregate selectors belonging to same resource
     const derivedResourcesRaw: Record<string, IDerivedResourceRaw> = {};
 
@@ -284,6 +291,10 @@ export interface IActorExtractLinksSolidDerivedResourcesArgs
    * The identify mediator for derived resources
    */
   mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
+  /**
+   * The select mediator that uses the identified derived resources in the query plan
+   */
+  mediatorDerivedResourceSelect: MediatorDerivedResourceSelect;
 }
 
 export interface IDerivedResourceRaw {

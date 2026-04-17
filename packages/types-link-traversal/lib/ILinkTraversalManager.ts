@@ -53,4 +53,17 @@ export interface ILinkTraversalManager {
    * Indicate that some outside process already dereferenced some URL
    */
   setHandled: (link: ILink) => void;
+  /**
+   * Indicate that a derived resource is being dereferenced and traversal
+   * should not terminate.
+   * @param controller An abort controller passed by the derived resource
+   * to abort the dereferencing
+   */
+  addDereferencingDerivedResource: (controller: AbortController) => void;
+  /**
+   * Indicate that the derived resource is done dereferencing
+   * @param controller The abort controller originally passed in 
+   * addDereferencingDerivedResource. 
+   */
+  removeDereferencingDerivedResource: (controller: AbortController) => void;
 }

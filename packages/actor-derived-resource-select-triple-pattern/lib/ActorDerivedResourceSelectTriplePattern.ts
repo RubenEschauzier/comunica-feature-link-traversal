@@ -6,6 +6,7 @@ import { ComunicaDataFactory } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
+import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 
 /**
  * A comunica Triple Pattern Derived Resource Select Actor.
@@ -40,10 +41,18 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     action: IActionDerivedResourceSelect,
     testResult: IActorDerivedResourceSelectTestSideData,
   ): Promise<IActorDerivedResourceSelectOutput> {
-    // First signal to aggregated store that hey we are doing some work here importing data so dont
-    // end the store yet. Do so by adding an abortController (that actually aborts) to the 
-    // link traversal manager.
+    // Abort controller indicating forcefull exit of traversal process.
+    // this should also abort the dereferencing of the derived resource.
+    // TODO Add function callback
+    const abortController = new AbortController();
 
+    const context = action.context;
+    const manager = context.getSafe(
+      KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager
+    );
+    manager.addDereferencingDerivedResource(abortController);
+
+    const usableDerivedResources = testResult.usableResources;
     // Then we should add the reasoning on what resource to use to actually
     // do the operation this select actor wants to do. Maybe make this 
     // a generic reasoner or maybe make it derived resource specific.
@@ -153,5 +162,18 @@ private triplePatternsToFragmentTest(patterns: Algebra.Pattern[]): Algebra.Patte
     }
 
     return canonicalPatterns;
+  }
+}
+
+export interface IActorDerivedResourceSelectTriplePatternArgs 
+extends IActorDerivedResourceSelectArgs {
+  /**
+   * The coefficients for choosing the best resource. By default
+   * prefers least requests
+   */
+  derivedResourceCoefficients: {
+    compute: 0
+    requests: 1,
+    selectivity: 0
   }
 }

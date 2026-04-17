@@ -8,12 +8,14 @@ import { KeysQueryOperation } from '@comunica/context-entries';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ILink, Bindings, IActionContext } from '@comunica/types';
-import { Algebra, algebraUtils } from '@comunica/utils-algebra';
+import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
 import { storeStream } from 'rdf-store-stream';
 import { matchPatternComplete } from 'rdf-terms';
 import type { ContentPolicy } from './ContentPolicy';
 import { SimpleSclParser } from './SimpleSclParser';
+import { DataFactory } from 'rdf-data-factory';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
 
 /**
  * A comunica Traverse Content Policies RDF Metadata Extract Actor.
@@ -144,6 +146,21 @@ export class ActorExtractLinksContentPolicies extends ActorExtractLinks
     }
     return this.traverseConditional ? { linksConditional: links, links: []} : { links };
   }
+  
+  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
+    const dataFactory = new DataFactory();
+    const algebraFactory = new AlgebraFactory(dataFactory);
+
+    return [ 
+      algebraFactory.createPattern(
+        dataFactory.variable('s'),
+        dataFactory.variable('p'),
+        dataFactory.variable('o'),
+        dataFactory.variable('g'),
+      )
+    ]
+  }
+
 }
 
 export interface IActorExtractLinksContentPoliciesArgs

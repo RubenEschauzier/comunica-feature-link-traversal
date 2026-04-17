@@ -5,6 +5,7 @@ import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
 import { Algebra, algebraUtils } from '@comunica/utils-algebra';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
 import { filterQuadTermNames, getNamedNodes, getTerms, matchPatternComplete } from 'rdf-terms';
 
 /**
@@ -65,6 +66,15 @@ export class ActorExtractLinksQuadPattern extends ActorExtractLinks {
         }
       }),
     };
+  }
+  /**
+   * 
+   * @param context 
+   * @returns 
+   */
+  public getExtractPatternRepresentation(context: IActionContext): Pattern[] {
+    const quadPattern = ActorExtractLinksQuadPattern.getCurrentQuadPattern(context);
+    return quadPattern ? [quadPattern] : [];
   }
 }
 

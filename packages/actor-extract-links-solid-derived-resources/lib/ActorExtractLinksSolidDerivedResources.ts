@@ -11,6 +11,7 @@ import { storeStream } from 'rdf-store-stream';
 import { FragmentSelectorShape } from '@comunica/types';
 import { IActorDerivedResourceIdentifyOutput, MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
 import { MediatorDerivedResourceSelect } from '@comunica/bus-derived-resource-select';
+import { Algebra } from '@comunica/utils-algebra';
 
 /**
  * A comunica Solid Derived Resources Extract Links Actor.
@@ -195,6 +196,14 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       stream.on('error', (err) => reject(err));
       stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     });
+  }
+  /**
+   * No extraction required
+   * @param context 
+   * @returns 
+   */ 
+  public getExtractPatternRepresentation(context: IActionContext): Algebra.Pattern[] {
+    return []
   }
   /**
    * node engines/query-sparql-link-traversal-solid/bin/query.js -q "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>

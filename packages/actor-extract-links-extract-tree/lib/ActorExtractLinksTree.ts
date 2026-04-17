@@ -7,7 +7,9 @@ import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysExtractLinksTree } from '@comunica/context-entries-link-traversal';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
-import type { ILink } from '@comunica/types';
+import type { IActionContext, ILink } from '@comunica/types';
+import { AlgebraFactory } from '@comunica/utils-algebra';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
 import type * as RDF from '@rdfjs/types';
 import { DataFactory } from 'rdf-data-factory';
 
@@ -22,6 +24,14 @@ export class ActorExtractLinksTree extends ActorExtractLinks {
   public static readonly aView = DF.namedNode('https://w3id.org/tree#view');
   public static readonly aSubset = DF.namedNode('http://rdfs.org/ns/void#subset');
   public static readonly isPartOf = DF.namedNode('http://purl.org/dc/terms/isPartOf');
+
+  public static readonly allPredicates = [
+    this.aNodeType, this.aRelation, this.aView,
+    this.aSubset, this.isPartOf
+  ]
+
+  private dataFactory = new DataFactory();
+  private algebraFactory = new AlgebraFactory(this.dataFactory);
 
   public constructor(args: IActorExtractLinksArgs) {
     super(args);
@@ -119,5 +129,19 @@ export class ActorExtractLinksTree extends ActorExtractLinks {
     if (quad.predicate.equals(ActorExtractLinksTree.aNodeType)) {
       nodeLinks.push([ quad.subject.value, quad.object.value ]);
     }
+  }
+
+  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
+    const dataFactory = new DataFactory();
+    const algebraFactory = new AlgebraFactory(dataFactory);
+
+    return ActorExtractLinksTree.allPredicates.map((pred) => 
+      algebraFactory.createPattern(
+        dataFactory.variable('s'),
+        pred,
+        dataFactory.variable('o'),
+        dataFactory.variable('g'),
+      )
+    )
   }
 }

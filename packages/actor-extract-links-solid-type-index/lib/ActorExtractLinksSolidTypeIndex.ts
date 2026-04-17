@@ -295,6 +295,16 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
 
     return links;
   }
+
+  /**
+   * No extraction requied in this iteration of derived resources
+   * @param context 
+   * @returns 
+   */
+  public getExtractPatternRepresentation(context: IActionContext): Algebra.Pattern[] {
+    return []
+  }
+
 }
 
 export interface IActorExtractLinksSolidTypeIndexArgs

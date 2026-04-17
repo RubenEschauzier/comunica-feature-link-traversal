@@ -1,6 +1,7 @@
 import type { IActorArgs, IActorOutput, IActorTest, Mediate, IAction } from '@comunica/core';
 import { Actor } from '@comunica/core';
-import type { ILink } from '@comunica/types';
+import type { IActionContext, ILink } from '@comunica/types';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
 import type * as RDF from '@rdfjs/types';
 
 /**
@@ -48,6 +49,11 @@ export abstract class ActorExtractLinks<TS = undefined>
       });
     });
   }
+  /**
+   * Abstract getter that should return the quad patterns required
+   * to get full coverage of quads containing extracted links.
+   */
+  public abstract getExtractPatternRepresentation(context: IActionContext): Pattern[];
 }
 
 export interface IActionExtractLinks extends IAction {

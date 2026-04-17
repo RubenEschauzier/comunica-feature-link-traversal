@@ -4,13 +4,15 @@ import { KeysInitQuery } from '@comunica/context-entries';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
-import { Algebra, algebraUtils } from '@comunica/utils-algebra';
+import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
 import type * as RDF from '@rdfjs/types';
 import { DataFactory } from 'rdf-data-factory';
 import type { QuadTermName } from 'rdf-terms';
 import { filterQuadTermNames, getNamedNodes, getTerms, matchPatternComplete } from 'rdf-terms';
 
 const DF = new DataFactory<RDF.BaseQuad>();
+const AF = new AlgebraFactory(DF);
 const VAR = DF.variable('__comunica:pp_var');
 
 /**
@@ -122,6 +124,56 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
         }
       }),
     };
+  }
+  
+  public extractPatternsQuery(operation: Algebra.Operation){
+    const patternQuery: Algebra.Pattern[] = [];
+    algebraUtils.visitOperation(operation, {
+      [Algebra.Types.PATTERN]: {
+        preVisitor: () => ({ continue: false }),
+        visitor: (pattern) => {
+          patternQuery.push(pattern);
+        },
+      },
+      [Algebra.Types.PATH]: {
+        preVisitor: () => ({ continue: false }),
+        visitor: (path: Algebra.Path) => {
+          algebraUtils.visitOperation(path, {
+            [Algebra.Types.LINK]: {
+              preVisitor: () => ({ continue: false }),
+              visitor: (link: Algebra.Link) => {
+                const pattern = AF.createPattern(VAR, link.iri, VAR, path.graph);
+                patternQuery.push(pattern);
+                
+              },
+            },
+            [Algebra.Types.NPS]: {
+              preVisitor: () => ({ continue: false }),
+              visitor: (nps: Algebra.Nps) => {
+                for (const iri of nps.iris) {
+                  const pattern = AF.createPattern(VAR, iri, VAR, path.graph);
+                  patternQuery.push(pattern);
+                  
+                }
+              },
+            },
+          });
+        },
+      },
+    });
+    return patternQuery;
+  }
+  /**
+   * 
+   * @param context 
+   * @returns 
+   */
+  public getExtractPatternRepresentation(context: IActionContext): Algebra.Pattern[] {
+    const query = ActorExtractLinksQuadPatternQuery.getCurrentQuery(context);
+    if (!query){
+      return [];
+    }
+    return this.extractPatternsQuery(query);
   }
 }
 

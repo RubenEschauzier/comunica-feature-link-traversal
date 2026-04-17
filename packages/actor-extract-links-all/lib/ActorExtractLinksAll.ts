@@ -2,6 +2,10 @@ import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bu
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
+import { IActionContext } from '@comunica/types';
+import { AlgebraFactory } from '@comunica/utils-algebra';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
+import { DataFactory } from 'rdf-data-factory';
 import { getNamedNodes, getTerms } from 'rdf-terms';
 
 /**
@@ -24,5 +28,19 @@ export class ActorExtractLinksAll extends ActorExtractLinks {
         }
       }),
     };
+  }
+  
+  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
+    const dataFactory = new DataFactory();
+    const algebraFactory = new AlgebraFactory(dataFactory);
+
+    return [ 
+      algebraFactory.createPattern(
+        dataFactory.variable('s'),
+        dataFactory.variable('p'),
+        dataFactory.variable('o'),
+        dataFactory.variable('g'),
+      )
+    ]
   }
 }

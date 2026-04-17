@@ -53,6 +53,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     manager.addDereferencingDerivedResource(abortController);
 
     const usableDerivedResources = testResult.usableResources;
+    
     // Then we should add the reasoning on what resource to use to actually
     // do the operation this select actor wants to do. Maybe make this 
     // a generic reasoner or maybe make it derived resource specific.

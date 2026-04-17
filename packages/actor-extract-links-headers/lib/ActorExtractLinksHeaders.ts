@@ -2,7 +2,8 @@ import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bu
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
-import type { ILink } from '@comunica/types';
+import type { IActionContext, ILink } from '@comunica/types';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
 
 /**
  * A comunica Traverse Predicates RDF Link Header Actor.
@@ -41,6 +42,16 @@ export class ActorExtractLinksHeaders extends ActorExtractLinks {
       resolve({ links });
     });
   }
+  
+  /**
+   * This can be approximated using quad patterns
+   * @param context 
+   * @returns 
+   */
+  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
+    return [];
+  }
+
 }
 
 export interface IActorExtractLinksTraverseHeadersArgs

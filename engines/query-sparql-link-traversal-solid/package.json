@@ -73,6 +73,8 @@
     "@comunica/actor-dereference-fallback": "^5.0.3",
     "@comunica/actor-dereference-http": "^5.0.3",
     "@comunica/actor-dereference-rdf-parse": "^5.0.3",
+    "@comunica/actor-derived-resource-identify-qpf": "^0.8.0",
+    "@comunica/actor-derived-resource-select-triple-pattern": "^0.8.0",
     "@comunica/actor-expression-evaluator-factory-default": "^5.0.3",
     "@comunica/actor-extract-links-headers": "^0.8.0",
     "@comunica/actor-extract-links-predicates": "^0.8.0",

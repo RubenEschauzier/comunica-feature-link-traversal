@@ -14,6 +14,10 @@ import { filterQuadTermNames, getNamedNodes, getTerms, matchPatternComplete } fr
 const DF = new DataFactory<RDF.BaseQuad>();
 const AF = new AlgebraFactory(DF);
 const VAR = DF.variable('__comunica:pp_var');
+const VAR_SUBJ = DF.variable('__comunica:pp_var_subj');
+const VAR_PRED = DF.variable('__comunica:pp_var_pred');
+const VAR_OBJ = DF.variable('__comunica:pp_var_obj');
+const VAR_GRAPH = DF.variable('__comunica:pp_var_graph')
 
 /**
  * A comunica Traverse Quad Pattern Query RDF Metadata Extract Actor.
@@ -126,41 +130,79 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
     };
   }
   
-  public extractPatternsQuery(operation: Algebra.Operation){
+  public extractPatternsQuery(operation: Algebra.Operation) {
     const patternQuery: Algebra.Pattern[] = [];
+
+    // Recursively extract all LINK/NPS leaves from any path expression,
+    // Falls back to a wildcard quad pattern if an unrecognised node type is encountered.
+    const extractPathPatterns = (
+      node: Algebra.Operation,
+      graph: RDF.Term,
+      out: Algebra.Pattern[],
+    ): void => {
+      switch (node.type) {
+        case Algebra.Types.LINK: {
+          const link = node as Algebra.Link;
+          out.push(AF.createPattern(VAR_SUBJ, link.iri, VAR_OBJ, VAR_GRAPH));
+          break;
+        }
+        case Algebra.Types.NPS: {
+          // NPS matches any arc *except* these IRIs.
+          // We emit a pattern per listed IRI (same as before) so callers can
+          // filter them out, but also a wildcard quad to cover the "everything
+          // else" side of the negation.
+          out.push(AF.createPattern(VAR_SUBJ, VAR_PRED, VAR_OBJ, VAR_GRAPH));
+          break;
+        }
+
+        // Unary wrappers (INV, *, +, ?) 
+        case Algebra.Types.ZERO_OR_MORE_PATH:
+        case Algebra.Types.ONE_OR_MORE_PATH: 
+        case Algebra.Types.ZERO_OR_ONE_PATH:
+        case Algebra.Types.INV: {
+          const path = <
+            Algebra.Inv | 
+            Algebra.ZeroOrMorePath | 
+            Algebra.OneOrMorePath |
+            Algebra.ZeroOrOnePath> node;
+          extractPathPatterns(path.path, graph, out);
+          break;
+        }
+        case Algebra.Types.ALT:
+        case Algebra.Types.SEQ: {
+          const seq = <Algebra.Seq | Algebra.Alt> node;
+          for (const input of seq.input){
+            extractPathPatterns(input, graph, out);
+          }
+          break;
+        }
+        default: {
+          // Unknown or future path node type: emit a wildcard quad pattern so
+          // the caller fetches everything in the graph rather than silently
+          // missing triples.
+          out.push(AF.createPattern(VAR_SUBJ, VAR_PRED, VAR_OBJ, VAR_GRAPH));
+          break;
+        }
+      }
+    };
+
     algebraUtils.visitOperation(operation, {
       [Algebra.Types.PATTERN]: {
         preVisitor: () => ({ continue: false }),
-        visitor: (pattern) => {
-          patternQuery.push(pattern);
+        visitor: (pattern: Algebra.Pattern) => {
+          patternQuery.push(
+            AF.createPattern(VAR_SUBJ, pattern.predicate, VAR_OBJ, VAR_GRAPH)
+          );        
         },
       },
       [Algebra.Types.PATH]: {
         preVisitor: () => ({ continue: false }),
         visitor: (path: Algebra.Path) => {
-          algebraUtils.visitOperation(path, {
-            [Algebra.Types.LINK]: {
-              preVisitor: () => ({ continue: false }),
-              visitor: (link: Algebra.Link) => {
-                const pattern = AF.createPattern(VAR, link.iri, VAR, path.graph);
-                patternQuery.push(pattern);
-                
-              },
-            },
-            [Algebra.Types.NPS]: {
-              preVisitor: () => ({ continue: false }),
-              visitor: (nps: Algebra.Nps) => {
-                for (const iri of nps.iris) {
-                  const pattern = AF.createPattern(VAR, iri, VAR, path.graph);
-                  patternQuery.push(pattern);
-                  
-                }
-              },
-            },
-          });
+          extractPathPatterns(path.predicate, path.graph, patternQuery);
         },
       },
     });
+
     return patternQuery;
   }
   /**

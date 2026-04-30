@@ -1,6 +1,6 @@
 {
   "name": "@comunica/actor-derived-resource-select-triple-pattern",
-  "version": "1.0.0",
+  "version": "0.8.0",
   "description": "A triple-pattern derived-resource-select actor",
   "lsd:module": true,
   "main": "lib/index.js",

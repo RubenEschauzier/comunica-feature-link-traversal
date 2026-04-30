@@ -85,8 +85,9 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
-    console.log(derivedResourcesIdentified);
-
+    const tempResult = this.mediatorDerivedResourceSelect.mediate(
+      {derivedResourcesIdentified, context: action.context}
+    );
     // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
     return { links: [] };
   }
@@ -378,9 +379,12 @@ export interface IDerivedResource {
    * Performance coefficients, used to determine the best resource for a given task when multiple resources
    * can be used
    */
-  resourceCoefficients: {
+  resourceCoefficients: IDerivedResourceCoefficients
+}
+
+export interface IDerivedResourceCoefficients {
     /**
-     * How cheap or expensive the resource is server-side
+     * How costly the resource is server-side
      * e.g. a parameterized query requires full query execution, while precomputed queries or QPF require
      * less compute
      */
@@ -395,6 +399,5 @@ export interface IDerivedResource {
      * The selectivity of the resource to answer a question
      * e.g. a parameterized join query is highly selective, while a union-based query must be filtered
      */
-    selectivty: number
-  }
+    selectivity: number
 }

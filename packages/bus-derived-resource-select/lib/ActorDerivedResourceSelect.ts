@@ -1,5 +1,6 @@
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
 import { Actor, IAction, IActorArgs, IActorOutput, IActorTest, Mediate } from '@comunica/core';
+import { IActionContext } from '@comunica/types';
 
 /**
  * A comunica actor for derived-resource-select events.
@@ -44,6 +45,7 @@ export interface IActorDerivedResourceSelectOutput extends IActorOutput {
 
 export interface IActorDerivedResourceSelectTestSideData {
   usableResources: IDerivedResource[];
+  derivedResourceContext: IActionContext;
 }
 
 export interface IRequiredResources {
@@ -51,11 +53,15 @@ export interface IRequiredResources {
    * Whether the identified resources in a data source are sufficient
    * to execute the actor's operation.
    */
-  canAnswer: boolean, 
+  canAnswer: boolean;
   /**
    * The set of resources that can be used to execute this operation.
    */
-  usableResources: Set<IDerivedResource>
+  usableResources: Set<IDerivedResource>;
+  /**
+   * Context object for passing derived resource-specific information
+   */
+  derivedResourceContext: IActionContext;
 }
 
 export type IActorDerivedResourceSelectArgs<

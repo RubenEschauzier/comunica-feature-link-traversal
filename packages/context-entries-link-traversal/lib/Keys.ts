@@ -5,8 +5,9 @@ import type {
   IAggregatedStore,
   ILinkTraversalManager,
 } from '@comunica/types-link-traversal';
-import { IDerivedResourceUnidentified } from '../../actor-extract-links-solid-derived-resources/lib';
-import { IDerivedResourcesContainer } from '../../actor-context-preprocess-set-defaults-link-traversal/lib';
+import { IDerivedResource, IDerivedResourceUnidentified } from '@comunica/actor-extract-links-solid-derived-resources';
+import { IDerivedResourcesContainer } from '@comunica/actor-context-preprocess-set-defaults-link-traversal';
+import { Algebra } from '@comunica/utils-algebra';
 
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
@@ -74,4 +75,10 @@ export const KeysDerivedResourceIdentify = {
   derivedResourcesContainer: new ActionContextKey<IDerivedResourcesContainer>(
     '@comunica/bus-derived-resource-identify:derivedResourcesContainer',
   )
+};
+
+export const KeysDerivedResourceSelect = {
+  patternToDerivedResource: new ActionContextKey<Map<Algebra.Pattern, IDerivedResource[]>>(
+    '@comunica/bus-derived-resource-select:patternToDerivedResource',
+  ),
 }

@@ -46,7 +46,7 @@ export class ActorDerivedResourceIdentifyQpf extends ActorDerivedResourceIdentif
         ...action.derivedResourceUnidentified,
         querySource: querySourceQpf.source,
         resourceCoefficients:  {
-          selectivty: 1,
+          selectivity: 1,
           requests: 10,
           compute: 1
         }        

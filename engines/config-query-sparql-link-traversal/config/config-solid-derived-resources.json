@@ -13,8 +13,12 @@
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
     "ccqslt:config/extract-links/actors/solid-derived-resources.json",
-    "ccqslt:config/derived-resource-identify/mediator.json",
+    "ccqslt:config/derived-resource-identify/mediators.json",
     "ccqslt:config/derived-resource-identify/actors/qpf.json",
+
+    "ccqslt:config/derived-resource-select/actors.json",
+    "ccqslt:config/derived-resource-select/mediators.json",
+
     "ccqslt:config/context-preprocess/dynamic-links-filter.json",
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter-dynamic.json"
   ]

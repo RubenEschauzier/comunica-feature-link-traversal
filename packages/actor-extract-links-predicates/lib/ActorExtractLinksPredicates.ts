@@ -68,12 +68,12 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
 
     for (const regexStr of this.stringPredicates) {
       // Remove exact match anchors (^ and $) and unescape characters
-      const cleanedStr = regexStr.replace(/^\^|\$$/g, '').replace(/\\(.)/g, '$1');
+      const noAnchors = regexStr.replace(/^\^|\$$/g, '');
 
-      const containsRegexLogic = /[.*+?^${}()|[\]\\]/.test(cleanedStr);
-
-      // If string is a complex regex, abort optimization and return the catch-all
-      if (containsRegexLogic) {
+      // If the passed regex is not a valid URL, then we cant know
+      // what predicate to put in pattern to get all possible
+      // links this actor might extract
+      if (!this.isValidUrl(noAnchors)) {
         return [
           algebraFactory.createPattern(
             dataFactory.variable('s'),
@@ -83,12 +83,11 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
           )
         ];
       }
-
-      // Otherwise, it is a simple string. Create a specific pattern.
+      
       specificPatterns.push(
         algebraFactory.createPattern(
           dataFactory.variable('s'),
-          dataFactory.namedNode(cleanedStr),
+          dataFactory.namedNode(noAnchors),
           dataFactory.variable('o'),
           dataFactory.variable('g')
         )
@@ -106,6 +105,15 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
    */
   public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
     return this.evaluatePatterns();
+  }
+
+  private isValidUrl(value: string): boolean {
+    try {
+      new URL(value);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 

@@ -2,6 +2,7 @@ import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import { KeysHttp, KeysQueryOperation, KeysStatistics } from '@comunica/context-entries';
+import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type {
   ComunicaDataFactory,
   IActionContext,
@@ -180,7 +181,9 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
 
     this.mediatorQuerySourceDereferenceLink.mediate({
       link: nextLink,
-      context: this.context.set(KeysHttp.httpAbortSignal, abortController.signal),
+      context: this.context
+      .set(KeysHttp.httpAbortSignal, abortController.signal)
+      .set(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, this),
     })
       .then(async({ source, metadata }) => {
         // Determine next links

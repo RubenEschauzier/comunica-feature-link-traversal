@@ -1,12 +1,14 @@
-import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
+import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-extract-links-solid-derived-resources';
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
 import { KeysInitQuery } from '@comunica/context-entries';
-import { TestResult, IActorTest, failTest, passTest, passTestWithSideData } from '@comunica/core';
+import { TestResult, IActorTest, failTest, passTest, passTestWithSideData, ActionContext } from '@comunica/core';
 import { ComunicaDataFactory } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
-import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
+import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 
 /**
  * A comunica Triple Pattern Derived Resource Select Actor.
@@ -16,16 +18,22 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   protected dataFactory: ComunicaDataFactory = new DataFactory();
   protected algebraFactory: AlgebraFactory = new AlgebraFactory(this.dataFactory);
 
+  public readonly mediatorExtractLinks: MediatorExtractLinks;
+  public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
-  public constructor(args: IActorDerivedResourceSelectArgs) {
+  protected derivedResourceCoefficients: IDerivedResourceCoefficients;
+
+  public constructor(args: IActorDerivedResourceSelectTriplePatternArgs) {
     super(args);
+    this.mediatorExtractLinks = args.mediatorExtractLinks;
+    this.mediatorMetadataExtract = args.mediatorMetadataExtract;
+    this.derivedResourceCoefficients = args.derivedResourceCoefficients;
   }
 
   public async test(action: IActionDerivedResourceSelect): 
     Promise<TestResult<IActorTest, IActorDerivedResourceSelectTestSideData>> {
-    const {canAnswer, usableResources } = this.hasRequiredResources(
-      action.derivedResourcesIdentified, action
-    );
+    const {canAnswer, usableResources, derivedResourceContext } = 
+      this.hasRequiredResources(action.derivedResourcesIdentified, action);
 
     if (!canAnswer) {
       return failTest(`${this.name}: does not have the derived 
@@ -33,7 +41,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     }
 
     return passTestWithSideData({}, 
-      { usableResources: Array.from(usableResources.values()) }
+      { usableResources: Array.from(usableResources.values()), derivedResourceContext }
     );
   }
 
@@ -52,21 +60,48 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     );
     manager.addDereferencingDerivedResource(abortController);
 
-    const usableDerivedResources = testResult.usableResources;
+    const patternToResources = testResult.derivedResourceContext
+      .getSafe(KeysDerivedResourceSelect.patternToDerivedResource);
+    const bestResources = new Map(
+      Array.from(patternToResources.entries(), ([pattern, resources]) => [
+        pattern,
+        resources
+          .map(resource => {console.log(resource.resourceCoefficients); return ({
+            resource,
+            cost:
+              resource.resourceCoefficients.compute * this.derivedResourceCoefficients.compute +
+              resource.resourceCoefficients.requests * this.derivedResourceCoefficients.requests +
+              resource.resourceCoefficients.selectivity * this.derivedResourceCoefficients.selectivity
+          })})
+          .reduce((min, curr) => (curr.cost < min.cost ? curr : min))
+      ])
+    );  
+    for (const [pattern, bestResource] of bestResources.entries()){
+      const quads = bestResource.resource.querySource.queryQuads(
+        pattern, context
+      );
+      // TODO: Extract metadata
+      // Update metadata of aggStore
+      // import quads (should be only ones in query but this will do for now)
+      // update link queue to filter URLs that match data source glob pattern
+
+
+      const metadata = (await this.mediatorMetadataExtract.mediate({
+        context,
+        url: bestResource.resource.iri,
+        // The problem appears to be conflicting metadata keys here
+        metadata: quads,
+        headers: new Headers(),
+        requestTime: 0,
+      })).metadata;
+      // quads = rdfMetadataOutput.data;
+      // manager.getQuerySourceAggregated().setBaseMetadata(metadata, this.aggregatedStore.containedSources.size > 0);
+      // await this.aggregatedStore.importSource(nextLink.url, source, this.context);
+
+    }
     
-    // Then we should add the reasoning on what resource to use to actually
-    // do the operation this select actor wants to do. Maybe make this 
-    // a generic reasoner or maybe make it derived resource specific.
-    
-    // Then after deciding the derived resource to use, execute the specific queries
-    // execute them, extract metadata (just as in dereference-link-hypermedia)
-
-    // Then update metadata of aggregatedStore, import the quads (only the ones in query)
-    // and update the link queue to immediately filter URLs in link queue that match
-    // the data source glob pattern.
-
-    // After all is done, remove the abortController.
-
+    // Done dereferencing, so remove controller
+    manager.removeDereferencingDerivedResource(abortController);
     return true;
   }
 
@@ -74,30 +109,51 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     derivedResources: IDerivedResource[],
     action: IActionDerivedResourceSelect,
   ): IRequiredResources {
+    const actorsExtractLink = <ActorExtractLinks[]>((<any>this.mediatorExtractLinks.bus).actors);
+
+    // Get unique patterns required to do traversal
+    const seen = new Set<string>();
+    const patterns = actorsExtractLink
+      .flatMap(actor => actor.getExtractPatternRepresentation(action.context))
+      .filter(pattern => {
+        // Generate a unique signature for the pattern's shape
+        const key = [pattern.subject, pattern.predicate, pattern.object, pattern.graph]
+          .map(term => term.termType === 'Variable' ? 'VAR' : term.value)
+          .join('|');
+
+        // Keep only the first instance of each unique signature
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });   
+
     const usableResources: Set<IDerivedResource> = new Set();
-    const {patterns, paths} = this.extractTriplePatterns(action.context.getSafe(KeysInitQuery.query));
-    if (paths.length > 0 ){
-      // TODO: For path we need to convert the path to the required predicates to answer the traversal of the path
-      // so we need to deconstruct the path pattern. (see claude response)
-      // if qpf we can't do a certain path -> return false
-      // After converting to triple patterns add it to the patterns array and continue with the canonicalForm
-      // checks
-    }
-    const canonicalForms = this.triplePatternsToFragmentTest(patterns);
-    for (const cForm of canonicalForms){
+    const patternToResources: Map<Algebra.Pattern, IDerivedResource[]> = new Map();
+
+    const derivedResourceContext = new ActionContext()
+    .set(KeysDerivedResourceSelect.patternToDerivedResource, patternToResources);
+
+    for (const pattern of patterns){
       let canAnswer = false;
       for (const derivedResource of derivedResources){
-        if (doesShapeAcceptOperation(derivedResource.derivedResourceSelectorShape, cForm)){
+        if (doesShapeAcceptOperation(derivedResource.derivedResourceSelectorShape, pattern)){
           usableResources.add(derivedResource);
+          if (!patternToResources.has(pattern)){
+            patternToResources.set(pattern, []);
+          }
+          patternToResources.get(pattern)!.push(derivedResource);
           canAnswer = true;
         }
       }
       if (!canAnswer){
-        return {canAnswer: false, usableResources: new Set()};
+        return {
+          canAnswer: false, 
+          usableResources: new Set(), 
+          derivedResourceContext: new ActionContext()
+        };
       }
     }
-    return {canAnswer: true, usableResources};
-
+    return {canAnswer: true, usableResources, derivedResourceContext };
   }
 
   /**
@@ -169,12 +225,21 @@ private triplePatternsToFragmentTest(patterns: Algebra.Pattern[]): Algebra.Patte
 export interface IActorDerivedResourceSelectTriplePatternArgs 
 extends IActorDerivedResourceSelectArgs {
   /**
-   * The coefficients for choosing the best resource. By default
-   * prefers least requests
+   * The coefficients for choosing the best resource.
+   * It could be interesting to make these adaptive, for example,
+   * when using QPF with many IRIs, such as <ex:s> <ex:p> ?o ? g
+   * we can reasonably expect that QPF will require very little requests,
+   * while if we use an ?s ?p ?o ?g pattern it will require more.
    */
-  derivedResourceCoefficients: {
-    compute: 0
-    requests: 1,
-    selectivity: 0
-  }
+  derivedResourceCoefficients: IDerivedResourceCoefficients
+  /**
+   * Extract links mediator, used to determine the required triple 
+   * pattern queries to extract all links for traversal.
+   */
+  mediatorExtractLinks: MediatorExtractLinks;
+  /**
+   * The metadata extract mediator
+   */
+  mediatorMetadataExtract: MediatorRdfMetadataExtract;
+
 }

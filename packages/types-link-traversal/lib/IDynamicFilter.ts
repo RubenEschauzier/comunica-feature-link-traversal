@@ -3,5 +3,5 @@
  */
 export interface IDynamicFilter {
   readonly exact: Set<string>;
-  readonly globs: string[];
+  readonly regExp: RegExp[];
 }

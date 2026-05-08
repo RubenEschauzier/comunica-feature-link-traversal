@@ -33,7 +33,6 @@ export class LinkQueueWrapperFilterDynamic extends LinkQueueWrapper {
     if (this.filter.exact.has(url)) {
       return true;
     }
-
-    return this.filter.globs.some((glob) => minimatch(url, glob));
+    return this.filter.regExp.some((exp) => exp.test(url));
   }
 }

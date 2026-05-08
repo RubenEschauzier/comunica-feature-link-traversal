@@ -1,7 +1,7 @@
 import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-extract-links-solid-derived-resources';
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
-import { KeysInitQuery } from '@comunica/context-entries';
 import { TestResult, IActorTest, failTest, passTest, passTestWithSideData, ActionContext } from '@comunica/core';
+import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import { ComunicaDataFactory } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
@@ -9,6 +9,10 @@ import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
+import { minimatch } from 'minimatch'
+import type * as RDF from '@rdfjs/types';
+import { resolve } from 'path';
+import { rejects } from 'assert';
 
 /**
  * A comunica Triple Pattern Derived Resource Select Actor.
@@ -17,16 +21,18 @@ export class ActorDerivedResourceSelectTriplePattern extends
 ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   protected dataFactory: ComunicaDataFactory = new DataFactory();
   protected algebraFactory: AlgebraFactory = new AlgebraFactory(this.dataFactory);
-
+  
+  public readonly mediatorMetadata: MediatorRdfMetadata;
   public readonly mediatorExtractLinks: MediatorExtractLinks;
-  // public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
+  public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
   protected derivedResourceCoefficients: IDerivedResourceCoefficients;
 
   public constructor(args: IActorDerivedResourceSelectTriplePatternArgs) {
     super(args);
+    this.mediatorMetadata = args.mediatorMetadata;
     this.mediatorExtractLinks = args.mediatorExtractLinks;
-    // this.mediatorMetadataExtract = args.mediatorMetadataExtract;
+    this.mediatorMetadataExtract = args.mediatorMetadataExtract;
     this.derivedResourceCoefficients = args.derivedResourceCoefficients;
   }
 
@@ -49,16 +55,14 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     action: IActionDerivedResourceSelect,
     testResult: IActorDerivedResourceSelectTestSideData,
   ): Promise<IActorDerivedResourceSelectOutput> {
-    // Abort controller indicating forcefull exit of traversal process.
-    // this should also abort the dereferencing of the derived resource.
-    // TODO Add function callback
-    const abortController = new AbortController();
-
+    const controller = new AbortController();
+    const signal = controller.signal;
+    
     const context = action.context;
     const manager = context.getSafe(
       KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager
     );
-    manager.addDereferencingDerivedResource(abortController);
+    manager.addDereferencingDerivedResource(controller);
 
     const patternToResources = testResult.derivedResourceContext
       .getSafe(KeysDerivedResourceSelect.patternToDerivedResource);
@@ -76,50 +80,80 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
           .reduce((min, curr) => (curr.cost < min.cost ? curr : min))
       ])
     );  
+
+    const numResource = bestResources.size;
+    let processed = 0;
     for (const [pattern, bestResource] of bestResources.entries()){
-      const quads = bestResource.resource.querySource.queryQuads(
+      if (signal.aborted){
+        break;
+      }
+      const rawQuads = bestResource.resource.querySource.queryQuads(
         pattern, context
       );
-      // Filter the links matching the selector pattern of the resource.
-      const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-      const selectors = bestResource.resource.selectors
-      selectors.forEach((selector) => {
-        if (this.isGlob(selector)){
-          dynamicLinkFilter.globs.push(selector);
-        }
-        else {
-          dynamicLinkFilter.exact.add(selector);
-        }
-      });
 
-      // TODO: Do we need this, the quads already have metadata by a call to this mediator
-      // which is in the QPF query source for example.
-      // YES WE DO, We need to add these links to the link queue!
-      
+      // // Filter the links matching the selector pattern of the resource.
+      // const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+      // const selectors = bestResource.resource.selectors
+      // selectors.forEach((selector) => {
+      //   if (this.isGlob(selector)){
+      //     const globRegExp = minimatch.makeRe(selector);
+      //     if (!globRegExp){
+      //       throw new Error(`Found invalid selector pattern: ${selector}`)
+      //     }
+      //     dynamicLinkFilter.regExp.push(globRegExp);
+      //   }
+      //   else {
+      //     dynamicLinkFilter.exact.add(selector);
+      //   }
+      // });
+      // console.log("START")
+
+      // // TODO: Do we need this, the quads already have metadata by a call to this mediator
+      // // which is in the QPF query source for example.
+      // // YES WE DO, We need to add these links to the link queue!
+      // const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+      //   { context, url: bestResource.resource.iri, quads: rawQuads },
+      // );
+      // console.log("HELLO")
       // const metadata = (await this.mediatorMetadataExtract.mediate({
       //   context,
       //   url: bestResource.resource.iri,
       //   // The problem appears to be conflicting metadata keys here
-      //   metadata: quads,
+      //   metadata: rdfMetadataOutput.metadata,
       //   headers: new Headers(),
       //   requestTime: 0,
       // })).metadata;
-      // quads = rdfMetadataOutput.data;
+      
+      // const quads: RDF.Stream = rdfMetadataOutput.data;
 
-      const eventEmitter = manager.getAggregatedStore().import(quads);
-
-      // TODO: No URL to add?
+      const eventEmitter = manager.getAggregatedStore().import(rawQuads);
       await new Promise((resolve, reject) => {
-        eventEmitter.on('end', resolve);
-        eventEmitter.on('error', reject);
-      });
-;
-      // await this.aggregatedStore.importSource(nextLink.url, source, this.context);
+        // When traversal is aborted, we destroy the stream and
+        // exit all dereference logic of this function.
+        // const onAbort = () => {
+        //   // TODO: How else do I do this?
+        //   (<any>rawQuads).destroy(new Error('Traversal aborted'));
+        //   reject(new Error('Aborted during stream processing'));
+        // };
+        // signal.addEventListener('abort', onAbort);
 
+        eventEmitter.on('end', () => {
+          processed++;
+          console.log(`End ${processed}/${numResource}`)
+          // signal.removeEventListener('abort', onAbort);
+          resolve;
+        });
+
+        eventEmitter.on('error', (err) => {
+          console.log("HERE")
+          // signal.removeEventListener('abort', onAbort);
+          reject;
+        });
+      });
     }
     
     // Done dereferencing, so remove controller
-    manager.removeDereferencingDerivedResource(abortController);
+    manager.removeDereferencingDerivedResource(controller);
     return true;
   }
 
@@ -249,7 +283,11 @@ extends IActorDerivedResourceSelectArgs {
    * we can reasonably expect that QPF will require very little requests,
    * while if we use an ?s ?p ?o ?g pattern it will require more.
    */
-  derivedResourceCoefficients: IDerivedResourceCoefficients
+  derivedResourceCoefficients: IDerivedResourceCoefficients;
+  /**
+   * The metadata mediator
+   */
+  mediatorMetadata: MediatorRdfMetadata;
   /**
    * Extract links mediator, used to determine the required triple 
    * pattern queries to extract all links for traversal.
@@ -258,6 +296,6 @@ extends IActorDerivedResourceSelectArgs {
   // /**
   //  * The metadata extract mediator
   //  */
-  // mediatorMetadataExtract: MediatorRdfMetadataExtract;
+  mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
 }

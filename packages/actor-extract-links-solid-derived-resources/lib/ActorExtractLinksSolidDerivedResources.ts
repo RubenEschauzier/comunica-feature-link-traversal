@@ -2,14 +2,14 @@ import { ActorInitQueryBase, QueryEngineBase } from '@comunica/actor-init-query'
 import { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActorExtractLinksArgs } from '@comunica/bus-extract-links';
 import { IActorDereferenceOutput, MediatorDereference } from "@comunica/bus-dereference";
-import { KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
-import { KeysDerivedResourceIdentify, KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
+import { KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
+import { KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs, ActionContext } from '@comunica/core';
 import { IActionContext, ILink, IQuerySource } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 import { storeStream } from 'rdf-store-stream';
 import { FragmentSelectorShape } from '@comunica/types';
-import { IActorDerivedResourceIdentifyOutput, MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
+import { MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
 import { MediatorDerivedResourceSelect } from '@comunica/bus-derived-resource-select';
 import { Algebra } from '@comunica/utils-algebra';
 
@@ -57,14 +57,14 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // Set filter immediately to prevent race conditions
     const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
     derivedResources.forEach(url => {
-      dynamicLinkFilter.add(url);
+      dynamicLinkFilter.exact.add(url);
     });
 
     const derivedResourcesRaw: IDerivedResourceRaw[][] = (await Promise.all(derivedResources
       .map(derivedResource => this.dereferenceDerivedResources(derivedResource, action.context))));
     const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
       derivedResourcesRaw.flat().map(resource => {
-          dynamicLinkFilter.add(resource.filterUri.url);
+          dynamicLinkFilter.exact.add(resource.filterUri.url);
           return this.dereferenceFilter(resource);
         }
     ));

@@ -4,6 +4,7 @@ import type {
   LinkFilter,
   IAggregatedStore,
   ILinkTraversalManager,
+  IDynamicFilter,
 } from '@comunica/types-link-traversal';
 import { IDerivedResource, IDerivedResourceUnidentified } from '@comunica/actor-extract-links-solid-derived-resources';
 import { IDerivedResourcesContainer } from '@comunica/actor-context-preprocess-set-defaults-link-traversal';
@@ -30,7 +31,7 @@ export const KeysRdfResolveHypermediaLinks = {
     '@comunica/bus-rdf-resolve-hypermedia-links:linkFilters',
   ),
 
-  dynamicFilter: new ActionContextKey<Set<string>>(
+  dynamicFilter: new ActionContextKey<IDynamicFilter>(
     '@comunica/bus-rdf-resolve-hypermedia-links-queue:filterDynamic'
   ),
 

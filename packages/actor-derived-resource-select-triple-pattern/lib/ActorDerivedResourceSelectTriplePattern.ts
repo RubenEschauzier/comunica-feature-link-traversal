@@ -6,7 +6,7 @@ import { ComunicaDataFactory } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
-import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 
@@ -19,14 +19,14 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   protected algebraFactory: AlgebraFactory = new AlgebraFactory(this.dataFactory);
 
   public readonly mediatorExtractLinks: MediatorExtractLinks;
-  public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
+  // public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
   protected derivedResourceCoefficients: IDerivedResourceCoefficients;
 
   public constructor(args: IActorDerivedResourceSelectTriplePatternArgs) {
     super(args);
     this.mediatorExtractLinks = args.mediatorExtractLinks;
-    this.mediatorMetadataExtract = args.mediatorMetadataExtract;
+    // this.mediatorMetadataExtract = args.mediatorMetadataExtract;
     this.derivedResourceCoefficients = args.derivedResourceCoefficients;
   }
 
@@ -66,13 +66,13 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
       Array.from(patternToResources.entries(), ([pattern, resources]) => [
         pattern,
         resources
-          .map(resource => {console.log(resource.resourceCoefficients); return ({
+          .map(resource => ({
             resource,
             cost:
               resource.resourceCoefficients.compute * this.derivedResourceCoefficients.compute +
               resource.resourceCoefficients.requests * this.derivedResourceCoefficients.requests +
               resource.resourceCoefficients.selectivity * this.derivedResourceCoefficients.selectivity
-          })})
+          }))
           .reduce((min, curr) => (curr.cost < min.cost ? curr : min))
       ])
     );  
@@ -80,22 +80,40 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
       const quads = bestResource.resource.querySource.queryQuads(
         pattern, context
       );
-      // TODO: Extract metadata
-      // Update metadata of aggStore
-      // import quads (should be only ones in query but this will do for now)
-      // update link queue to filter URLs that match data source glob pattern
+      // Filter the links matching the selector pattern of the resource.
+      const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+      const selectors = bestResource.resource.selectors
+      selectors.forEach((selector) => {
+        if (this.isGlob(selector)){
+          dynamicLinkFilter.globs.push(selector);
+        }
+        else {
+          dynamicLinkFilter.exact.add(selector);
+        }
+      });
 
-
-      const metadata = (await this.mediatorMetadataExtract.mediate({
-        context,
-        url: bestResource.resource.iri,
-        // The problem appears to be conflicting metadata keys here
-        metadata: quads,
-        headers: new Headers(),
-        requestTime: 0,
-      })).metadata;
+      // TODO: Do we need this, the quads already have metadata by a call to this mediator
+      // which is in the QPF query source for example.
+      // YES WE DO, We need to add these links to the link queue!
+      
+      // const metadata = (await this.mediatorMetadataExtract.mediate({
+      //   context,
+      //   url: bestResource.resource.iri,
+      //   // The problem appears to be conflicting metadata keys here
+      //   metadata: quads,
+      //   headers: new Headers(),
+      //   requestTime: 0,
+      // })).metadata;
       // quads = rdfMetadataOutput.data;
-      // manager.getQuerySourceAggregated().setBaseMetadata(metadata, this.aggregatedStore.containedSources.size > 0);
+
+      const eventEmitter = manager.getAggregatedStore().import(quads);
+
+      // TODO: No URL to add?
+      await new Promise((resolve, reject) => {
+        eventEmitter.on('end', resolve);
+        eventEmitter.on('error', reject);
+      });
+;
       // await this.aggregatedStore.importSource(nextLink.url, source, this.context);
 
     }
@@ -237,9 +255,9 @@ extends IActorDerivedResourceSelectArgs {
    * pattern queries to extract all links for traversal.
    */
   mediatorExtractLinks: MediatorExtractLinks;
-  /**
-   * The metadata extract mediator
-   */
-  mediatorMetadataExtract: MediatorRdfMetadataExtract;
+  // /**
+  //  * The metadata extract mediator
+  //  */
+  // mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
 }

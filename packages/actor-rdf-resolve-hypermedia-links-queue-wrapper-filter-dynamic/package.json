@@ -37,7 +37,8 @@
   ],
   "dependencies": {
     "@comunica/core": "^5.1.3",
-    "@comunica/bus-rdf-resolve-hypermedia-links-queue": "^5.1.3"
+    "@comunica/bus-rdf-resolve-hypermedia-links-queue": "^5.1.3",
+    "minimatch": "^10.2.5"
   },
   "scripts": {
     "build": "yarn run build:ts && yarn run build:components",

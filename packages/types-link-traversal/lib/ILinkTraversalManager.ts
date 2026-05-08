@@ -1,5 +1,6 @@
 import type { IActionContext, ILink, ILinkQueue, IQuerySource } from '@comunica/types';
 import type { AsyncIterator } from 'asynciterator';
+import { IAggregatedStore } from './IAggregatedStore';
 
 /**
  * A link traversal manager manages a link queue, and uses it to populate the aggregated query source and
@@ -66,4 +67,8 @@ export interface ILinkTraversalManager {
    * addDereferencingDerivedResource. 
    */
   removeDereferencingDerivedResource: (controller: AbortController) => void;
+  /**
+   * Get the underlying aggregatedStore
+   */
+  getAggregatedStore: () => IAggregatedStore;
 }

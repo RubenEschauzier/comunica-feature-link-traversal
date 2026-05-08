@@ -18,7 +18,10 @@ export class ActorContextPreprocessSetDynamicLinksFilter extends ActorContextPre
     let context = action.context;
 
     // Set traverse flag to true if the flag is undefined.
-    context = context.setDefault(KeysRdfResolveHypermediaLinks.dynamicFilter, new Set());
+    context = context.setDefault(KeysRdfResolveHypermediaLinks.dynamicFilter, {
+      exact: new Set<string>(),
+      globs: []
+    });
     
     return { context };
   }

@@ -27,6 +27,31 @@ extends Actor<IActionDerivedResourceSelect, IActorTest, IActorDerivedResourceSel
   }
 
   /**
+   * Converts a standard glob pattern to a RegExp instance.
+   */
+  protected globToRegExp(glob: string): RegExp {
+    // const strippedGlob = this.stripExtensionFromGlob(glob);
+    const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+    const regexString = `^${escaped.replace(/\*/g, '.*').replace(/\?/g, '.')}$`;
+    
+    return new RegExp(regexString);
+  }
+  /**
+   * Removes literal alphanumeric file extensions from a glob pattern.
+   * Preserves wildcard patterns (e.g., '.*') and paths without extensions.
+   */
+  protected stripExtensionFromGlob(glob: string): string {
+    // Matches a literal dot followed by one or more alphanumeric characters at the string's end.
+    return glob.replace(/\.[a-zA-Z0-9]+$/, '');
+  }
+  /**
+   * Identifies patterns containing wildcard characters.
+   */
+  protected isGlob(pattern: string): boolean {
+    return pattern.includes('*') || pattern.includes('?');
+  }
+
+  /**
    * Determines if a derived resource is usable for this actor
    */
   public abstract hasRequiredResources(

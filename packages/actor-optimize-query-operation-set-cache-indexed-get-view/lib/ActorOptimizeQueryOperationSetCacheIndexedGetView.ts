@@ -58,7 +58,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexedGetView extends ActorOpti
     const quadPatterns = this.extractQuadPatterns(action.context.getSafe(KeysInitQuery.query), dataFactory, VAR);
 
     cacheManager.registerCacheView(
-      CacheSourceStateViews.cacheQueryView,
+      CacheSourceStateViews.indexedCacheGetView,
       new GetStreamingCacheView(
         action.context.getSafe(KeysInitQuery.dataFactory),
         quadPatterns,

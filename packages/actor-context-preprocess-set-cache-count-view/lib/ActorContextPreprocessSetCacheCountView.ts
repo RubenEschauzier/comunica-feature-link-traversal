@@ -24,7 +24,7 @@ export class ActorContextPreprocessSetCacheCountView extends ActorContextPreproc
     const context = action.context;
     const cacheManager: PersistentCacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCacheView(
-      CacheSourceStateViews.cacheCountView,
+      CacheSourceStateViews.indexedCacheCountView,
       new CacheCountView(),
     );
     return { context };
@@ -32,12 +32,12 @@ export class ActorContextPreprocessSetCacheCountView extends ActorContextPreproc
 }
 
 export class CacheCountView
-implements ICacheView<ISourceState, { operation: Algebra.Operation; documents: string[] }, number> {
+implements ICacheView<ISourceState, { operation: Algebra.Operation }, number> {
   protected readonly computedCounts: Record<string, number> = {};
 
   public async construct(
     cache: IPersistentCache<ISourceState>,
-    context: { operation: Algebra.Operation; documents: string[] },
+    context: { operation: Algebra.Operation },
   ): Promise<number | undefined> {
     if (!isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
       throw new Error('Count view only accepts quad patterns');

@@ -14,6 +14,7 @@ import type { ILink, ISourceState, IPersistentCache, ISetFn } from '@comunica/ty
 
 import type * as RDF from '@rdfjs/types';
 import { PersistentCacheSourceStateIndexed } from './PersistentCacheSourceStateIndexed';
+import { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -108,18 +109,4 @@ export interface IActorOptimizeQueryOperationSetCacheIndexedOfflineTraversalArgs
    * @default {124000}
    */
   cacheSizeNumTriples: number;
-}
-
-/**
- * Interface containing data for offline traversal
- */
-export interface IOfflineTraversalEntry {
-  /**
-   * The traversal entries depending on predicates in the query
-   */
-  predicates: Record<string, ILink>;
-  /**
-   * The traversal entries independent of the query
-   */
-  default: ILink[];
 }

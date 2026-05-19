@@ -1,0 +1,22 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-context-preprocess-set-cache-count-view-offline-traversal/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-context-preprocess-set-persistent-cache-manager/^5.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:context-preprocess/actors#set-cache-count-view-offline-traversal",
+      "@type": "ActorContextPreprocessSetCacheCountViewOfflineTraversal"
+    },
+    {
+      "@id": "urn:comunica:default:context-preprocess/actors#set-persistent-cache-manager",
+      "@type": "ActorContextPreprocessSetPersistentCacheManager",
+      "trackCacheMetrics": true,
+      "beforeActors": { "@id": "urn:comunica:default:context-preprocess/actors#set-cache-count-view-offline-traversal" }
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import type { ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
-import { KeysCaching, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysCaching, KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type {
   BindingsStream,
   FragmentSelectorShape,
@@ -74,7 +75,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     // contract. (As in allows for cardinality estimation?)
     
     // If we 
-    // - Have a limit set 
+    // - Have a minimal cache size limit set 
     // - Are passed a cache manager, entry and, view that can count entries 
     // - Are not executing a subquery for bind join
     // then we query the cache for cardinality estimates of the operation.
@@ -86,6 +87,9 @@ export class QuerySourceLinkTraversal implements IQuerySource {
        persistentCacheManager.hasView(this.cacheCountViewKey) &&
        context.get(KeysQueryOperation.joinBindings) === undefined
       ) {
+      const seeds = context.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager).seeds;
+      const query = context.getSafe(KeysInitQuery.query);
+
       firstIterator.getProperty('metadata', async(metadata: MetadataBindings) => {
         const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
         // We dont update metadata when using fresh cache
@@ -93,7 +97,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
           const count = await persistentCacheManager.getFromCache(
             this.cacheEntryKey!,
             this.cacheCountViewKey!,
-            { operation },
+            { operation, seeds, query },
           );
           if (count) {
             metadata.cardinality = { type: 'estimate', value: count };

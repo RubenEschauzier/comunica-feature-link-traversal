@@ -5,6 +5,7 @@ node_modules
 .vscode
 lerna-debug.log
 yarn-error.log
+packages/actor-optimize-query-operation-set-cache-indexed-disk-offline-traversal/cache/*
 **/lib/**/*.js
 **/lib/**/*.js.map
 **/lib/**/*.d.ts

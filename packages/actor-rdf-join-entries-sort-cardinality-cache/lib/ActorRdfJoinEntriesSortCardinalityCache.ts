@@ -41,7 +41,7 @@ export class ActorRdfJoinEntriesSortCardinalityCache extends ActorRdfJoinEntries
     if (cacheSize < this.minCacheSize) {
       return failTest(`${this.name} cache calculated size (${cacheSize}) smaller than minimal size: ${this.minCacheSize}`);
     }
-    if (action.context.get(KeysQueryOperation.joinBindings) !== undefined){
+    if (action.context.get(KeysQueryOperation.joinBindings) !== undefined) {
       return failTest(`${this.name} does not run on bind join subqueries`);
     }
     return passTest({

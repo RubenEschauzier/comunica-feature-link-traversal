@@ -14,22 +14,25 @@ import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
 import type { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 import type * as RDF from '@rdfjs/types';
-import { PersistentCacheSourceStateIndexed } from './PersistentCacheSourceStateIndexed';
+import { PersistentCacheSourceStateIndexed } from './PersistentCacheIndexedDisk';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
  */
-export class ActorOptimizeQueryOperationSetCacheIndexedOfflineTraversal extends ActorOptimizeQueryOperation {
+export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal extends ActorOptimizeQueryOperation {
   private cacheQuerySourceState: PersistentCacheSourceStateIndexed;
   private readonly cacheSizeNumTriples: number;
 
   private readonly cacheDeserializationDone: Promise<void>;
 
-  public constructor(args: IActorOptimizeQueryOperationSetCacheIndexedOfflineTraversalArgs) {
+  public constructor(args: IActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversalArgs) {
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-      { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+      { 
+        maxNumTriples: args.cacheSizeNumTriples, 
+        maxTriplesInMemory: 10,
+      },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
     console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
@@ -49,8 +52,12 @@ export class ActorOptimizeQueryOperationSetCacheIndexedOfflineTraversal extends 
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-        { maxNumTriples: this.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+        { 
+          maxNumTriples: this.cacheSizeNumTriples, 
+          maxTriplesInMemory: 10,
+        },
       );
+      await this.cacheQuerySourceState.clear();
       console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
     }
 
@@ -67,14 +74,13 @@ export class ActorOptimizeQueryOperationSetCacheIndexedOfflineTraversal extends 
     cacheManager.registerCache(
       CacheEntrySourceState.cacheSourceStateQuerySource,
       this.cacheQuerySourceState,
-      new SetSourceStateCacheOfflineTraversal(),
+      new SetSourceStateCacheOfflineTraversalDisk(),
     );
-
     return { context, operation: action.operation };
   }
 }
 
-export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState, ISourceState, { headers: Headers }> {
+export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceState, ISourceState, { headers: Headers }> {
   public async setInCache(
     key: string,
     value: ISourceState,
@@ -100,7 +106,7 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
   }
 }
 
-export interface IActorOptimizeQueryOperationSetCacheIndexedOfflineTraversalArgs extends IActorOptimizeQueryOperationArgs {
+export interface IActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversalArgs extends IActorOptimizeQueryOperationArgs {
   /**
    * The maximum number of triples in the cache.
    * @range {integer}

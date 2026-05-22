@@ -49,7 +49,7 @@ implements ICacheView<ISourceState, { operation: Algebra.Operation }, number> {
     if (patternKey in this.computedCounts) {
       return this.computedCounts[patternKey];
     }
-    
+
     let totalCount = 0;
     const cacheEntryStream = cache.entries();
 

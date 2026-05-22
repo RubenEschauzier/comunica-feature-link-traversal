@@ -14,7 +14,7 @@ import type { Algebra } from '@comunica/utils-algebra';
 import { ClosableTransformIterator } from '@comunica/utils-iterator';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
-import { UnionIterator, wrap as wrapAsyncIterator } from 'asynciterator';
+import { UnionIterator } from 'asynciterator';
 
 /**
  * A query source that operates sources obtained from a link queue.
@@ -58,7 +58,7 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     const nonAggregatedIterators = this.linkTraversalManager.getQuerySourcesNonAggregated()
       .map(source => source.queryBindings(operation, context, options));
 
-    let allIterators = nonAggregatedIterators.prepend([ firstIterator ]);
+    const allIterators = nonAggregatedIterators.prepend([ firstIterator ]);
     const iterator = new ClosableTransformIterator(new UnionIterator(
       allIterators,
       { autoStart: false },
@@ -71,29 +71,29 @@ export class QuerySourceLinkTraversal implements IQuerySource {
     });
 
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
-    // TODO: This should work with any cache view and entries that satisfy the 
+    // TODO: This should work with any cache view and entries that satisfy the
     // contract. (As in allows for cardinality estimation?)
-    
-    // If we 
-    // - Have a minimal cache size limit set 
-    // - Are passed a cache manager, entry and, view that can count entries 
+
+    // If we
+    // - Have a minimal cache size limit set
+    // - Are passed a cache manager, entry and, view that can count entries
     // - Are not executing a subquery for bind join
     // then we query the cache for cardinality estimates of the operation.
     if (
-       this.setCardinalityFromCacheMinLimit && 
+      this.setCardinalityFromCacheMinLimit &&
        persistentCacheManager &&
        this.cacheCountViewKey && this.cacheEntryKey &&
        persistentCacheManager.hasCache(this.cacheEntryKey) &&
        persistentCacheManager.hasView(this.cacheCountViewKey) &&
        context.get(KeysQueryOperation.joinBindings) === undefined
-      ) {
+    ) {
       const seeds = context.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager).seeds;
       const query = context.getSafe(KeysInitQuery.query);
 
       firstIterator.getProperty('metadata', async(metadata: MetadataBindings) => {
         const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
         // We dont update metadata when using fresh cache
-        if (sizeCache > this.setCardinalityFromCacheMinLimit!){
+        if (sizeCache > this.setCardinalityFromCacheMinLimit!) {
           const count = await persistentCacheManager.getFromCache(
             this.cacheEntryKey!,
             this.cacheCountViewKey!,

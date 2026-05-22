@@ -10,15 +10,14 @@ import type {
 } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import { CacheEntrySourceState, CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
-import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
+import type { ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
+import { CacheKey, ViewKey } from '@comunica/cache-manager-entries';
 import { KeysCore, KeysStatistics, KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { ISourceState } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 
-import type * as RDF from '@rdfjs/types';
 import { DataFactory } from 'rdf-data-factory';
 import { Factory } from 'sparqlalgebrajs';
 

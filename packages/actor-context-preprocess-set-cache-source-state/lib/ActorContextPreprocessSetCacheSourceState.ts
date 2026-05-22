@@ -1,22 +1,22 @@
+import { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
 import type {
   IActionContextPreprocess,
   IActorContextPreprocessOutput,
   IActorContextPreprocessArgs,
 } from '@comunica/bus-context-preprocess';
 import { ActorContextPreprocess } from '@comunica/bus-context-preprocess';
+import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
+import type { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
-import { KeysCaching, KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysCaching, KeysInitQuery } from '@comunica/context-entries';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
-import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
-import type { ISourceState, ICacheView, IPersistentCache, ISetFn, ILink, ComunicaDataFactory, IActionContext } from '@comunica/types';
+import { ActionContextKey, passTestVoid } from '@comunica/core';
+import type { ISourceState, ICacheView, IPersistentCache, ISetFn, ILink, ComunicaDataFactory } from '@comunica/types';
 
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
-import { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
-import { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
-import { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
 
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.
@@ -36,10 +36,10 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.mediatorQuerySourceIdentifyHypermedia = args.mediatorQuerySourceIdentifyHypermedia;
     this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-      { 
-        maxNumTriples: args.cacheSizeNumTriples, 
+      {
+        maxNumTriples: args.cacheSizeNumTriples,
         mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
-        serializationLoc: "temp-cache-content.json" 
+        serializationLoc: 'temp-cache-content.json',
       },
     );
     this.cacheDeserializationDone = this.cacheSourceState.deserialize();
@@ -62,19 +62,19 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     // TEMP Solution due to my own sparql benchmark runner adjustments
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
-        { 
-          maxNumTriples: this.cacheSizeNumTriples, 
+        {
+          maxNumTriples: this.cacheSizeNumTriples,
           mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
-          serializationLoc: "temp-cache-content.json"
+          serializationLoc: 'temp-cache-content.json',
         },
       );
       console.log(`Cleaned cache, size: ${await this.cacheSourceState.size()}`);
     }
 
     const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
-    if (timeoutCallbacks){
-      console.log("Adding serialization callback to timeout callbacks");
-      timeoutCallbacks.push(async () => await this.cacheSourceState.serialize());
+    if (timeoutCallbacks) {
+      console.log('Adding serialization callback to timeout callbacks');
+      timeoutCallbacks.push(async() => await this.cacheSourceState.serialize());
     }
 
     cacheManager.registerCache(
@@ -108,12 +108,12 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
 
 export class GetSourceStateCacheView
 implements ICacheView<
-    ISourceState, 
-    {       
-      url: string,
-      extractLinksQuadPattern?: boolean,
+    ISourceState,
+    {
+      url: string;
+      extractLinksQuadPattern?: boolean;
       action: IActionQuerySourceDereferenceLink;
-    }, 
+    },
     ISourceState
   > {
   protected readonly dataFactory: ComunicaDataFactory;
@@ -121,14 +121,14 @@ implements ICacheView<
   protected readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   protected readonly probabilityCacheMiss?: number;
 
-  protected simulatedMisses: number = 0;
-  protected hits: number = 0;
+  protected simulatedMisses = 0;
+  protected hits = 0;
 
   public constructor(
     dataFactory: ComunicaDataFactory,
     actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery,
     probabilityCacheMiss?: number,
-  ){
+  ) {
     this.dataFactory = dataFactory;
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
@@ -136,27 +136,24 @@ implements ICacheView<
   }
 
   public async construct(
-    cache: IPersistentCache<ISourceState>, 
-    context: { 
-      url: string,
-      extractLinksQuadPattern?: boolean,
+    cache: IPersistentCache<ISourceState>,
+    context: {
+      url: string;
+      extractLinksQuadPattern?: boolean;
       action: IActionQuerySourceDereferenceLink;
-    }
+    },
   ): Promise<ISourceState | undefined> {
     const cacheEntry = await cache.get(context.url);
     if (!cacheEntry) {
       return;
     }
-    this.hits++
-    if (this.probabilityCacheMiss){
-      if (Math.random() < this.probabilityCacheMiss){
-        this.simulatedMisses++
-        return;
-      }
-      
+    this.hits++;
+    if (this.probabilityCacheMiss && Math.random() < this.probabilityCacheMiss) {
+      this.simulatedMisses++;
+      return;
     }
 
-    if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery){
+    if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery) {
       const queryOp = context.action.context.getSafe(KeysInitQuery.query);
       const links: ILink[] = [];
       const quads = cacheEntry.source.queryQuads(
@@ -178,13 +175,13 @@ implements ICacheView<
             true,
             this.actorExtractLinksQuadPatternQuery!.name,
           );
-      });
+        });
 
       links.push(...patternLinks);
       const staticTraverseEntries = cacheEntry.metadata.traverse.filter(
-        (x: ILink) => x.metadata?.producedByActor.name !== this.actorExtractLinksQuadPatternQuery!.name
+        (x: ILink) => x.metadata?.producedByActor.name !== this.actorExtractLinksQuadPatternQuery!.name,
       );
-      cacheEntry.metadata.traverse = [...staticTraverseEntries, ...links];
+      cacheEntry.metadata.traverse = [ ...staticTraverseEntries, ...links ];
     }
     return cacheEntry;
   }
@@ -206,10 +203,10 @@ export interface IActorContextPreprocessSetSourceCacheNumTriplesArgs extends IAc
    * This should always be passed when cMatch is used, as cached sources contain stale
    * traversal metadata entries otherwise.
    */
-  actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;  /**
+  actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery; 
   /**
-   * For simulating cache misses
-   * @range {float}
-   */
+  * For simulating cache misses
+  * @range {float}
+  */
   probabilityCacheMiss?: number;
 }

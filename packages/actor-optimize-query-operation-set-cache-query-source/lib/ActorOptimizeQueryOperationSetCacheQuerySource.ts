@@ -1,5 +1,5 @@
-import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
-import type { MediatorFactoryAggregatedStore } from '@comunica/bus-factory-aggregated-store';
+import { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
+import { QuerySourceFileLazy } from '@comunica/actor-query-source-identify-hypermedia-none-lazy/lib/QuerySourceFileLazy';
 import type {
   IActionOptimizeQueryOperation,
   IActorOptimizeQueryOperationArgs,
@@ -9,22 +9,19 @@ import {
   ActorOptimizeQueryOperation,
 } from '@comunica/bus-optimize-query-operation';
 import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
+import type { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
 import { CacheEntrySourceState, CacheSourceStateViews } from '@comunica/cache-manager-entries';
 import { KeysCaching, KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { ActionContext, ActionContextKey, passTestVoid } from '@comunica/core';
-import type { BindingsStream, IActionContext, ILink, IQuerySource, ISourceState, ICacheView, IPersistentCache, ISetFn, ComunicaDataFactory, Logger } from '@comunica/types';
+import { ActionContextKey, passTestVoid } from '@comunica/core';
+import type { ILink, ISourceState, ICacheView, IPersistentCache, ISetFn, ComunicaDataFactory } from '@comunica/types';
 
-import type { IAggregatedStore } from '@comunica/types-link-traversal';
-import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
+import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
+import { visitOperation } from '@comunica/utils-algebra/lib/utils';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
-import { AsyncIterator, UnionIterator } from 'asynciterator';
+import { UnionIterator } from 'asynciterator';
 import { PersistentCacheSourceStateIndexed } from './PersistentCacheSourceStateIndexed';
-import { visitOperation } from '@comunica/utils-algebra/lib/utils';
-import { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
-import { QuerySourceFileLazy } from '@comunica/actor-query-source-identify-hypermedia-none-lazy/lib/QuerySourceFileLazy';
-import { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -46,7 +43,7 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
 
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-      { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: "temp-cache-content.json" },
+      { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
 
@@ -70,15 +67,15 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-        { maxNumTriples: this.cacheSizeNumTriples, serializationLoc: "temp-cache-content.json" },
+        { maxNumTriples: this.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
       );
       console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
     }
 
     const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
-    if (timeoutCallbacks){
-      console.log("Adding serialization callback to timeout callbacks");
-      timeoutCallbacks.push(async () => await this.cacheQuerySourceState.serialize());
+    if (timeoutCallbacks) {
+      console.log('Adding serialization callback to timeout callbacks');
+      timeoutCallbacks.push(async() => await this.cacheQuerySourceState.serialize());
     }
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
@@ -119,7 +116,9 @@ export class ActorOptimizeQueryOperationSetCacheQuerySource extends ActorOptimiz
     let pathIndex = 0;
 
     const addSyntheticPattern = (predicate: RDF.NamedNode, graph: RDF.Term): void => {
-      if (seenPredicates.has(predicate.value)) return;
+      if (seenPredicates.has(predicate.value)) {
+        return;
+      }
       seenPredicates.add(predicate.value);
       const idx = ++pathIndex;
       quadPatterns.push({
@@ -197,36 +196,33 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
     const traversalAdjList: IOfflineTraversalEntry = {
       predicates: {},
       default: [],
-    }
-    for (const traverseEntry of value.metadata["traverse"]){
-      const traverseMetadata = traverseEntry["metadata"];
-      if (traverseMetadata && "matchingPatterns" in traverseMetadata){
-        (<RDF.BaseQuad[]> traverseMetadata["matchingPatterns"]).forEach((quad) => {
+    };
+    for (const traverseEntry of value.metadata.traverse) {
+      const traverseMetadata = traverseEntry.metadata;
+      if (traverseMetadata && 'matchingPatterns' in traverseMetadata) {
+        for (const quad of (<RDF.BaseQuad[]> traverseMetadata.matchingPatterns)) {
           traversalAdjList.predicates[quad.predicate.value] = { url: traverseEntry.url };
-        })
-      }
-      else {
-        traversalAdjList.default.push({ url: traverseEntry.url })
+        }
+      } else {
+        traversalAdjList.default.push({ url: traverseEntry.url });
       }
     }
-    value.metadata["offlineTraversal"] = traversalAdjList
+    value.metadata.offlineTraversal = traversalAdjList;
     cache.set(key, value);
   }
 }
 
-
 export class GetStreamingCacheView implements ICacheView<
   ISourceState,
-  { 
-    url: string; 
-    action: IActionQuerySourceDereferenceLink,
-    extractLinksQuadPattern?: boolean,
+  {
+    url: string;
+    action: IActionQuerySourceDereferenceLink;
+    extractLinksQuadPattern?: boolean;
   },
   ISourceState
 > {
   protected traverseEnded = false;
   protected pendingCount = 0;
-
 
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly bindingsFactory: BindingsFactory;
@@ -240,8 +236,8 @@ export class GetStreamingCacheView implements ICacheView<
   protected readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
   protected readonly probabilityCacheMiss?: number;
-  protected simulatedMisses: number = 0;
-  protected hits: number = 0;
+  protected simulatedMisses = 0;
+  protected hits = 0;
 
   public constructor(
     dataFactory: ComunicaDataFactory,
@@ -261,81 +257,76 @@ export class GetStreamingCacheView implements ICacheView<
     this.unionDefaultGraph = Boolean(unionDefaultGraph);
 
     this.actorExtractLinksQuadPatternQuery = actorExtractLinksQuadPatternQuery;
-    this.mediatorQuerySourceIdentifyHypermedia = mediatorQuerySourceIdentifyHypermedia
+    this.mediatorQuerySourceIdentifyHypermedia = mediatorQuerySourceIdentifyHypermedia;
     this.probabilityCacheMiss = probabilityCacheMiss;
   }
 
   public async construct(
     cache: IPersistentCache<ISourceState>,
-    context: { 
+    context: {
       url: string;
       action: IActionQuerySourceDereferenceLink;
-      extractLinksQuadPattern?: boolean 
-    } 
+      extractLinksQuadPattern?: boolean;
+    },
   ): Promise<ISourceState | undefined> {
-      const cacheEntry = await cache.get(context.url);
-      // Only push if valid and policy satisfied
-      if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
-        // Code to simulate cache misses, should not be in final code.
-        this.hits++
-        if (this.probabilityCacheMiss){
-          if (Math.random() < this.probabilityCacheMiss){
-            this.simulatedMisses++
-            return;
-          }
-          
-        }
+    const cacheEntry = await cache.get(context.url);
+    // Only push if valid and policy satisfied
+    if (cacheEntry && cacheEntry.cachePolicy?.satisfiesWithoutRevalidation(context.action)) {
+      // Code to simulate cache misses, should not be in final code.
+      this.hits++;
+      if (this.probabilityCacheMiss && Math.random() < this.probabilityCacheMiss) {
+        this.simulatedMisses++;
+        return;
+      }
 
-        this.pendingCount += this.quadPatterns.length;
+      this.pendingCount += this.quadPatterns.length;
 
-        // Re-extract query dependent traverse entries when required. 
-        if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery) {
-          const links: ILink[] = [];
-          const quads = new UnionIterator(this.quadPatterns.map(
-            (quadPattern) => cacheEntry.source.queryQuads(
-              quadPattern, 
-              context.action.context,
-            )
-          ), { "autoStart": false });
+      // Re-extract query dependent traverse entries when required.
+      if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery) {
+        const links: ILink[] = [];
+        const quads = new UnionIterator(this.quadPatterns.map(
+          quadPattern => cacheEntry.source.queryQuads(
+            quadPattern,
+            context.action.context,
+          ),
+        ), { autoStart: false });
 
-          const patternLinks = await ActorExtractLinksQuadPatternQuery
-            .collectStream(quads, (quad, arr) => {
-              ActorExtractLinksQuadPatternQuery.extractLinksOnQuad(
-                quad,
-                arr,
-                this.queryOperation,
-                true,
-                this.actorExtractLinksQuadPatternQuery!.name,
-              );
+        const patternLinks = await ActorExtractLinksQuadPatternQuery
+          .collectStream(quads, (quad, arr) => {
+            ActorExtractLinksQuadPatternQuery.extractLinksOnQuad(
+              quad,
+              arr,
+              this.queryOperation,
+              true,
+              this.actorExtractLinksQuadPatternQuery!.name,
+            );
           });
 
-          links.push(...patternLinks);
-          const staticTraverseEntries = cacheEntry.metadata.traverse.filter(
-            (x: ILink) => x.metadata?.producedByActor.name !== this.actorExtractLinksQuadPatternQuery!.name
-          );
-          cacheEntry.metadata.traverse = [...staticTraverseEntries, ...links];
-        }
-
-        const matchingQuads = await Promise.all(this.quadPatterns.map((quadPattern) => 
-          cacheEntry.source.queryQuads(quadPattern, context.action.context)
-        ));
-
-        const source = new QuerySourceFileLazy(
-          new UnionIterator(matchingQuads, { "autoStart": false}),
-          this.dataFactory,
-          context.url,
-          async quads => (await this.mediatorQuerySourceIdentifyHypermedia.mediate({
-            quads,
-            context: context.action.context,
-            url: context.url,
-            metadata: {},
-          })).source,
+        links.push(...patternLinks);
+        const staticTraverseEntries = cacheEntry.metadata.traverse.filter(
+          (x: ILink) => x.metadata?.producedByActor.name !== this.actorExtractLinksQuadPatternQuery!.name,
         );
-        
-        return {...cacheEntry, source}
+        cacheEntry.metadata.traverse = [ ...staticTraverseEntries, ...links ];
       }
-      return
+
+      const matchingQuads = await Promise.all(this.quadPatterns.map(quadPattern =>
+        cacheEntry.source.queryQuads(quadPattern, context.action.context)));
+
+      const source = new QuerySourceFileLazy(
+        new UnionIterator(matchingQuads, { autoStart: false }),
+        this.dataFactory,
+        context.url,
+        async quads => (await this.mediatorQuerySourceIdentifyHypermedia.mediate({
+          quads,
+          context: context.action.context,
+          url: context.url,
+          metadata: {},
+        })).source,
+      );
+
+      return { ...cacheEntry, source };
     }
+  }
 }
 
 export interface IActorOptimizeQueryOperationSetCacheQuerySourceArgs extends IActorOptimizeQueryOperationArgs {
@@ -348,7 +339,7 @@ export interface IActorOptimizeQueryOperationSetCacheQuerySourceArgs extends IAc
   /**
    * Test
    */
-  mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia
+  mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
   /**
    * Optional actor to execute cMatch traversal criterion on cached sources.
    * This should always be passed when cMatch is used, as cached sources contain stale

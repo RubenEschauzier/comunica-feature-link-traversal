@@ -82,7 +82,6 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
     actorName: string,
   ): void {
     const matchingPatterns = ActorExtractLinksQuadPatternQuery.matchQuadPatternInOperation(quad, operation);
-
     if (matchingPatterns.length > 0) {
       if (onlyVariables) {
         // --- If we only want to follow links matching with a variable component ---
@@ -99,9 +98,9 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
           if (quad[quadTermName].termType === 'NamedNode') {
             links.push({
               url: quad[quadTermName].value,
-              metadata: { 
+              metadata: {
                 producedByActor: { name: actorName, onlyVariables },
-                matchingPatterns
+                matchingPatterns,
               },
             });
           }
@@ -111,9 +110,9 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
         for (const link of getNamedNodes(getTerms(quad))) {
           links.push({
             url: link.value,
-            metadata: { 
-              producedByActor: { name: actorName, onlyVariables }, 
-              matchingPatterns
+            metadata: {
+              producedByActor: { name: actorName, onlyVariables },
+              matchingPatterns,
             },
           });
         }

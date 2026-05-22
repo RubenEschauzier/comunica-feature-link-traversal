@@ -1,19 +1,17 @@
+import * as fs from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
 import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
+import { AlgebraFactory } from '@comunica/utils-algebra';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
+import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
 import { LRUCache } from 'lru-cache';
+import * as n3 from 'n3';
 import { DataFactory } from 'rdf-data-factory';
 import { RdfStore } from 'rdf-stores';
-import { Factory } from 'sparqlalgebrajs';
-import * as fs from 'fs';
-import * as n3 from 'n3';
-import { pipeline } from 'stream/promises';
-import type * as RDF from '@rdfjs/types';
-import { AlgebraFactory } from '@comunica/utils-algebra';
-
 
 export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISourceState> {
   private readonly sizeMap = new Map<string, number>();
@@ -27,7 +25,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   private isTracking = false;
   private cacheMetrics: ICacheMetrics;
 
-  private readonly serializationLoc: string
+  private readonly serializationLoc: string;
 
   public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
     this.maxNumTriples = args.maxNumTriples;
@@ -127,7 +125,9 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   }
 
   public async serialize(): Promise<void> {
-    if (!this.serializationLoc) return;
+    if (!this.serializationLoc) {
+      return;
+    }
 
     // Two files: metadata (JSON) + quads (N-Quads, fast line-based format)
     const metaPath = `${this.serializationLoc}.meta.json`;
@@ -139,7 +139,9 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       const quadsStream = fs.createWriteStream(quadsPath);
       const writer = new n3.StreamWriter({ format: 'N-Quads' });
 
-      quadsStream.on('error', (err) => { throw err; });
+      quadsStream.on('error', (err) => {
+        throw err;
+      });
 
       writer.pipe(quadsStream);
 
@@ -148,8 +150,8 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       let totalEntries = 0;
       let totalNonZeroDocuments = 0;
       let totalQuads = 0;
-      let startTime = performance.now();
-      for (const [key, sourceState] of this.lruCacheDocuments.entries()) {
+      const startTime = performance.now();
+      for (const [ key, sourceState ] of this.lruCacheDocuments.entries()) {
         // Access quads directly if QuerySourceCacheWrapper exposes the store
         // Otherwise fall back to queryQuads — but avoid .toArray() by streaming directly
         const quadStream = sourceState.source.queryQuads(
@@ -162,32 +164,34 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
           new ActionContext(),
         );
 
-        // Tag each quad with a graph named after the cache key so we can 
+        // Tag each quad with a graph named after the cache key so we can
         // reconstruct per-source boundaries without splitting files
         let quadCountDocument = 0;
 
-        let graphAnnotationStream = quadStream.map((q: RDF.Quad) => {
+        const graphAnnotationStream = quadStream.map((q: RDF.Quad) => {
           quadCountDocument++;
           const keyNode = this.dataFactory.namedNode(
-            `urn:cache:${sourceIndex}:${encodeURIComponent(q.graph.value)}:${q.graph.termType}`
+            `urn:cache:${sourceIndex}:${encodeURIComponent(q.graph.value)}:${q.graph.termType}`,
           );
-          return this.dataFactory.quad(q.subject, q.predicate, q.object, keyNode)
+          return this.dataFactory.quad(q.subject, q.predicate, q.object, keyNode);
         });
 
         await pipeline(
           graphAnnotationStream,
           writer,
-          { end: false }
-        )
+          { end: false },
+        );
         totalQuads += quadCountDocument;
         totalEntries++;
-        if (quadCountDocument > 0){
+        if (quadCountDocument > 0) {
           totalNonZeroDocuments++;
         }
 
         const plainHeaders: Record<string, string> = {};
         if (sourceState.headers instanceof Headers) {
-          sourceState.headers.forEach((v, k) => { plainHeaders[k] = v; });
+          for (const [ k, v ] of sourceState.headers.entries()) {
+            plainHeaders[k] = v;
+          }
         }
         metaEntries.push({
           key,
@@ -206,7 +210,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       });
 
       console.log(`Wrote ${totalQuads} quads in ${totalEntries} (${totalNonZeroDocuments} non-zero) 
-        documents in ${(performance.now() - startTime)/1000} seconds.`)
+        documents in ${(performance.now() - startTime) / 1000} seconds.`);
 
       await fs.promises.writeFile(metaPath, JSON.stringify(metaEntries), 'utf8');
     } catch (error) {
@@ -214,10 +218,10 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       // Clean up partial files
       await Promise.allSettled([
         fs.promises.unlink(metaPath).catch(() => {
-          console.log("Failed to clean partial metadata file")
+          console.log('Failed to clean partial metadata file');
         }),
         fs.promises.unlink(quadsPath).catch(() => {
-          console.log("Failed to clean partial quads file")
+          console.log('Failed to clean partial quads file');
         }),
       ]);
       throw error;
@@ -228,7 +232,9 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     const metaPath = `${this.serializationLoc}.meta.json`;
     const quadsPath = `${this.serializationLoc}.nq`;
 
-    if (!fs.existsSync(metaPath) || !fs.existsSync(quadsPath)) return;
+    if (!fs.existsSync(metaPath) || !fs.existsSync(quadsPath)) {
+      return;
+    }
 
     try {
       const startTime = performance.now();
@@ -245,7 +251,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
           readQuads++;
           // Graph name encodes the cache key
           const sourceIdxString = quad.graph.value.replace('urn:cache:', '');
-          const splitIdxString = sourceIdxString.split(":");
+          const splitIdxString = sourceIdxString.split(':');
           const sourceIndex = splitIdxString[0];
 
           if (!quadsByKey.has(sourceIndex)) {
@@ -258,7 +264,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
             quad.subject,
             quad.predicate,
             quad.object,
-            this.rehydrateGraphTerm(originalGraphValue, originalGraphTermType)
+            this.rehydrateGraphTerm(originalGraphValue, originalGraphTermType),
           );
           quadsByKey.get(sourceIndex)!.push(originalQuad);
         });
@@ -272,11 +278,11 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       for (const meta of metaEntries) {
         const sourceIdx = meta.sourceIndex.toString();
         let quadsArray = quadsByKey.get(sourceIdx);
-      
+
         if (!quadsArray) {
           // If the metadata says the document should have quads somethng went wrong with serialization
           // and an error should be thrown
-          if (meta.quadCountDocument > 0){
+          if (meta.quadCountDocument > 0) {
             throw new Error(`Found a metadata entry for URL ${meta.url} in rehydration with missing quads`);
           }
           // If we have a document without quads we still want to add it to cache as this prevents
@@ -284,9 +290,9 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
           quadsArray = [];
         }
         const newIndexedSource = RdfStore.createDefault();
-        for (const quad of quadsArray){
+        for (const quad of quadsArray) {
           const newQuad = newIndexedSource.addQuad(quad);
-          if (newQuad){
+          if (newQuad) {
             quadsLoaded++;
           }
         }
@@ -297,7 +303,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
           handledDatasets: meta.handledDatasets,
           headers: meta.headers ? new Headers(meta.headers) : undefined,
           cachePolicy: {
-            satisfiesWithoutRevalidation: async () => true,
+            satisfiesWithoutRevalidation: async() => true,
           } as any,
           source: new QuerySourceRdfJs(
             newIndexedSource,
@@ -315,8 +321,8 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       ]);
 
       console.log(`Rehydrated ${quadsLoaded} quads in ${metaEntries.length} documents in 
-        ${(performance.now() - startTime)/1000} seconds.`);
-      if (readQuads !== quadsLoaded){
+        ${(performance.now() - startTime) / 1000} seconds.`);
+      if (readQuads !== quadsLoaded) {
         console.warn(`Cache rehydration count (${quadsLoaded}) not equal to read count (${readQuads})`);
       }
     } catch (error) {
@@ -324,19 +330,18 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     }
   }
 
-  private rehydrateGraphTerm(value: string, termType: string){
+  private rehydrateGraphTerm(value: string, termType: string) {
     switch (termType) {
-      case 'NamedNode': 
+      case 'NamedNode':
         return this.dataFactory.namedNode(value);
-      case 'BlankNode': 
+      case 'BlankNode':
         return this.dataFactory.blankNode(value);
-      case 'Variable': 
+      case 'Variable':
         return this.dataFactory.variable(value);
-      case 'DefaultGraph': 
+      case 'DefaultGraph':
         return this.dataFactory.defaultGraph();
     }
-    throw new Error(`Invalid termType: ${termType}`)
-
+    throw new Error(`Invalid termType: ${termType}`);
   }
 
   public startSession() {

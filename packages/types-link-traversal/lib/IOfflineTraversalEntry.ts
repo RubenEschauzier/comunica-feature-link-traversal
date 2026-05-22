@@ -1,4 +1,4 @@
-import { ILink } from "@comunica/types";
+import type { ILink } from '@comunica/types';
 
 /**
  * Interface containing data for offline traversal

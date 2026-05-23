@@ -53,15 +53,22 @@ function getSharedQuadstore(serializationLoc: string, dataFactory: any): { store
   };
 }
 
-export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISourceState> {
+export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState> {
   private readonly maxNumTriplesDisk: number;
   private readonly maxNumTriplesInMemory: number;
   private readonly activeIngestions = new Map<string, Promise<void>>();
 
 
   private readonly hotLRUCacheDocuments: LRUCache<string, ISourceState>;
+  // A tracker to do pre-filtering of URLs before putting into the hot-cache.
+  private readonly hotCachePolicy: 'lru' | 'lru-filtered';
+  private readonly previouslyDereferenced?:  LRUCache<string, number>;
+  private readonly decayThreshold = 10000;
+  private nAccesses = 0;
+
   private readonly lruCacheDiskBacked: LRUCache<string, string>;
-  private readonly traverseMetadata = new Map<string, ILink[]>();
+  private readonly metadataKeysToCache: string[];
+  private readonly savedMetadata = new Map<string, Record<string, any>>();
   private readonly sizeMap = new Map<string, number>();
 
   private readonly dataFactory = new DataFactory();
@@ -98,6 +105,12 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       dispose: this.onDisposeHotCache.bind(this),
     });
 
+    this.hotCachePolicy = args.hotCachePolicy;
+    if (this.hotCachePolicy === 'lru-filtered'){
+      this.previouslyDereferenced = new LRUCache<string, number>({ max: 50000 });
+    }
+
+    this.metadataKeysToCache = args.metadataKeysToCache ?? ['traverse', 'offlineTraversal'];
     this.cacheMetrics = this.resetMetrics();
 
     // Force close on process termination
@@ -114,6 +127,36 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
    */
   private getCacheGraphNode(url: string): RDF.NamedNode {
     return this.dataFactory.namedNode(`urn:cache:doc:${encodeURIComponent(url)}`);
+  }
+
+  private canAddToHotCache(url: string) {
+    if (this.hotCachePolicy === 'lru' || !this.previouslyDereferenced) {
+      return true;
+    }
+
+    let visits = (this.previouslyDereferenced.get(url) || 0) + 1;
+    this.previouslyDereferenced.set(url, visits);
+    this.nAccesses++;
+
+    // Decay frequency using sliding window
+    if (this.nAccesses >= this.decayThreshold) {
+      this.previouslyDereferenced.forEach((count, key) => {
+        const halved = Math.floor(count / 2);
+        if (halved === 0){
+          this.previouslyDereferenced!.delete(key);
+        }
+        else {
+          this.previouslyDereferenced!.set(key, halved);
+        }
+      });
+      this.nAccesses = 0;
+    }
+
+    // Can add to cache if atleast used twice within sliding window
+    if (visits >= 2) {
+      return true;
+    }
+    return false
   }
 
   public async getMany(keys: string[]): Promise<(ISourceState | undefined)[]> {
@@ -143,14 +186,23 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
         this.cacheMetrics.hits++;
       }
       const rehydratedState = this.createSourceStateFromDisk(key, cacheGraph);
-      const traverse = this.traverseMetadata.get(key);
-      if (traverse === undefined){
-        throw new Error("Could not find traverse metadata for cache entry that exists within "+
-          "the disk-based store"
-        );
+
+      const storedMeta = this.savedMetadata.get(key);
+      if (storedMeta === undefined) {
+        throw new Error(`Could not find saved metadata for cache entry ${key}`);
       }
-      rehydratedState.metadata.traverse = traverse;
-      this.hotLRUCacheDocuments.set(key, rehydratedState);
+      
+      rehydratedState.metadata = { ...rehydratedState.metadata, ...storedMeta };
+
+      // if (traverse === undefined){
+      //   throw new Error("Could not find traverse metadata for cache entry that exists within "+
+      //     "the disk-based store"
+      //   );
+      // }
+      // rehydratedState.metadata.traverse = traverse;
+      if (this.canAddToHotCache(key)){
+        this.hotLRUCacheDocuments.set(key, rehydratedState);
+      }
       return rehydratedState;
     }
 
@@ -198,21 +250,30 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
     // After ingestion to disk is done we update the in-memory caches
     this.sizeMap.set(key, nTriples);
-    this.traverseMetadata.set(key, <ILink[]>value.metadata.traverse);
+
+    const extractedMetadata: Record<string, any> = {};
+    for (const metaKey of this.metadataKeysToCache) {
+      if (value.metadata[metaKey] !== undefined) {
+        extractedMetadata[metaKey] = value.metadata[metaKey];
+      }
+    }
+    this.savedMetadata.set(key, extractedMetadata);
 
     // Register cache entry to manage LRU-eviction of quads in disk-based cache
     this.lruCacheDiskBacked.set(key, "");
 
     // Add entry to hot cache
     const rehydratedState = this.createSourceStateFromDisk(key, cacheGraph);
-    this.hotLRUCacheDocuments.set(key, rehydratedState);
+    if (this.canAddToHotCache(key)){
+      this.hotLRUCacheDocuments.set(key, rehydratedState);
+    }
   }
 
   private createSourceStateFromDisk(key: string, cacheGraph: RDF.NamedNode): ISourceState {
     const sanitizeTerm = <T extends RDF.Term>(term?: T): T | undefined => 
       term?.termType === 'Variable' ? undefined : term;
 
-    const quadSource: RDF.Source = {
+    const quadSource: any = {
       match: (
         subject?: RDF.Quad_Subject | undefined, 
         predicate?: RDF.Quad_Predicate | undefined,
@@ -228,6 +289,20 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
           quad.graph = this.dataFactory.defaultGraph();
           return quad;
         });
+      },
+      countQuads: async (
+        subject?: RDF.Quad_Subject | undefined, 
+        predicate?: RDF.Quad_Predicate | undefined,
+        object?: RDF.Quad_Object | undefined, 
+        graph?: RDF.Quad_Graph | undefined
+      ): Promise<number> => {
+        // We use Quadstore's native countQuads, replacing the requested graph with our cached graph boundary
+        return this.store.countQuads(
+          sanitizeTerm(subject), 
+          sanitizeTerm(predicate), 
+          sanitizeTerm(object), 
+          cacheGraph
+        );
       }
     };
 
@@ -306,7 +381,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
   private _delete(key: string): Promise<boolean> {
     this.lruCacheDiskBacked.delete(key);
-    this.traverseMetadata.delete(key);
+    this.savedMetadata.delete(key);
     this.hotLRUCacheDocuments.delete(key);
 
     const removalStream = this.store.deleteGraph(
@@ -329,9 +404,10 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       const serializedData = {
         // .dump() exports an array of objects representing the exact internal state of the LRU
         lruCacheDiskBacked: this.lruCacheDiskBacked.dump(),
+        previouslyDereferenced: this.previouslyDereferenced?.dump(),
         // Convert Maps to array of tuples for JSON serialization
         sizeMap: Array.from(this.sizeMap.entries()),
-        traverseMetadata: Array.from(this.traverseMetadata.entries()),
+        savedMetadata: Array.from(this.savedMetadata.entries()),
       };
 
       await fs.writeFile(metadataFile, JSON.stringify(serializedData), 'utf-8');
@@ -367,15 +443,19 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
         }
       }
 
-      if (parsedData.traverseMetadata) {
-        this.traverseMetadata.clear();
-        for (const [k, v] of parsedData.traverseMetadata) {
-          this.traverseMetadata.set(k, v);
+      if (parsedData.savedMetadata) {
+        this.savedMetadata.clear();;
+        for (const [k, v] of parsedData.savedMetadata) {
+          this.savedMetadata.set(k, v);
         }
       }
 
       if (parsedData.lruCacheDiskBacked) {
         this.lruCacheDiskBacked.load(parsedData.lruCacheDiskBacked);
+      }
+
+      if (parsedData.previouslyDereferenced) {
+        this.previouslyDereferenced?.load(parsedData.previouslyDereferenced);
       }
 
       console.log(`Successfully deserialized cache metadata from ${metadataFile}`);
@@ -395,7 +475,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
     // Clear in-memory maps
     this.sizeMap.clear();
-    this.traverseMetadata.clear();
+    this.savedMetadata.clear();
     this.hotLRUCacheDocuments.clear();
     this.lruCacheDiskBacked.clear();
     this.activeIngestions.clear();
@@ -463,4 +543,6 @@ export interface IPersistentCacheSourceStateNumTriplesArgs {
   maxNumTriples: number;
   maxTriplesInMemory: number;
   serializationLoc?: string;
+  hotCachePolicy: 'lru' | 'lru-filtered';
+  metadataKeysToCache?: string[];
 }

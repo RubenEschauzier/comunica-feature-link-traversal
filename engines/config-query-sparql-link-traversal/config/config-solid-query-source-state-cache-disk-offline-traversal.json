@@ -14,7 +14,7 @@
 
     "ccqslt:config/query-source-identify/actors-query-cache.json",
     "ccqslt:config/context-preprocess/actor-set-cache-manager.json",
-    "ccqslt:config/optimize-query-operation/set-indexed-cache-disk-offline-traversal.json",
+    "ccqslt:config/optimize-query-operation/set-indexed-cache-disk-offline-traversal-lru-filtered.json",
     "ccqslt:config/optimize-query-operation/set-indexed-cache-get-view.json",
     "ccqslt:config/query-source-dereference-link/cache-query-source.json"
   ]

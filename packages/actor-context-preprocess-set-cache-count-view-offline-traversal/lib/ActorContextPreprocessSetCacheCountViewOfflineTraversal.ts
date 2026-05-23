@@ -114,6 +114,8 @@ implements ICacheView<ISourceState, {
 
       const nextLinks: IOfflineTraversalEntry = sourceState.metadata.offlineTraversal;
       if (nextLinks === undefined) {
+        console.log(sourceState.metadata)
+        console.log(sourceState.link)
         throw new Error('Found cached document without traversal information');
       }
 

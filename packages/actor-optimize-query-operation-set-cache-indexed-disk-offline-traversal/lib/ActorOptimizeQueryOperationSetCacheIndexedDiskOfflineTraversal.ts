@@ -14,28 +14,34 @@ import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
 import type { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 import type * as RDF from '@rdfjs/types';
-import { PersistentCacheSourceStateIndexed } from './PersistentCacheIndexedDisk';
+import { PersistentCacheIndexedDisk } from './PersistentCacheIndexedDisk';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
  */
 export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal extends ActorOptimizeQueryOperation {
-  private cacheQuerySourceState: PersistentCacheSourceStateIndexed;
-  private readonly cacheSizeNumTriples: number;
+  private cacheQuerySourceState: PersistentCacheIndexedDisk;
+  private readonly cacheSizeDiskNumTriples: number;
+  private readonly cacheSizeHotNumTriples: number;
+  private readonly hotCachePolicy: 'lru' | 'lru-filtered';
 
   private readonly cacheDeserializationDone: Promise<void>;
 
   public constructor(args: IActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversalArgs) {
     super(args);
-    this.cacheSizeNumTriples = args.cacheSizeNumTriples;
-    this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
+    this.cacheSizeDiskNumTriples = args.cacheSizeDiskNumTriples;
+    this.cacheSizeHotNumTriples = args.cacheSizeHotNumTriples;
+    this.hotCachePolicy = args.hotCachePolicy;
+
+    this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
       { 
-        maxNumTriples: args.cacheSizeNumTriples, 
-        maxTriplesInMemory: 10,
+        maxNumTriples: this.cacheSizeDiskNumTriples, 
+        maxTriplesInMemory: this.cacheSizeHotNumTriples,
+        hotCachePolicy: this.hotCachePolicy
       },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
-    console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
+    console.log(`Created cache with max on disk/hot size: ${this.cacheSizeDiskNumTriples}/${this.cacheSizeHotNumTriples}`);
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
@@ -51,10 +57,11 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
     }
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
-      this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
+      this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
         { 
-          maxNumTriples: this.cacheSizeNumTriples, 
-          maxTriplesInMemory: 10,
+          maxNumTriples: this.cacheSizeDiskNumTriples, 
+          maxTriplesInMemory: this.cacheSizeHotNumTriples,
+          hotCachePolicy: this.hotCachePolicy
         },
       );
       await this.cacheQuerySourceState.clear();
@@ -67,9 +74,6 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
       timeoutCallbacks.push(async() => await this.cacheQuerySourceState.serialize());
     }
 
-    // TODO: This still ties the implementation of the cache to the setter.
-    // True modularity would be to have a cache package with different cache implementations,
-    // cache set views and cache get views in actors.
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
       CacheEntrySourceState.cacheSourceStateQuerySource,
@@ -108,9 +112,20 @@ export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceSt
 
 export interface IActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversalArgs extends IActorOptimizeQueryOperationArgs {
   /**
-   * The maximum number of triples in the cache.
+   * The maximum number of triples in the disk cache.
+   * @range {integer}
+   * @default {1240000}
+   */
+  cacheSizeDiskNumTriples: number;
+  /**
+   * The maximum number of triples in the hot cache.
    * @range {integer}
    * @default {124000}
    */
-  cacheSizeNumTriples: number;
+  cacheSizeHotNumTriples: number;
+  /**
+   * Policy to use for cache. Filtered LRU first requires the document
+   * to be used twice in a given window of 10000 links
+   */
+  hotCachePolicy: 'lru' | 'lru-filtered';
 }

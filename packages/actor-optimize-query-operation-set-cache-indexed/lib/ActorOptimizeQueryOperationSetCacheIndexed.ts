@@ -74,7 +74,7 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
   public async setInCache(
     key: string,
     value: ISourceState,
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: { headers: Headers },
   ): Promise<void> {
     cache.set(key, value);
@@ -85,7 +85,7 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
   public async setInCache(
     key: string,
     value: ISourceState,
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: { headers: Headers },
   ): Promise<void> {
     const traversalAdjList: IOfflineTraversalEntry = {

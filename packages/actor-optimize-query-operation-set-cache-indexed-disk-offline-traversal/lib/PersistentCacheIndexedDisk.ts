@@ -53,7 +53,7 @@ function getSharedQuadstore(serializationLoc: string, dataFactory: any): { store
   };
 }
 
-export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState> {
+export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState, ISourceState> {
   private readonly maxNumTriplesDisk: number;
   private readonly maxNumTriplesInMemory: number;
   private readonly activeIngestions = new Map<string, Promise<void>>();

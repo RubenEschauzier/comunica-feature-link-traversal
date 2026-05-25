@@ -13,7 +13,7 @@ import * as n3 from 'n3';
 import { DataFactory } from 'rdf-data-factory';
 import { RdfStore } from 'rdf-stores';
 
-export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISourceState> {
+export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISourceState, ISourceState> {
   private readonly sizeMap = new Map<string, number>();
   private readonly maxNumTriples: number;
   private readonly lruCacheDocuments: LRUCache<string, ISourceState>;

@@ -144,6 +144,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexedGetView extends ActorOpti
 
 export class GetStreamingCacheView implements ICacheView<
   ISourceState,
+  ISourceState,
   {
     url: string;
     action: IActionQuerySourceDereferenceLink;
@@ -192,7 +193,7 @@ export class GetStreamingCacheView implements ICacheView<
   }
 
   public async construct(
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: {
       url: string;
       action: IActionQuerySourceDereferenceLink;

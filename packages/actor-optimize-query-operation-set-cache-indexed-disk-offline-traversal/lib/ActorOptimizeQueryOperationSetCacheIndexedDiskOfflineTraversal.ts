@@ -88,7 +88,7 @@ export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceSt
   public async setInCache(
     key: string,
     value: ISourceState,
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: { headers: Headers },
   ): Promise<void> {
     const traversalAdjList: IOfflineTraversalEntry = {

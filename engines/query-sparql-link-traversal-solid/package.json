@@ -199,7 +199,6 @@
     "@comunica/actor-optimize-query-operation-rewrite-add": "^5.2.0",
     "@comunica/actor-optimize-query-operation-rewrite-copy": "^5.2.0",
     "@comunica/actor-optimize-query-operation-rewrite-move": "^5.2.0",
-    "@comunica/actor-optimize-query-operation-set-cache-query-source": "^0.8.0",
     "@comunica/actor-optimize-query-operation-set-seed-sources-quadpattern-iris": "^0.8.0",
     "@comunica/actor-query-operation-ask": "^5.2.0",
     "@comunica/actor-query-operation-bgp-join": "^5.2.0",

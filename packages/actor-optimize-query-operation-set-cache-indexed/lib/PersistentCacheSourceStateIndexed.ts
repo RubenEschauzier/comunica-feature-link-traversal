@@ -129,7 +129,6 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       return;
     }
 
-    // Two files: metadata (JSON) + quads (N-Quads, fast line-based format)
     const metaPath = `${this.serializationLoc}.meta.json`;
     const quadsPath = `${this.serializationLoc}.nq`;
 

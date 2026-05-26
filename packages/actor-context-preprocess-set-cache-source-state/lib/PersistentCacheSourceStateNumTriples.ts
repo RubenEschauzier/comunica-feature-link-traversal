@@ -13,7 +13,8 @@ import * as n3 from 'n3';
 import { DataFactory } from 'rdf-data-factory';
 import { QuerySourceCacheWrapper } from './QuerySourceCacheWrapper';
 
-export class PersistentCacheSourceStateNumTriples implements IPersistentCache<ISourceState> {
+export class PersistentCacheSourceStateNumTriples
+ implements IPersistentCache<ISourceState, ISourceState> {
   private readonly sizeMap = new Map<string, number>();
   private readonly maxNumTriples: number;
   private readonly lruCacheDocuments: LRUCache<string, ISourceState>;

@@ -285,7 +285,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
         sanitizeTerm(subject),
         sanitizeTerm(predicate),
         sanitizeTerm(object),
-        cacheGraph, // Maintained your original reference to cacheGraph
+        cacheGraph,
       ).map((quad) => {
         quad.graph = this.dataFactory.defaultGraph();
         return quad;

@@ -1,5 +1,7 @@
-import { ActorOptimizeQueryOperation, IActionOptimizeQueryOperation, IActorOptimizeQueryOperationOutput, IActorOptimizeQueryOperationArgs } from '@comunica/bus-optimize-query-operation';
-import { TestResult, IActorTest, passTestVoid } from '@comunica/core';
+import type { IActionOptimizeQueryOperation, IActorOptimizeQueryOperationOutput, IActorOptimizeQueryOperationArgs } from '@comunica/bus-optimize-query-operation';
+import { ActorOptimizeQueryOperation } from '@comunica/bus-optimize-query-operation';
+import type { TestResult, IActorTest } from '@comunica/core';
+import { passTestVoid } from '@comunica/core';
 
 /**
  * A comunica Set Cache Cset Offline Traversal Optimize Query Operation Actor.

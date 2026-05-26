@@ -1,6 +1,8 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
-import type { ISourceState, ICacheMetrics, IPersistentCache, IQuerySource, IActionContext, BindingsStream, FragmentSelectorShape, IQueryBindingsOptions, ILink } from '@comunica/types';
+import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { MetadataValidationState } from '@comunica/utils-metadata';
@@ -10,11 +12,9 @@ import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
 import { ClassicLevel } from 'classic-level';
 import { LRUCache } from 'lru-cache';
-import { Pattern, Quadstore } from 'quadstore';
+import type { Pattern } from 'quadstore';
+import { Quadstore } from 'quadstore';
 import { DataFactory } from 'rdf-data-factory';
-
-import * as fs from 'fs/promises';
-import * as path from 'path';
 
 // Maintain a single, application-wide database reference outside the class instance. This is
 // to prevent file-locks from breaking the application when a new instance of a queryEngine is made.
@@ -29,7 +29,7 @@ function getSharedQuadstore(serializationLoc: string, dataFactory: any): { store
     globalDbInstance = new ClassicLevel(serializationLoc);
     globalStoreInstance = new Quadstore({
       backend: <any> globalDbInstance,
-      dataFactory: dataFactory,
+      dataFactory,
       indexes: [
         [ 'graph', 'subject', 'predicate', 'object' ],
         [ 'graph', 'predicate', 'object', 'subject' ],
@@ -39,17 +39,17 @@ function getSharedQuadstore(serializationLoc: string, dataFactory: any): { store
 
     return {
       store: globalStoreInstance,
-      readyPromise: globalStoreInstance.open().catch(err => {
+      readyPromise: globalStoreInstance.open().catch((err) => {
         console.error('FATAL: Failed to open persistent quadstore cache:', err);
-        process.exit(1); 
-      })
+        process.exit(1);
+      }),
     };
   }
 
   // Connection already open! Instantly return it.
   return {
     store: globalStoreInstance,
-    readyPromise: Promise.resolve()
+    readyPromise: Promise.resolve(),
   };
 }
 
@@ -58,11 +58,10 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   private readonly maxNumTriplesInMemory: number;
   private readonly activeIngestions = new Map<string, Promise<void>>();
 
-
   private readonly hotLRUCacheDocuments: LRUCache<string, ISourceState>;
   // A tracker to do pre-filtering of URLs before putting into the hot-cache.
   private readonly hotCachePolicy: 'lru' | 'lru-filtered';
-  private readonly previouslyDereferenced?:  LRUCache<string, number>;
+  private readonly previouslyDereferenced?: LRUCache<string, number>;
   private readonly decayThreshold = 10000;
   private nAccesses = 0;
 
@@ -106,11 +105,11 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     });
 
     this.hotCachePolicy = args.hotCachePolicy;
-    if (this.hotCachePolicy === 'lru-filtered'){
+    if (this.hotCachePolicy === 'lru-filtered') {
       this.previouslyDereferenced = new LRUCache<string, number>({ max: 50000 });
     }
 
-    this.metadataKeysToCache = args.metadataKeysToCache ?? ['traverse', 'offlineTraversal'];
+    this.metadataKeysToCache = args.metadataKeysToCache ?? [ 'traverse', 'offlineTraversal' ];
     this.cacheMetrics = this.resetMetrics();
 
     // Force close on process termination
@@ -118,8 +117,12 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       this.store.close().catch(() => {});
     };
     process.on('exit', cleanup);
-    process.on('SIGINT', () => { cleanup(); process.exit(2); });
-    process.on('SIGTERM', () => { cleanup(); process.exit(15); });  
+    process.on('SIGINT', () => {
+      cleanup(); process.exit(2);
+    });
+    process.on('SIGTERM', () => {
+      cleanup(); process.exit(15);
+    });
   }
 
   /**
@@ -134,21 +137,20 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       return true;
     }
 
-    let visits = (this.previouslyDereferenced.get(url) || 0) + 1;
+    const visits = (this.previouslyDereferenced.get(url) || 0) + 1;
     this.previouslyDereferenced.set(url, visits);
     this.nAccesses++;
 
     // Decay frequency using sliding window
     if (this.nAccesses >= this.decayThreshold) {
-      this.previouslyDereferenced.forEach((count, key) => {
+      for (const [ key, count ] of this.previouslyDereferenced.entries()) {
         const halved = Math.floor(count / 2);
-        if (halved === 0){
-          this.previouslyDereferenced!.delete(key);
+        if (halved === 0) {
+          this.previouslyDereferenced.delete(key);
+        } else {
+          this.previouslyDereferenced.set(key, halved);
         }
-        else {
-          this.previouslyDereferenced!.set(key, halved);
-        }
-      });
+      }
       this.nAccesses = 0;
     }
 
@@ -156,7 +158,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     if (visits >= 2) {
       return true;
     }
-    return false
+    return false;
   }
 
   public async getMany(keys: string[]): Promise<(ISourceState | undefined)[]> {
@@ -191,16 +193,16 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       if (storedMeta === undefined) {
         throw new Error(`Could not find saved metadata for cache entry ${key}`);
       }
-      
+
       rehydratedState.metadata = { ...rehydratedState.metadata, ...storedMeta };
 
-      // if (traverse === undefined){
+      // If (traverse === undefined){
       //   throw new Error("Could not find traverse metadata for cache entry that exists within "+
       //     "the disk-based store"
       //   );
       // }
       // rehydratedState.metadata.traverse = traverse;
-      if (this.canAddToHotCache(key)){
+      if (this.canAddToHotCache(key)) {
         this.hotLRUCacheDocuments.set(key, rehydratedState);
       }
       return rehydratedState;
@@ -221,8 +223,8 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
 
     const ingestionPromise = this._set(key, value).finally(() => {
       this.activeIngestions.delete(key);
-    });   
-    
+    });
+
     this.activeIngestions.set(key, ingestionPromise);
     await ingestionPromise;
   }
@@ -239,7 +241,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       ),
       new ActionContext(),
     );
-    
+
     let nTriples = 0;
     const transformStream = quadStream.map((quad) => {
       nTriples++;
@@ -260,50 +262,48 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     this.savedMetadata.set(key, extractedMetadata);
 
     // Register cache entry to manage LRU-eviction of quads in disk-based cache
-    this.lruCacheDiskBacked.set(key, "");
+    this.lruCacheDiskBacked.set(key, '');
 
     // Add entry to hot cache
     const rehydratedState = this.createSourceStateFromDisk(key, cacheGraph);
-    if (this.canAddToHotCache(key)){
+    if (this.canAddToHotCache(key)) {
       this.hotLRUCacheDocuments.set(key, rehydratedState);
     }
   }
 
   private createSourceStateFromDisk(key: string, cacheGraph: RDF.NamedNode): ISourceState {
-    const sanitizeTerm = <T extends RDF.Term>(term?: T): T | undefined => 
+    const sanitizeTerm = <T extends RDF.Term>(term?: T): T | undefined =>
       term?.termType === 'Variable' ? undefined : term;
 
     const quadSource: any = {
       match: (
-        subject?: RDF.Quad_Subject | undefined, 
+        subject?: RDF.Quad_Subject | undefined,
         predicate?: RDF.Quad_Predicate | undefined,
-        object?: RDF.Quad_Object | undefined, 
-        graph?: RDF.Quad_Graph | undefined
-      ): AsyncIterator<Quad> => {
-        return <AsyncIterator<Quad>><unknown>this.store.match(
-          sanitizeTerm(subject), 
-          sanitizeTerm(predicate), 
-          sanitizeTerm(object), 
-          cacheGraph // Maintained your original reference to cacheGraph
-        ).map((quad) => {
-          quad.graph = this.dataFactory.defaultGraph();
-          return quad;
-        });
-      },
-      countQuads: async (
-        subject?: RDF.Quad_Subject | undefined, 
+        object?: RDF.Quad_Object | undefined,
+        graph?: RDF.Quad_Graph | undefined,
+      ): AsyncIterator<Quad> => <AsyncIterator<Quad>><unknown> this.store.match(
+        sanitizeTerm(subject),
+        sanitizeTerm(predicate),
+        sanitizeTerm(object),
+        cacheGraph, // Maintained your original reference to cacheGraph
+      ).map((quad) => {
+        quad.graph = this.dataFactory.defaultGraph();
+        return quad;
+      }),
+      countQuads: async(
+        subject?: RDF.Quad_Subject | undefined,
         predicate?: RDF.Quad_Predicate | undefined,
-        object?: RDF.Quad_Object | undefined, 
-        graph?: RDF.Quad_Graph | undefined
-      ): Promise<number> => {
+        object?: RDF.Quad_Object | undefined,
+        graph?: RDF.Quad_Graph | undefined,
+      ): Promise<number> =>
         // We use Quadstore's native countQuads, replacing the requested graph with our cached graph boundary
-        return this.store.countQuads(
-          sanitizeTerm(subject), 
-          sanitizeTerm(predicate), 
-          sanitizeTerm(object), 
-          cacheGraph
-        );
-      }
+        this.store.countQuads(
+          sanitizeTerm(subject),
+          sanitizeTerm(predicate),
+          sanitizeTerm(object),
+          cacheGraph,
+        ),
+
     };
 
     return {
@@ -334,7 +334,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     }
   }
 
-  protected onDisposeHotCache(value: ISourceState, key: string, reason: LRUCache.DisposeReason){
+  protected onDisposeHotCache(value: ISourceState, key: string, reason: LRUCache.DisposeReason) {
     if (reason === 'evict' && this.isTracking) {
       const cacheMetricsHot = this.cacheMetrics.additionalMetrics!.hotCache;
       cacheMetricsHot.evictions++;
@@ -342,7 +342,6 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       cacheMetricsHot.evictionPercentage =
         (cacheMetricsHot.evictionsCalculatedSize / this.maxNumTriplesInMemory) * 100;
     }
-
   }
 
   public async has(key: string): Promise<boolean> {
@@ -356,7 +355,8 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
         this.dataFactory.variable('p'),
         this.dataFactory.variable('o'),
         this.getCacheGraphNode(key),
-      ), { limit: 1 }
+      ),
+      { limit: 1 },
     );
     return out.items.length > 0;
   }
@@ -364,14 +364,14 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   public async delete(key: string): Promise<boolean> {
     await this.readyPromise;
 
-    // If the key we want to delete is still ingesting we need to wait for that 
+    // If the key we want to delete is still ingesting we need to wait for that
     // to prevent dangling entries
     const ongoingIngestion = this.activeIngestions.get(key);
     if (ongoingIngestion) {
       try {
         await ongoingIngestion;
-      } catch (error) {
-        // Ignore the ingestion error here. We must proceed with the 
+      } catch {
+        // Ignore the ingestion error here. We must proceed with the
         // deletion cascade to clean up any partially written disk data.
       }
     }
@@ -389,7 +389,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     );
     return new Promise<boolean>((resolve, reject) => {
       removalStream.on('end', () => resolve(true));
-      removalStream.on('error', (err) => reject(err));
+      removalStream.on('error', err => reject(err));
     });
   }
 
@@ -400,14 +400,14 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     await this.readyPromise;
     try {
       const metadataFile = path.join(this.serializationLoc, 'metadata.json');
-      
+
       const serializedData = {
         // .dump() exports an array of objects representing the exact internal state of the LRU
         lruCacheDiskBacked: this.lruCacheDiskBacked.dump(),
         previouslyDereferenced: this.previouslyDereferenced?.dump(),
         // Convert Maps to array of tuples for JSON serialization
-        sizeMap: Array.from(this.sizeMap.entries()),
-        savedMetadata: Array.from(this.savedMetadata.entries()),
+        sizeMap: [ ...this.sizeMap.entries() ],
+        savedMetadata: [ ...this.savedMetadata.entries() ],
       };
 
       await fs.writeFile(metadataFile, JSON.stringify(serializedData), 'utf-8');
@@ -424,12 +424,12 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     await this.readyPromise;
     try {
       const metadataFile = path.join(this.serializationLoc, 'metadata.json');
-      
+
       // Check if file exists. If not, this is a fresh start; do nothing.
       try {
         await fs.access(metadataFile);
       } catch {
-        return; 
+        return;
       }
 
       const rawData = await fs.readFile(metadataFile, 'utf-8');
@@ -438,14 +438,14 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       // Load the maps first to calculate the sizes of the items being loaded.
       if (parsedData.sizeMap) {
         this.sizeMap.clear();
-        for (const [k, v] of parsedData.sizeMap) {
+        for (const [ k, v ] of parsedData.sizeMap) {
           this.sizeMap.set(k, v);
         }
       }
 
       if (parsedData.savedMetadata) {
-        this.savedMetadata.clear();;
-        for (const [k, v] of parsedData.savedMetadata) {
+        this.savedMetadata.clear(); ;
+        for (const [ k, v ] of parsedData.savedMetadata) {
           this.savedMetadata.set(k, v);
         }
       }
@@ -468,7 +468,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     await this.readyPromise;
 
     // Wait for ingestion to finish to not leave ghost triples
-    const pendingIngestions = Array.from(this.activeIngestions.values());
+    const pendingIngestions = [ ...this.activeIngestions.values() ];
     if (pendingIngestions.length > 0) {
       await Promise.allSettled(pendingIngestions);
     }

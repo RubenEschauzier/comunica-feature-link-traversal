@@ -32,11 +32,11 @@ export class ActorContextPreprocessSetCacheCountView extends ActorContextPreproc
 }
 
 export class CacheCountView
-implements ICacheView<ISourceState, { operation: Algebra.Operation }, number> {
+implements ICacheView<ISourceState, ISourceState, { operation: Algebra.Operation }, number> {
   protected readonly computedCounts: Record<string, number> = {};
 
   public async construct(
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: { operation: Algebra.Operation },
   ): Promise<number | undefined> {
     if (!isKnownOperation(context.operation, Algebra.Types.PATTERN)) {

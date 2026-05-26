@@ -33,16 +33,21 @@ export class ActorContextPreprocessSetCacheCountViewOfflineTraversal extends Act
 }
 
 export class CacheCountViewOfflineTraversal
-implements ICacheView<ISourceState, {
-  operation: Algebra.Operation;
-  seeds: ILink[];
-  query: Algebra.BaseOperation;
-}, number> {
+implements ICacheView<
+  ISourceState,
+  ISourceState,
+  {
+    operation: Algebra.Operation;
+    seeds: ILink[];
+    query: Algebra.BaseOperation;
+  },
+number
+> {
   protected readonly computedCounts: Record<string, number> = {};
   protected reachableDocuments: Set<string> | undefined;
 
   public async construct(
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: { operation: Algebra.Operation; seeds: ILink[]; query: Algebra.BaseOperation },
   ): Promise<number | undefined> {
     if (!isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
@@ -92,7 +97,7 @@ implements ICacheView<ISourceState, {
   protected async findReachableDocuments(
     query: Algebra.BaseOperation,
     seeds: ILink[],
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
   ): Promise<Set<string>> {
     const predicatesInQuery = this.getPredicatesFromQuery(query);
     const reachableDocuments: Set<string> = new Set();
@@ -114,8 +119,8 @@ implements ICacheView<ISourceState, {
 
       const nextLinks: IOfflineTraversalEntry = sourceState.metadata.offlineTraversal;
       if (nextLinks === undefined) {
-        console.log(sourceState.metadata)
-        console.log(sourceState.link)
+        console.log(sourceState.metadata);
+        console.log(sourceState.link);
         throw new Error('Found cached document without traversal information');
       }
 

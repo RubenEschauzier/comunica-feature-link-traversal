@@ -215,7 +215,7 @@ export class GetStreamingCacheView implements ICacheView<
       // Re-extract query dependent traverse entries when required.
       if (context.extractLinksQuadPattern && this.actorExtractLinksQuadPatternQuery) {
         const links: ILink[] = [];
-        let quads = new UnionIterator(this.quadPatterns.map(
+        const quads = new UnionIterator(this.quadPatterns.map(
           quadPattern => cacheEntry.source.queryQuads(
             quadPattern,
             context.action.context,

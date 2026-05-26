@@ -34,10 +34,10 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
     this.hotCachePolicy = args.hotCachePolicy;
 
     this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
-      { 
-        maxNumTriples: this.cacheSizeDiskNumTriples, 
+      {
+        maxNumTriples: this.cacheSizeDiskNumTriples,
         maxTriplesInMemory: this.cacheSizeHotNumTriples,
-        hotCachePolicy: this.hotCachePolicy
+        hotCachePolicy: this.hotCachePolicy,
       },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
@@ -58,10 +58,10 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
-        { 
-          maxNumTriples: this.cacheSizeDiskNumTriples, 
+        {
+          maxNumTriples: this.cacheSizeDiskNumTriples,
           maxTriplesInMemory: this.cacheSizeHotNumTriples,
-          hotCachePolicy: this.hotCachePolicy
+          hotCachePolicy: this.hotCachePolicy,
         },
       );
       await this.cacheQuerySourceState.clear();

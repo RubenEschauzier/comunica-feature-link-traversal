@@ -99,7 +99,7 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
   public async setInCache(
     key: string,
     value: ISourceState,
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: { headers: Headers },
   ): Promise<void> {
     cache.set(key, value);
@@ -108,6 +108,7 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
 
 export class GetSourceStateCacheView
 implements ICacheView<
+    ISourceState,
     ISourceState,
     {
       url: string;
@@ -136,7 +137,7 @@ implements ICacheView<
   }
 
   public async construct(
-    cache: IPersistentCache<ISourceState>,
+    cache: IPersistentCache<ISourceState, ISourceState>,
     context: {
       url: string;
       extractLinksQuadPattern?: boolean;
@@ -203,10 +204,10 @@ export interface IActorContextPreprocessSetSourceCacheNumTriplesArgs extends IAc
    * This should always be passed when cMatch is used, as cached sources contain stale
    * traversal metadata entries otherwise.
    */
-  actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery; 
+  actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   /**
-  * For simulating cache misses
-  * @range {float}
-  */
+   * For simulating cache misses
+   * @range {float}
+   */
   probabilityCacheMiss?: number;
 }

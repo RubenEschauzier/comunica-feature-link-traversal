@@ -79,6 +79,15 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
         },
         sourceFromCache,
       );
+      
+      // Set back into cache to update any metadata for the given query (like traversal data)
+      sourceFromCache.source = new QuerySourceCacheWrapper(sourceFromCache.source);
+      await cacheManager.setCache(
+        this.cacheEntryKey,
+        action.link.url,
+        sourceFromCache,
+        { headers: {} },
+      );
 
       return sourceFromCache;
     }

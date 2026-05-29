@@ -27,7 +27,7 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
   }
 
   public async get(key: string): Promise<ISourceState | undefined> {
-    throw new Error("Not yet implemented")
+    return undefined;
   }
 
   public getSync(key: string): ISourceState | undefined {
@@ -45,6 +45,7 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
    * @returns
    */
   public async set(key: string, value: ISourceState): Promise<void> {
+    console.log("SET HERE START")
     const quads = value.source.queryQuads(
       this.algebraFactory.createPattern(
         this.dataFactory.variable('s'),
@@ -167,6 +168,12 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
         }
       }
     }
+    // TODO: Determine global Cset and CPs of this cache with way 
+    // to decrement these values on delete
+    // Then think about how getting from a document works. Maybe
+    // get all local CPs and CSets then the view computes the global
+    // CPs and CSets and keeps in-memory
+
   }
   private toCpKey(subjKey: string, predicateKey: string, objectKey: string){
     return `${subjKey}|${predicateKey}|${objectKey}`;
@@ -204,6 +211,7 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
   }
 
   public async size(): Promise<number> {
+    return 1;
     throw new Error("Not yet implemented")
   }
 

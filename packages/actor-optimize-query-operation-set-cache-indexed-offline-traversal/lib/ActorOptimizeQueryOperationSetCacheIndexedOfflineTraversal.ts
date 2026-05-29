@@ -81,21 +81,38 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
     cache: IPersistentCache<ISourceState, ISourceState>,
     context: { headers: Headers },
   ): Promise<void> {
-    const traversalAdjList: IOfflineTraversalEntry = {
+    
+    // Retrieve the existing cached state to preserve previous traversal entries
+    const cachedState = await cache.get(key);
+    
+
+    // Initialize with existing cached traversal data, or create a fresh object
+    const traversalAdjList: IOfflineTraversalEntry = cachedState?.metadata.offlineTraversal ?? {
       predicates: {},
       default: [],
     };
+
     for (const traverseEntry of value.metadata.traverse) {
       const traverseMetadata = traverseEntry.metadata;
+      
       if (traverseMetadata && 'matchingPatterns' in traverseMetadata) {
+        // Check if cMatch batched criterion produced this
         for (const quad of (<RDF.BaseQuad[]> traverseMetadata.matchingPatterns)) {
           traversalAdjList.predicates[quad.predicate.value] = { url: traverseEntry.url };
         }
       } else {
-        traversalAdjList.default.push({ url: traverseEntry.url });
+        // Append to default array only if the URL is not already present
+        const exists = traversalAdjList.default.some(link => link.url === traverseEntry.url);
+        if (!exists) {
+          traversalAdjList.default.push({ url: traverseEntry.url });
+        }
       }
     }
+    
+    // Attach the merged traversal list to the incoming value before saving
     value.metadata.offlineTraversal = traversalAdjList;
+    
+    // Update the cache for this key
     cache.set(key, value);
   }
 }

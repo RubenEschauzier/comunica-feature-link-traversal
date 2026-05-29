@@ -27,7 +27,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
   private readonly serializationLoc: string;
 
-  public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
+  public constructor(args: IPersistentCacheCsetArgs) {
     this.maxNumTriples = args.maxNumTriples;
     this.lruCacheDocuments = new LRUCache<string, ISourceState>({
       maxSize: this.maxNumTriples,
@@ -365,7 +365,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   }
 }
 
-export interface IPersistentCacheSourceStateNumTriplesArgs {
+export interface IPersistentCacheCsetArgs {
   maxNumTriples: number;
   serializationLoc: string;
 }

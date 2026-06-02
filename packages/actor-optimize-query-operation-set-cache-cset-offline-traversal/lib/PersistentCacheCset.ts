@@ -1,17 +1,18 @@
 import { ActionContext } from '@comunica/core';
 import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
+import { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
-import type { AsyncIterator } from 'asynciterator';
-import type { LRUCache } from 'lru-cache';
+import { ArrayIterator, type AsyncIterator } from 'asynciterator';
+import { LRUCache } from 'lru-cache';
 import { DataFactory } from 'rdf-data-factory';
 import * as RdfString from 'rdf-string';
 
 // eslint-disable-next-line ts/no-require-imports,ts/no-var-requires
 const murmurhash = require('murmurhash')
 
-export class PersistentCacheCset implements IPersistentCache<any, any> {
+export class PersistentCacheCset implements IPersistentCache<ISourceState, IDataSummary> {
   private readonly dataFactory = new DataFactory();
   private readonly bindingsFactory = new BindingsFactory(this.dataFactory);
   private readonly algebraFactory = new AlgebraFactory(this.dataFactory);
@@ -19,22 +20,27 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
   private isTracking = false;
   private cacheMetrics: ICacheMetrics;
 
+  private cachedSummaries: LRUCache<string, IDataSummary>;
+
   private readonly serializationLoc: string;
 
-  public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
+  public constructor(args: IPersistentCacheCsetArgs) {
     this.serializationLoc = args.serializationLoc;
     this.cacheMetrics = this.resetMetrics();
+    this.cachedSummaries = new LRUCache({
+      max: args.maxNumSummaries
+    })
   }
 
-  public async get(key: string): Promise<ISourceState | undefined> {
+  public async get(key: string): Promise<IDataSummary | undefined> {
     return undefined;
   }
 
-  public getSync(key: string): ISourceState | undefined {
+  public getSync(key: string): IDataSummary | undefined {
     throw new Error("Not yet implemented")
   }
 
-  public async getMany(keys: string[]): Promise<(ISourceState | undefined)[]> {
+  public async getMany(keys: string[]): Promise<(IDataSummary | undefined)[]> {
     throw new Error("Not yet implemented")
   }
 
@@ -168,6 +174,11 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
         }
       }
     }
+    this.cachedSummaries.set(key, {
+      csets: csetsDocument,
+      cps: localCps,
+      offlineTraverse: value.metadata.offlineTraversal,
+    });
     // TODO: Determine global Cset and CPs of this cache with way 
     // to decrement these values on delete
     // Then think about how getting from a document works. Maybe
@@ -206,8 +217,11 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
     throw new Error("Not yet implemented")
   }
 
-  public entries(): AsyncIterator<[string, ISourceState]> {
-    throw new Error("Not yet implemented")
+  public entries(): AsyncIterator<[string, IDataSummary]> {
+    return new ArrayIterator(
+      this.cachedSummaries.entries(),
+      { autoStart: false },
+    );
   }
 
   public async size(): Promise<number> {
@@ -241,8 +255,8 @@ export class PersistentCacheCset implements IPersistentCache<any, any> {
   }
 }
 
-export interface IPersistentCacheSourceStateNumTriplesArgs {
-  maxNumTriples: number;
+export interface IPersistentCacheCsetArgs {
+  maxNumSummaries: number;
   serializationLoc: string;
 }
 /**
@@ -289,4 +303,10 @@ export interface ICharacteristicPair {
    * Number of these connections
    */
   count: number;
+}
+
+export interface IDataSummary {
+  cps: Map<string, ICharacteristicPair>;
+  csets: Map<string, ICharacteristicSet>;
+  offlineTraverse: IOfflineTraversalEntry;
 }

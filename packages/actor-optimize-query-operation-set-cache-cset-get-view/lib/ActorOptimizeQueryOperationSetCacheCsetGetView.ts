@@ -10,7 +10,7 @@ import {
 } from '@comunica/bus-optimize-query-operation';
 import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
-import { CacheSourceStateViews } from '@comunica/cache-manager-entries';
+import { CacheDataSummariesViews, CacheSourceStateViews } from '@comunica/cache-manager-entries';
 import { KeysCaching, KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContext, passTestVoid } from '@comunica/core';
@@ -21,6 +21,7 @@ import { visitOperation } from '@comunica/utils-algebra/lib/utils';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
 import { UnionIterator } from 'asynciterator';
+import { ICharacteristicSet, IDataSummary } from '@comunica/actor-optimize-query-operation-set-cache-cset-offline-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -51,23 +52,9 @@ export class ActorOptimizeQueryOperationSetCacheCsetGetView extends ActorOptimiz
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
 
-    const dataFactory = context.getSafe(KeysInitQuery.dataFactory);
-    const queryOp = context.getSafe(KeysInitQuery.query);
-    const VAR = dataFactory.variable('__comunica:pp_var');
-
-    const quadPatterns = this.extractQuadPatterns(action.context.getSafe(KeysInitQuery.query), dataFactory, VAR);
-
     cacheManager.registerCacheView(
-      CacheSourceStateViews.indexedCacheGetView,
-      new GetStreamingCacheView(
-        action.context.getSafe(KeysInitQuery.dataFactory),
-        quadPatterns,
-        queryOp,
-        this.mediatorQuerySourceIdentifyHypermedia,
-        this.actorExtractLinksQuadPatternQuery,
-        context.get(KeysQueryOperation.unionDefaultGraph),
-        this.probabilityCacheMiss,
-      ),
+      CacheDataSummariesViews.cacheCsetCpEstimationView,
+      new CacheCsetViewOfflineTraversal(),
     );
 
     return { context, operation: action.operation };
@@ -142,10 +129,10 @@ export class ActorOptimizeQueryOperationSetCacheCsetGetView extends ActorOptimiz
   }
 }
 
-export class CacheCountViewOfflineTraversal
+export class CacheCsetViewOfflineTraversal
 implements ICacheView<
   ISourceState,
-  ISourceState,
+  IDataSummary,
   {
     operation: Algebra.Operation;
     seeds: ILink[];
@@ -157,7 +144,7 @@ number
   protected reachableDocuments: Set<string> | undefined;
 
   public async construct(
-    cache: IPersistentCache<ISourceState, ISourceState>,
+    cache: IPersistentCache<ISourceState, IDataSummary>,
     context: { operation: Algebra.Operation; seeds: ILink[]; query: Algebra.BaseOperation },
   ): Promise<number | undefined> {
     if (!isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
@@ -188,16 +175,50 @@ number
     let totalCount = 0;
     const cacheEntryStream = cache.entries();
 
-    for await (const [ key, source ] of cacheEntryStream) {
-      if (source.source.countQuads) {
-        // Skip any non-reachable documents if we have computed this
-        // When no seeds are present we use all documents to approximate
-        // the new subweb.
-        if (this.reachableDocuments && !this.reachableDocuments.has(key)) {
-          continue;
+    const globalCsets = new Map<string, ICharacteristicSet>();
+    for await (const [ key, summary ] of cacheEntryStream) {
+      if (this.reachableDocuments && !this.reachableDocuments.has(key)){
+        continue;
+      }
+
+      for (const [predKey, cset] of summary.csets.entries()){
+
+        let globalCsetEntry = globalCsets.get(predKey);
+        if (!globalCsetEntry) {
+          globalCsetEntry = {
+            subjCount: 0,
+            predicateCounts: new Map(
+              Array.from(cset.predicateCounts.keys()).map(k => [k, 0])
+            ),
+            localSubjects: new Set(),
+            localObjects: new Map(
+              Array.from(cset.localObjects.keys()).map(k => [k, new Set()])
+            ),
+          };
+          globalCsets.set(predKey, globalCsetEntry);
+        }    
+        globalCsetEntry.subjCount += cset.subjCount;
+        for (const [pred, count] of cset.predicateCounts.entries()) {
+          const currentCount = globalCsetEntry.predicateCounts.get(pred) || 0;
+          globalCsetEntry.predicateCounts.set(pred, currentCount + count);
         }
-        const quadCount = await source.source.countQuads(context.operation, new ActionContext());
-        totalCount += quadCount;
+
+        // Aggregate local subjects (Union of Sets)
+        for (const subj of cset.localSubjects) {
+          globalCsetEntry.localSubjects.add(subj);
+        }
+
+        // Aggregate local objects per predicate (Union of Sets)
+        for (const [pred, objects] of cset.localObjects.entries()) {
+          let globalObjSet = globalCsetEntry.localObjects.get(pred);
+          if (!globalObjSet) {
+            globalObjSet = new Set();
+            globalCsetEntry.localObjects.set(pred, globalObjSet);
+          }
+          for (const obj of objects) {
+            globalObjSet.add(obj);
+          }
+        }
       }
     }
     this.computedCounts[patternKey] = totalCount;
@@ -207,7 +228,7 @@ number
   protected async findReachableDocuments(
     query: Algebra.BaseOperation,
     seeds: ILink[],
-    cache: IPersistentCache<ISourceState, ISourceState>,
+    cache: IPersistentCache<ISourceState, IDataSummary>,
   ): Promise<Set<string>> {
     const predicatesInQuery = this.getPredicatesFromQuery(query);
     const reachableDocuments: Set<string> = new Set();
@@ -227,10 +248,9 @@ number
 
       reachableDocuments.add(current.url);
 
-      const nextLinks: IOfflineTraversalEntry = sourceState.metadata.offlineTraversal;
+      const nextLinks: IOfflineTraversalEntry = sourceState.offlineTraverse;
       if (nextLinks === undefined) {
-        console.log(sourceState.metadata);
-        console.log(sourceState.link);
+        console.log(sourceState);
         throw new Error('Found cached document without traversal information');
       }
 

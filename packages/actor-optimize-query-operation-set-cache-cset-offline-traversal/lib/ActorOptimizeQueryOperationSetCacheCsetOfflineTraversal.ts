@@ -28,7 +28,7 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.cacheQuerySourceState = new PersistentCacheCset(
-      { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+      { maxNumSummaries: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
     console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
@@ -48,7 +48,7 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheCset(
-        { maxNumTriples: this.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+        { maxNumSummaries: this.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
       );
       console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
     }
@@ -116,7 +116,7 @@ export interface IActorOptimizeQueryOperationSetCacheCsetArgs extends IActorOpti
   /**
    * The maximum number of triples in the cache.
    * @range {integer}
-   * @default {124000}
+   * @default {10000}
    */
   cacheSizeNumTriples: number;
 }

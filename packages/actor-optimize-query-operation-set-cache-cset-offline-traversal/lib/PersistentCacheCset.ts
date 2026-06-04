@@ -178,13 +178,8 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
       cps: localCps,
       offlineTraversal: value.metadata.offlineTraversal,
     });
-    // TODO: Determine global Cset and CPs of this cache with way 
-    // to decrement these values on delete
-    // Then think about how getting from a document works. Maybe
-    // get all local CPs and CSets then the view computes the global
-    // CPs and CSets and keeps in-memory
-
   }
+  
   private toCpKey(subjKey: string, predicateKey: string, objectKey: string){
     return `${subjKey}|${predicateKey}|${objectKey}`;
   }

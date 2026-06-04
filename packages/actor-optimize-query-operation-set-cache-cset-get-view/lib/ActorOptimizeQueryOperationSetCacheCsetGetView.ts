@@ -160,6 +160,9 @@ implements ICacheView<
     // TODO if subject stars work: Implement same thing for object stars too, its a similar approach
     // I just need to know its worthwhile
     // TODO: Possible optimization using integers instead of strings as keys
+    // TODO: Maybe use triple terms instead of named graphs for document indication in store-based
+    // we can delete by querying the document object and then extracting all triples and doing a
+    // delete.
 
     if (!context.query) {
       throw new Error(`Invalid context missing query argument: context: ${context}`);

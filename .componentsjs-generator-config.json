@@ -23,7 +23,8 @@
     "GetStreamingCacheView",
     "GetSourceStateCacheView",
     "GetSourceStateCacheViewBloomFilter",
-    "GetSourceStateCacheView"
+    "GetSourceStateCacheView",
+    "IReachableDataSummary"
   ],
   "modulePrefix": {}
 }

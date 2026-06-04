@@ -114,7 +114,9 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         value: traversalSeedLinks,
         context: linkTraversalContext,
       });
-      context = context.set(KeysInitQuery.querySourcesUnidentified, querySources);
+      context = context
+        .set(KeysInitQuery.querySourcesUnidentified, querySources)
+        .setDefault(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, linkTraversalManager);
     }
 
     return { context, operation: action.operation };

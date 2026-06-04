@@ -31,6 +31,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
 
   public readonly cacheEntryKey: ICacheKey<unknown, unknown, unknown>;
   public readonly cacheViewKey: IViewKey<unknown, unknown, unknown>;
+  public readonly cacheSetKeys?: ICacheKey<unknown, unknown, unknown>[];
 
   public readonly DF: DataFactory = new DataFactory();
   public readonly BF: BindingsFactory = new BindingsFactory(this.DF, {});
@@ -43,6 +44,9 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     this.mediatorMetadataExtract = args.mediatorMetadataExtract;
     this.cacheEntryKey = new CacheKey(args.cacheEntryKeyName);
     this.cacheViewKey = new ViewKey(args.cacheViewKeyName);
+    this.cacheSetKeys = args.cacheSetKeyNames?.map(
+      cacheSetKeyName => new CacheKey(cacheSetKeyName)
+    );
   }
 
   public async test(action: IActionQuerySourceDereferenceLink): Promise<TestResult<IActorTest>> {
@@ -88,6 +92,16 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
         sourceFromCache,
         { headers: {} },
       );
+      if (this.cacheSetKeys){
+        for (const key of this.cacheSetKeys){
+          await cacheManager.setCache(
+            key,
+            action.link.url,
+            sourceFromCache,
+            { headers: {} },
+          );
+        }
+      }
 
       return sourceFromCache;
     }
@@ -100,6 +114,18 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
       { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
       { headers: dereferenceLinkOutput.headers },
     );
+    
+    // Optionally set additional cache entries.
+    if (this.cacheSetKeys){
+      for (const key of this.cacheSetKeys){
+        await cacheManager.setCache(
+          key,
+          action.link.url,
+          { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
+          { headers: dereferenceLinkOutput.headers },
+        );
+      }
+    }
     return dereferenceLinkOutput;
   }
 }
@@ -110,6 +136,11 @@ export interface IActorQuerySourceDereferenceLinkHypermediaWrapCacheArgs extends
   mediatorMetadataExtract: MediatorRdfMetadataExtract;
   cacheEntryKeyName: string;
   cacheViewKeyName: string;
+  /**
+   * Optional additional keys to set into cache. These won't be used here
+   * but can set values used in other parts of the query engine.
+   */
+  cacheSetKeyNames?: string[];
 }
 
 export const KEY_WRAPPED = new ActionContextKey<boolean>(

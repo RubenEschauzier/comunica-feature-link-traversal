@@ -6,14 +6,14 @@ import type {
 import {
   ActorOptimizeQueryOperation,
 } from '@comunica/bus-optimize-query-operation';
-import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
+import { CacheEntryDataSummary, CacheEntrySourceState } from '@comunica/cache-manager-entries';
 import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ILink, ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
 import type * as RDF from '@rdfjs/types';
-import { PersistentCacheCset } from './PersistentCacheCset';
+import { IDataSummary, PersistentCacheCset } from './PersistentCacheCset';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -31,7 +31,7 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
       { maxNumSummaries: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
-    console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
+    console.log(`Created cset cache with maxSize: ${args.cacheSizeNumTriples}`);
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
@@ -61,10 +61,11 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
-      CacheEntrySourceState.cacheSourceStateQuerySource,
+      CacheEntryDataSummary.cacheSourceStateQuerySource,
       this.cacheQuerySourceState,
       new SetSourceStateCacheOfflineTraversal(),
     );
+    console.log(`Register: ${CacheEntryDataSummary.cacheSourceStateQuerySource.id}`)
 
     return { context, operation: action.operation };
   }
@@ -74,7 +75,7 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
   public async setInCache(
     key: string,
     value: ISourceState,
-    cache: IPersistentCache<ISourceState, ISourceState>,
+    cache: IPersistentCache<ISourceState, IDataSummary>,
     context: { headers: Headers },
   ): Promise<void> {
     // Retrieve the existing cached state to preserve previous traversal entries
@@ -82,7 +83,7 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
     
 
     // Initialize with existing cached traversal data, or create a fresh object
-    const traversalAdjList: IOfflineTraversalEntry = cachedState?.metadata.offlineTraversal ?? {
+    const traversalAdjList: IOfflineTraversalEntry = cachedState?.offlineTraversal ?? {
       predicates: {},
       default: [],
     };

@@ -21,7 +21,7 @@ import { visitOperation } from '@comunica/utils-algebra/lib/utils';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
 import { UnionIterator } from 'asynciterator';
-import { ICharacteristicSet, IDataSummary } from '@comunica/actor-optimize-query-operation-set-cache-cset-offline-traversal';
+import { ICharacteristicPair, ICharacteristicSet, IDataSummary } from '@comunica/actor-optimize-query-operation-set-cache-cset-offline-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -29,12 +29,14 @@ import { ICharacteristicSet, IDataSummary } from '@comunica/actor-optimize-query
 export class ActorOptimizeQueryOperationSetCacheCsetGetView extends ActorOptimizeQueryOperation {
   public readonly actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   public readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
+  public readonly maxNumCsets: number;
   public readonly probabilityCacheMiss?: number;
 
   public constructor(args: IActorOptimizeQueryOperationSetCacheCsetGetViewArgs) {
     super(args);
     this.mediatorQuerySourceIdentifyHypermedia = args.mediatorQuerySourceIdentifyHypermedia;
     this.actorExtractLinksQuadPatternQuery = args.actorExtractLinksQuadPatternQuery;
+    this.maxNumCsets = args.maxNumCsets;
     this.probabilityCacheMiss = args.probabilityCacheMiss;
 
     console.log(`${this.name}: Created indexed cache view with probability miss: ${this.probabilityCacheMiss}`);
@@ -54,8 +56,9 @@ export class ActorOptimizeQueryOperationSetCacheCsetGetView extends ActorOptimiz
 
     cacheManager.registerCacheView(
       CacheDataSummariesViews.cacheCsetCpEstimationView,
-      new CacheCsetViewOfflineTraversal(),
+      new CacheCsetViewOfflineTraversal(this.maxNumCsets),
     );
+    console.log(`Register view: ${CacheDataSummariesViews.cacheCsetCpEstimationView.id}`)
 
     return { context, operation: action.operation };
   }
@@ -134,35 +137,32 @@ implements ICacheView<
   ISourceState,
   IDataSummary,
   {
-    operation: Algebra.Operation;
     seeds: ILink[];
     query: Algebra.BaseOperation;
   },
-number
+  IReachableDataSummary
 > {
   protected readonly computedCounts: Record<string, number> = {};
   protected reachableDocuments: Set<string> | undefined;
+  protected globalDataSummary: IReachableDataSummary | undefined;
+  protected readonly maxNumCsets: number;
+
+
+  public constructor(maxNumCsets: number){
+    this.maxNumCsets = maxNumCsets;
+  }
+
 
   public async construct(
     cache: IPersistentCache<ISourceState, IDataSummary>,
-    context: { operation: Algebra.Operation; seeds: ILink[]; query: Algebra.BaseOperation },
-  ): Promise<number | undefined> {
-    if (!isKnownOperation(context.operation, Algebra.Types.PATTERN)) {
-      throw new Error('Count view only accepts quad patterns');
-    }
+    context: { seeds: ILink[]; query: Algebra.BaseOperation },
+  ): Promise<IReachableDataSummary> {
+    // TODO if subject stars work: Implement same thing for object stars too, its a similar approach
+    // I just need to know its worthwhile
+    // TODO: Possible optimization using integers instead of strings as keys
 
-    if (!context.seeds) {
-      throw new Error(`Invalid context missing seeds argument: context: ${context}`);
-    }
     if (!context.query) {
       throw new Error(`Invalid context missing query argument: context: ${context}`);
-    }
-
-    const pattern = context.operation;
-    const patternKey = this.patternKey(pattern);
-
-    if (patternKey in this.computedCounts) {
-      return this.computedCounts[patternKey];
     }
 
     // Compute reachable documents if this hasn't been computed yet
@@ -172,57 +172,118 @@ number
       this.reachableDocuments = await this.findReachableDocuments(context.query, context.seeds, cache);
     }
 
-    let totalCount = 0;
     const cacheEntryStream = cache.entries();
+    if (!this.globalDataSummary) {
+      const globalCsetKeysSorted: ICsetPredicateKey[] = [];
+      const globalCps = new Map<string, ICharacteristicPair>();
+      const globalCsets = new Map<string, ICharacteristicSet>();
+      const globalSubjectsToCsets = new Map<number, ICharacteristicSet>();
+      for await (const [ key, summary ] of cacheEntryStream) {
 
-    const globalCsets = new Map<string, ICharacteristicSet>();
-    for await (const [ key, summary ] of cacheEntryStream) {
-      if (this.reachableDocuments && !this.reachableDocuments.has(key)){
-        continue;
+        if (this.reachableDocuments && !this.reachableDocuments.has(key)){
+          continue;
+        }
+        // Aggregate the csets in different documents to one global cset mapping
+        for (const [predKey, cset] of summary.csets.entries()){
+
+          let globalCsetEntry = globalCsets.get(predKey);
+          if (!globalCsetEntry) {
+            globalCsetKeysSorted.push({
+              predicateKey: predKey,
+              sizeCset: cset.predicateCounts.size,
+            });
+
+            globalCsetEntry = {
+              subjCount: 0,
+              predicateCounts: new Map(
+                Array.from(cset.predicateCounts.keys()).map(k => [k, 0])
+              ),
+              localSubjects: new Set(),
+              localObjects: new Map(
+                Array.from(cset.localObjects.keys()).map(k => [k, new Set()])
+              ),
+            };
+
+            globalCsets.set(predKey, globalCsetEntry);
+          }    
+          globalCsetEntry.subjCount += cset.subjCount;
+          for (const [pred, count] of cset.predicateCounts.entries()) {
+            const currentCount = globalCsetEntry.predicateCounts.get(pred) || 0;
+            globalCsetEntry.predicateCounts.set(pred, currentCount + count);
+          }
+
+          // Aggregate local subjects (Union of Sets)
+          for (const subj of cset.localSubjects) {
+            globalCsetEntry.localSubjects.add(subj);
+          }
+
+          // Aggregate local objects per predicate (Union of Sets)
+          for (const [pred, objects] of cset.localObjects.entries()) {
+            let globalObjSet = globalCsetEntry.localObjects.get(pred);
+            if (!globalObjSet) {
+              globalObjSet = new Set();
+              globalCsetEntry.localObjects.set(pred, globalObjSet);
+            }
+            for (const obj of objects) {
+              globalObjSet.add(obj);
+            }
+          }
+        }
+        for (const [cpKey, cp] of summary.cps.entries()){
+          let globalCpEntry = globalCps.get(cpKey);
+          if (!globalCpEntry){
+            globalCpEntry = {
+              ...cp,
+              count: 0
+            }
+            globalCps.set(cpKey, globalCpEntry);
+          }
+          globalCpEntry.count += cp.count;
+        }
       }
 
-      for (const [predKey, cset] of summary.csets.entries()){
-
-        let globalCsetEntry = globalCsets.get(predKey);
-        if (!globalCsetEntry) {
-          globalCsetEntry = {
-            subjCount: 0,
-            predicateCounts: new Map(
-              Array.from(cset.predicateCounts.keys()).map(k => [k, 0])
-            ),
-            localSubjects: new Set(),
-            localObjects: new Map(
-              Array.from(cset.localObjects.keys()).map(k => [k, new Set()])
-            ),
-          };
-          globalCsets.set(predKey, globalCsetEntry);
-        }    
-        globalCsetEntry.subjCount += cset.subjCount;
-        for (const [pred, count] of cset.predicateCounts.entries()) {
-          const currentCount = globalCsetEntry.predicateCounts.get(pred) || 0;
-          globalCsetEntry.predicateCounts.set(pred, currentCount + count);
+      // Compute characteristic pairs between different reachable documents
+      const entityResolutionMap = new Map<number, string>();
+      // Map subjects to their characteristic sets
+      for (const [csetKey, cset] of globalCsets.entries()) {
+        for (const subjectHash of cset.localSubjects) {
+          entityResolutionMap.set(subjectHash, csetKey);
+          globalSubjectsToCsets.set(subjectHash, cset);
         }
-
-        // Aggregate local subjects (Union of Sets)
-        for (const subj of cset.localSubjects) {
-          globalCsetEntry.localSubjects.add(subj);
-        }
-
-        // Aggregate local objects per predicate (Union of Sets)
-        for (const [pred, objects] of cset.localObjects.entries()) {
-          let globalObjSet = globalCsetEntry.localObjects.get(pred);
-          if (!globalObjSet) {
-            globalObjSet = new Set();
-            globalCsetEntry.localObjects.set(pred, globalObjSet);
-          }
-          for (const obj of objects) {
-            globalObjSet.add(obj);
+      }
+      
+      for (const [subjectCSetKey, cset] of globalCsets.entries()) {
+        for (const [predicateKey, objectHashes] of cset.localObjects.entries()) {
+          for (const objectHash of objectHashes) {
+            const objectCSetKey = entityResolutionMap.get(objectHash);
+            // If we match an entity in the subjects with one of the objects in current
+            // cs we have need to update this cp
+            if (objectCSetKey) {
+              const cpKey = this.toCpKey(subjectCSetKey, predicateKey, objectCSetKey);
+              let cp = globalCps.get(cpKey);
+              if (!cp){
+                cp = {
+                  csetSubj: cset,
+                  csetObj: globalCsets.get(objectCSetKey)!,
+                  predicate: predicateKey,
+                  count: 0
+                }
+                globalCps.set(cpKey, cp);
+              }
+              cp.count++;
+            }
           }
         }
+      }
+      console.log(`Contains: ${globalCsets.size} csets`);
+      console.log(`Contains: ${globalCps.size} cps`);
+      this.globalDataSummary = {
+        csets: globalCsets,
+        cps: globalCps,
+        subjectToCset: globalSubjectsToCsets
       }
     }
-    this.computedCounts[patternKey] = totalCount;
-    return totalCount;
+    return this.globalDataSummary;
   }
 
   protected async findReachableDocuments(
@@ -248,7 +309,7 @@ number
 
       reachableDocuments.add(current.url);
 
-      const nextLinks: IOfflineTraversalEntry = sourceState.offlineTraverse;
+      const nextLinks: IOfflineTraversalEntry = sourceState.offlineTraversal;
       if (nextLinks === undefined) {
         console.log(sourceState);
         throw new Error('Found cached document without traversal information');
@@ -310,6 +371,16 @@ number
     });
     return predicates;
   }
+  /**
+   * From PersistentCacheCset and should always be aligned (possibly add to util functions)
+   * @param subjKey 
+   * @param predicateKey 
+   * @param objectKey 
+   * @returns 
+   */
+  private toCpKey(subjKey: string, predicateKey: string, objectKey: string){
+    return `${subjKey}|${predicateKey}|${objectKey}`;
+  }
 
   private patternKey(pattern: Algebra.Pattern): string {
     return [
@@ -334,6 +405,10 @@ export interface IActorOptimizeQueryOperationSetCacheCsetGetViewArgs extends IAc
    */
   actorExtractLinksQuadPatternQuery?: ActorExtractLinksQuadPatternQuery;
   /**
+   * Maximum number of csets to use for optimization, anything more will be merged
+   */
+  maxNumCsets: number;
+  /**
    * For simulating query misses
    * @range {float}
    */
@@ -352,4 +427,38 @@ export interface IOfflineTraversalEntry {
    * The traversal entries independent of the query
    */
   default: ILink[];
+}
+
+export interface IReachableDataSummary{
+  cps: Map<string, ICharacteristicPair>;
+  csets: Map<string, ICharacteristicSet>;
+  subjectToCset: Map<number, ICharacteristicSet>;
+}
+
+export interface ICsetPredicateKey {
+  /**
+   * The actual key
+   */
+  predicateKey: string,
+  /**
+   * Number of predicates in the key
+   */
+  sizeCset: number
+}
+
+export interface IHierarchyNode {
+  /**
+   * Predicates in the predicate key representing this node
+   */
+  predicates: string[];
+  /**
+   * Cost of this node computed as count of all
+   * superset csets of this cset. Superset means that is has _less_
+   * predicates
+   */
+  cost: number;
+  /**
+   * Cheapest subset from this subset
+   */
+  cheapestSubSetPredicateKey?: string;
 }

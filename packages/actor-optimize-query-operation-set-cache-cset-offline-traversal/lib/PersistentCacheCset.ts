@@ -33,7 +33,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
   }
 
   public async get(key: string): Promise<IDataSummary | undefined> {
-    return undefined;
+    return this.cachedSummaries.get(key);
   }
 
   public getSync(key: string): IDataSummary | undefined {
@@ -51,7 +51,6 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
    * @returns
    */
   public async set(key: string, value: ISourceState): Promise<void> {
-    console.log("SET HERE START")
     const quads = value.source.queryQuads(
       this.algebraFactory.createPattern(
         this.dataFactory.variable('s'),
@@ -141,7 +140,6 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
         }
       }
     }
-
     const entityResolutionMap = new Map<number, string>();
     // Map subjects to their characteristic sets
     for (const [csetKey, cset] of csetsDocument.entries()) {
@@ -174,10 +172,11 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
         }
       }
     }
+    
     this.cachedSummaries.set(key, {
       csets: csetsDocument,
       cps: localCps,
-      offlineTraverse: value.metadata.offlineTraversal,
+      offlineTraversal: value.metadata.offlineTraversal,
     });
     // TODO: Determine global Cset and CPs of this cache with way 
     // to decrement these values on delete
@@ -199,6 +198,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
       ? JSON.stringify(RdfString.quadToStringQuad(term))
       : RdfString.termToString(term);
   }
+  
   private serializePredicates(predicates: RDF.Quad_Predicate[]): string {
     return JSON.stringify(
       predicates
@@ -210,7 +210,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
   protected onDispose(value: ISourceState, key: string, reason: LRUCache.DisposeReason): void {}
 
   public async has(key: string): Promise<boolean> {
-    throw new Error("Not yet implemented")
+    return this.cachedSummaries.has(key);
   }
 
   public async delete(key: string): Promise<boolean> {
@@ -225,8 +225,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
   }
 
   public async size(): Promise<number> {
-    return 1;
-    throw new Error("Not yet implemented")
+    return this.cachedSummaries.size;
   }
 
   public async serialize(): Promise<void> {}
@@ -308,5 +307,5 @@ export interface ICharacteristicPair {
 export interface IDataSummary {
   cps: Map<string, ICharacteristicPair>;
   csets: Map<string, ICharacteristicSet>;
-  offlineTraverse: IOfflineTraversalEntry;
+  offlineTraversal: IOfflineTraversalEntry;
 }

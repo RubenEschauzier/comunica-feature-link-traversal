@@ -159,10 +159,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
 
     // TODO: 
     // Finish implementation that divides query into meta nodes to decrease size query.
-    // Still required: 
-    // - Estimation cardinality default case with bound predicate unbound subject / object
-    // - Estimation of cardinality with bound subjects / objects
-    // - Estimation cardinality with unbound predicate
+
 
     // Determine how to use csets to improve Comunica estimator for star-shaped queries.
     // Also determine how to use DP-based multi-join in framework for joins
@@ -196,17 +193,22 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     entriesMetadata: IJoinEntryWithMetadata[],
     globalDataSummary: IReachableDataSummary
   ) {
+    // Find smallest cardinality that is not zero and estimated and compare ratio to the
+    const cardinalitiesQuery = entriesMetadata.map((e) => e.metadata.cardinality);
     const subjectStars = this.getSubjectStars(entriesMetadata);
-
     for (const subjectStar of subjectStars) {
       const starPatterns = subjectStar.entries.map(e => <Algebra.Pattern>e.operation);
-      
       // Compute and assign cardinality directly
       subjectStar.cardinality = this.estimateStarCardinality(
         starPatterns, 
         "subject", 
         globalDataSummary
       );
+      console.log(subjectStar.cardinality)
+      
+      // Collapse the star into one node if not too far off from smallest cardinality in
+      // query
+
     }
   }
 
@@ -221,8 +223,9 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     const centerNode = starType === 'subject' ? starPatterns[0].subject : starPatterns[0].object;
     const isCenterBound = isBound(centerNode);
 
-    let matchingCsetKeys: Set<string>;
+    let matchingCsetKeys: Set<string> | undefined;
     let missingBoundValue = false;
+
     if (isCenterBound) {
       // Try to find cset belonging to bound center node
       const hash = PersistentCacheCset.hashTerm(centerNode);
@@ -242,7 +245,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
         matchingCsetKeys = new Set([ boundCenterCset.predKey ]); 
       }
     } 
-    else if (missingBoundValue || !isCenterBound) {
+    if (missingBoundValue || !isCenterBound) {
       // For unbound center values or for bound values with missing csets we
       // execute normal matching. When a bound value is missing we aren't sure
       // the bound value doesn't exist as it can be missing from cache
@@ -251,16 +254,17 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
       matchingCsetKeys = this.getSupersetKeys(starPatterns, globalDataSummary);
       if (matchingCsetKeys.size === 0) {
         return 0;
-      }
-
+      } 
     }
-
+    console.log("Returning here")
     return this.calculateCardinality(
-      matchingCsetKeys, 
+      matchingCsetKeys!, 
       globalDataSummary, 
       starPatterns, 
       starType, 
-      isCenterBound
+      isBound,
+      isCenterBound,
+      missingBoundValue,
     );
   }
 
@@ -289,45 +293,97 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     if (csetKeySets.length === 0) {
       return new Set();
     }
-
     return this.intersectMultipleSets(csetKeySets);
   }  
-  // protected getMetaNodeSubjectStar(
-  //   entriesMetadata: IJoinEntryWithMetadata[],
-  //   globalDataSummary: IReachableDataSummary
-  // ){
-  //   const subjectStars = this.getSubjectStars(entriesMetadata);
 
-  //   // First determine join order for all star shapes with cardinality lower
-  //   // than a ratio of all other stream cardinalities (min cardinality?)
-  //   for (const subjectStar of subjectStars){
-  //     const starPredicates = subjectStar.entries.map(
-  //       (entry) => RdfString.termToString((<Algebra.Pattern> entry.operation).predicate)
-  //     )
-  //     const starPatterns = subjectStar.entries.map(e => <Algebra.Pattern>e.operation);
+  protected calculateCardinality(
+    csetsSuperSet: Set<string>,
+    globalDataSummary: IReachableDataSummary,
+    starPatterns: Algebra.Pattern[],
+    starType: "subject" | "object",
+    isBound: (term: RDF.Term) => boolean,
+    isCenterBound: boolean,
+    missingBoundValue: boolean,
+  ): number {
+    let totalUnboundCardinality = 0;
+    let totalMatchingSubjects = 0;
 
-  //     // Get all csets for all predicates in sub-query
-  //     const csetKeySets: Set<string>[] = [];
-  //     let missingPredicate = false;
+    for (const csetKey of csetsSuperSet) {
+      const cset = globalDataSummary.csets.get(csetKey)!;
+      
+      let m = 1;
+      let o = 1;
 
-  //     for (const pred of starPredicates) {
-  //       const keysForPred = globalDataSummary.predToCset.get(pred);
-  //       if (!keysForPred) {
-  //         missingPredicate = true;
-  //         break; 
-  //       }
-  //       csetKeySets.push(keysForPred);
-  //     }
+      for (const pattern of starPatterns) {
+        const isPredBound = isBound(pattern.predicate);
+        const isPeripheralBound = starType === 'subject' 
+          ? isBound(pattern.object) 
+          : isBound(pattern.subject);
 
-  //     let estimatedCardinality = 0;
-  //     if (!missingPredicate && csetKeySets.length > 0) {
-  //       // Intersection to find all (super) sets of predicates in subquery, which
-  //       // will be in the result set of the sub-star.
-  //       const supersetKeys = this.intersectMultipleSets(csetKeySets);
-  //       this.getCardinalityStarJoin(supersetKeys, globalDataSummary, starPatterns, "subject");
-  //     }
-  //   }
-  // }
+        // Handle unbound predicates (e.g., ?s ?p ?o)
+        if (!isPredBound) {
+          let totalEdges = 0;
+          for (const count of cset.predicateCounts.values()) {
+            totalEdges += count;
+          }
+
+          // Multiply by average total edges per subject in this CSet
+          m *= (totalEdges / cset.subjCount);
+          
+          if (isPeripheralBound) {
+            o = Math.min(o, 1 / cset.subjCount);
+          }
+          continue; 
+        }
+
+        const pred = pattern.predicate.value;
+
+        // Handle bound predicates
+        if (isPeripheralBound) {
+          // Correct conditional selectivity using predicate count, not subject count
+          const conditionalSelectivity = 1 / cset.predicateCounts.get(pred)!; 
+          o = Math.min(o, conditionalSelectivity);
+        } else {
+          if (!cset.predicateCounts.get(pred)){
+            // TODO This becomes undefined which is a mistake with the set intersection
+            console.log(pred);
+            console.log(cset)
+          }
+          // Calculate average predicate occurrences
+          m *= (cset.predicateCounts.get(pred)! / cset.subjCount);
+        }      
+      }
+
+      // If the center is bound, the distinct entity count for this CSet drops to 1.
+      // Otherwise, use the full subject count of the CSet.
+      if (isCenterBound && !missingBoundValue){
+        console.log(m)
+        console.log(o)
+        totalUnboundCardinality += 1 * m * o;
+      } else {
+        totalUnboundCardinality += cset.subjCount * m * o;
+        totalMatchingSubjects += cset.subjCount;
+      }
+    }
+
+    let finalEstimation: number;
+    // We make our estimation based on average cardinality of a subject with these patterns
+    if (isCenterBound && missingBoundValue){
+      if (totalMatchingSubjects === 0){
+        finalEstimation = 0;
+      }
+      else { 
+        finalEstimation = totalUnboundCardinality / totalMatchingSubjects;
+      }
+    }      
+    else {
+      finalEstimation = totalUnboundCardinality;
+    }
+    console.log(finalEstimation)
+
+    return Math.max(1, Math.ceil(finalEstimation));
+  }
+
 
   protected getCardinalityStarJoin(
     csetsSuperSet: Set<string>,

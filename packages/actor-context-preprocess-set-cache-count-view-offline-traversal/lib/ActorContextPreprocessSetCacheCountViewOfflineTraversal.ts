@@ -116,7 +116,7 @@ number
       }
 
       reachableDocuments.add(current.url);
-
+    
       const nextLinks: IOfflineTraversalEntry = sourceState.metadata.offlineTraversal;
       if (nextLinks === undefined) {
         console.log(sourceState.metadata);

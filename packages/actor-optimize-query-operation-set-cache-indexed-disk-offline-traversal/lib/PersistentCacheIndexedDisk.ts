@@ -136,11 +136,9 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     if (this.hotCachePolicy === 'lru' || !this.previouslyDereferenced) {
       return true;
     }
-
     const visits = (this.previouslyDereferenced.get(url) || 0) + 1;
     this.previouslyDereferenced.set(url, visits);
     this.nAccesses++;
-
     // Decay frequency using sliding window
     if (this.nAccesses >= this.decayThreshold) {
       for (const [ key, count ] of this.previouslyDereferenced.entries()) {
@@ -195,7 +193,6 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       }
 
       rehydratedState.metadata = { ...rehydratedState.metadata, ...storedMeta };
-
       // If (traverse === undefined){
       //   throw new Error("Could not find traverse metadata for cache entry that exists within "+
       //     "the disk-based store"
@@ -303,8 +300,9 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
           sanitizeTerm(object),
           cacheGraph,
         ),
-
     };
+    // Add metadata back
+    const cachedMetadata = this.savedMetadata.get(key);
 
     return {
       link: { url: key },
@@ -313,6 +311,8 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
         state: new MetadataValidationState(),
         cardinality: { value: 0, type: 'estimate' },
         variables: [],
+        ...cachedMetadata
+
       },
       handledDatasets: {},
       cachePolicy: <any> { satisfiesWithoutRevalidation: async() => true },

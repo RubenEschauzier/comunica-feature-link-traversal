@@ -106,6 +106,8 @@ export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceSt
       }
     }
     value.metadata.offlineTraversal = traversalAdjList;
+    // console.log(key)
+    // console.log(traversalAdjList)
     cache.set(key, value);
   }
 }

@@ -42,6 +42,15 @@ export const KeysRdfJoin = {
    * If adaptive joining must not be done.
    */
   skipAdaptiveJoin: new ActionContextKey<boolean>('@comunica/bus-rdf-join:skipAdaptiveJoin'),
+  /**
+   * Indicator if the join is star-shaped
+   */
+  isStarShapedJoin: new ActionContextKey<boolean>('@comunica/bus-rdf-join:isStarShapedJoin'),
+  /**
+   * Indicator if the join is a join between meta-nodes 
+   * (nodes that are a result of aggregation of star-shaped nodes)
+   */
+  isMetaJoin: new ActionContextKey<boolean>('@comunica/bus-rdf-join:isMetaJoin'),
 };
 
 export const KeysQuerySourceIdentifyLinkTraversal = {

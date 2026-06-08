@@ -181,6 +181,7 @@ implements ICacheView<
       const globalCps = new Map<string, ICharacteristicPair>();
       const globalCsets = new Map<string, ICharacteristicSet>();
       const globalSubjectsToCsets = new Map<number, ICharacteristicSet>();
+      const globalPredToCsets = new Map<string, Set<string>>();
       for await (const [ key, summary ] of cacheEntryStream) {
 
         if (this.reachableDocuments && !this.reachableDocuments.has(key)){
@@ -197,6 +198,7 @@ implements ICacheView<
             });
 
             globalCsetEntry = {
+              predKey,
               subjCount: 0,
               predicateCounts: new Map(
                 Array.from(cset.predicateCounts.keys()).map(k => [k, 0])
@@ -231,6 +233,17 @@ implements ICacheView<
               globalObjSet.add(obj);
             }
           }
+
+          // Add predicate mapping
+          for (const singlePredKey of cset.predicateCounts.keys()){
+            let predCsets: Set<string> | undefined = globalPredToCsets.get(singlePredKey);
+            if (!predCsets){
+              predCsets = new Set<string>();
+              globalPredToCsets.set(singlePredKey, predCsets);
+            }
+            predCsets.add(predKey);
+          }
+
         }
         for (const [cpKey, cp] of summary.cps.entries()){
           let globalCpEntry = globalCps.get(cpKey);
@@ -283,7 +296,8 @@ implements ICacheView<
       this.globalDataSummary = {
         csets: globalCsets,
         cps: globalCps,
-        subjectToCset: globalSubjectsToCsets
+        subjectToCset: globalSubjectsToCsets,
+        predToCset: globalPredToCsets,
       }
     }
     return this.globalDataSummary;
@@ -436,6 +450,7 @@ export interface IReachableDataSummary{
   cps: Map<string, ICharacteristicPair>;
   csets: Map<string, ICharacteristicSet>;
   subjectToCset: Map<number, ICharacteristicSet>;
+  predToCset: Map<string, Set<string>>;
 }
 
 export interface ICsetPredicateKey {
@@ -447,21 +462,4 @@ export interface ICsetPredicateKey {
    * Number of predicates in the key
    */
   sizeCset: number
-}
-
-export interface IHierarchyNode {
-  /**
-   * Predicates in the predicate key representing this node
-   */
-  predicates: string[];
-  /**
-   * Cost of this node computed as count of all
-   * superset csets of this cset. Superset means that is has _less_
-   * predicates
-   */
-  cost: number;
-  /**
-   * Cheapest subset from this subset
-   */
-  cheapestSubSetPredicateKey?: string;
 }

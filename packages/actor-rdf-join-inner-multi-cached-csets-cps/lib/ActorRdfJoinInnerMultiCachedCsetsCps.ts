@@ -18,10 +18,14 @@ import type {
   IJoinEntryWithMetadata,
   ComunicaDataFactory,
 } from '@comunica/types';
-import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
+import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
 import { getSafeBindings } from '@comunica/utils-query-operation';
 import { IReachableDataSummary } from '../../actor-optimize-query-operation-set-cache-cset-get-view/lib';
 import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import type * as RDF from '@rdfjs/types';
+import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
+import * as RdfString from 'rdf-string';
+import { ICharacteristicSet, PersistentCacheCset } from '@comunica/actor-optimize-query-operation-set-cache-cset-offline-traversal';
 
 /**
  * A Multi Smallest RDF Join Actor.
@@ -75,6 +79,27 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     return super.test(action);
   }
 
+  protected getSubjectStars(entries: IJoinEntryWithMetadata[]) {
+    const starEntries: {subject: RDF.Quad_Subject, entries: IJoinEntryWithMetadata[], cardinality: number }[] = [];
+    for (const entry of entries){
+      const operation = entry.operation;
+      // This guard should always evaluate to true as this actor is a top-level join
+      if (isKnownOperation(operation, Algebra.Types.PATTERN)) {
+        const subject = <RDF.Quad_Subject> operation.subject;
+
+        // Find existing entry and stop iterating
+        const existingStar = starEntries.find((star) => star.subject.equals(subject));
+
+        if (existingStar) {
+          existingStar.entries.push(entry);
+        } else {
+          starEntries.push({ subject, entries: [entry], cardinality: 0 });
+        }
+      }
+    }
+    return starEntries.filter((starEntry) => starEntry.entries.length > 1);
+  }
+
   /**
    * Finds join indexes of lowest cardinality result sets, with priority on result sets that have common variables
    * @param entries A sorted array of entries, sorted on cardinality
@@ -116,6 +141,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     sideData: IActorRdfJoinTestSideData,
   ): Promise<IActorRdfJoinOutputInner> {
     const context = action.context;
+    const entries: IJoinEntry[] = action.entries;
 
     const dataFactory: ComunicaDataFactory = action.context.getSafe(KeysInitQuery.dataFactory);
     const algebraFactory = new AlgebraFactory(dataFactory);
@@ -131,9 +157,32 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
       { seeds, query },
     );
 
-    // Determine the two smallest streams by sorting (e.g. via cardinality)
-    const entries: IJoinEntry[] = action.entries;
+    // TODO: 
+    // Finish implementation that divides query into meta nodes to decrease size query.
+    // Still required: 
+    // - Estimation cardinality default case with bound predicate unbound subject / object
+    // - Estimation of cardinality with bound subjects / objects
+    // - Estimation cardinality with unbound predicate
 
+    // Determine how to use csets to improve Comunica estimator for star-shaped queries.
+    // Also determine how to use DP-based multi-join in framework for joins
+    // Implement selectivity estimator based on csets and cps
+
+    // Only run this actor if we have a data summary, otherwise we just
+    // let Comunica handle it
+    if (globalDataSummary){
+      const entriesMetadata = await ActorRdfJoin.getEntriesWithMetadatas(entries);
+      // Collapse the subject stars into meta nodes if optimizer says so
+      // In this function we set the cardinality of this node properly to ensure
+      // the Comunica optimizer can then handle these nodes properly in optimization
+      this.getMetaNodeSubjectStar(entriesMetadata, globalDataSummary);
+    }
+
+
+    // Then collapse these into meta nodes and determine other join orders
+
+
+    // Return the complete joined result
     return {
       result: await this.mediatorJoin.mediate({
         type: action.type,
@@ -141,6 +190,219 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
         context: context.set(KEY_CONTEXT_WRAPPED, true),
       }),
     };
+  }
+
+  protected getMetaNodeSubjectStar(
+    entriesMetadata: IJoinEntryWithMetadata[],
+    globalDataSummary: IReachableDataSummary
+  ) {
+    const subjectStars = this.getSubjectStars(entriesMetadata);
+
+    for (const subjectStar of subjectStars) {
+      const starPatterns = subjectStar.entries.map(e => <Algebra.Pattern>e.operation);
+      
+      // Compute and assign cardinality directly
+      subjectStar.cardinality = this.estimateStarCardinality(
+        starPatterns, 
+        "subject", 
+        globalDataSummary
+      );
+    }
+  }
+
+  protected estimateStarCardinality(
+    starPatterns: Algebra.Pattern[],
+    starType: "subject" | "object",
+    globalDataSummary: IReachableDataSummary
+  ): number {
+    const isBound = (term: RDF.Term): boolean => 
+      term.termType !== 'Variable' && term.termType !== 'BlankNode';
+
+    const centerNode = starType === 'subject' ? starPatterns[0].subject : starPatterns[0].object;
+    const isCenterBound = isBound(centerNode);
+
+    let matchingCsetKeys: Set<string>;
+    let missingBoundValue = false;
+    if (isCenterBound) {
+      // Try to find cset belonging to bound center node
+      const hash = PersistentCacheCset.hashTerm(centerNode);
+      
+      let boundCenterCset: ICharacteristicSet | undefined = undefined;
+      if (starType === 'subject'){
+        boundCenterCset = globalDataSummary.subjectToCset.get(hash);
+      }
+      else {
+        throw new Error("Object stars not yet supported");
+      }
+
+      if (!boundCenterCset){
+        missingBoundValue = true;
+      }
+      else {
+        matchingCsetKeys = new Set([ boundCenterCset.predKey ]); 
+      }
+    } 
+    else if (missingBoundValue || !isCenterBound) {
+      // For unbound center values or for bound values with missing csets we
+      // execute normal matching. When a bound value is missing we aren't sure
+      // the bound value doesn't exist as it can be missing from cache
+      // so we estimate using default approach and divide by number of unique
+      // values possible in that position
+      matchingCsetKeys = this.getSupersetKeys(starPatterns, globalDataSummary);
+      if (matchingCsetKeys.size === 0) {
+        return 0;
+      }
+
+    }
+
+    return this.calculateCardinality(
+      matchingCsetKeys, 
+      globalDataSummary, 
+      starPatterns, 
+      starType, 
+      isCenterBound
+    );
+  }
+
+  /**
+   * Get keys of all cset supersets of the current patterns in the star
+   */
+  protected getSupersetKeys(
+    starPatterns: Algebra.Pattern[],
+    globalDataSummary: IReachableDataSummary
+  ): Set<string> {
+    const isBound = (term: RDF.Term): boolean => term.termType !== 'Variable';
+    const csetKeySets: Set<string>[] = [];
+
+    for (const pattern of starPatterns) {
+      if (isBound(pattern.predicate)) {
+        const keysForPred = globalDataSummary.predToCset.get(
+          RdfString.termToString(pattern.predicate)
+        );
+        if (!keysForPred) {
+          return new Set();
+        }
+        csetKeySets.push(keysForPred);
+      }
+    }
+
+    if (csetKeySets.length === 0) {
+      return new Set();
+    }
+
+    return this.intersectMultipleSets(csetKeySets);
+  }  
+  // protected getMetaNodeSubjectStar(
+  //   entriesMetadata: IJoinEntryWithMetadata[],
+  //   globalDataSummary: IReachableDataSummary
+  // ){
+  //   const subjectStars = this.getSubjectStars(entriesMetadata);
+
+  //   // First determine join order for all star shapes with cardinality lower
+  //   // than a ratio of all other stream cardinalities (min cardinality?)
+  //   for (const subjectStar of subjectStars){
+  //     const starPredicates = subjectStar.entries.map(
+  //       (entry) => RdfString.termToString((<Algebra.Pattern> entry.operation).predicate)
+  //     )
+  //     const starPatterns = subjectStar.entries.map(e => <Algebra.Pattern>e.operation);
+
+  //     // Get all csets for all predicates in sub-query
+  //     const csetKeySets: Set<string>[] = [];
+  //     let missingPredicate = false;
+
+  //     for (const pred of starPredicates) {
+  //       const keysForPred = globalDataSummary.predToCset.get(pred);
+  //       if (!keysForPred) {
+  //         missingPredicate = true;
+  //         break; 
+  //       }
+  //       csetKeySets.push(keysForPred);
+  //     }
+
+  //     let estimatedCardinality = 0;
+  //     if (!missingPredicate && csetKeySets.length > 0) {
+  //       // Intersection to find all (super) sets of predicates in subquery, which
+  //       // will be in the result set of the sub-star.
+  //       const supersetKeys = this.intersectMultipleSets(csetKeySets);
+  //       this.getCardinalityStarJoin(supersetKeys, globalDataSummary, starPatterns, "subject");
+  //     }
+  //   }
+  // }
+
+  protected getCardinalityStarJoin(
+    csetsSuperSet: Set<string>,
+    globalDataSummary: IReachableDataSummary,
+    starPatterns: Algebra.Pattern[],
+    starType: "subject" | "object"
+    ){
+    const isBound = (term: RDF.Term): boolean => 
+      term.termType !== 'Variable' && term.termType !== 'BlankNode';
+
+    let boundValue: ICharacteristicSet | undefined;
+    if (starType === 'subject' && isBound(starPatterns[0].subject)) {
+      boundValue = globalDataSummary.subjectToCset.get(
+        PersistentCacheCset.hashTerm(starPatterns[0].subject)
+      );
+    }
+    if (starType === 'object' && isBound(starPatterns[0].object)) {
+      boundValue = globalDataSummary.subjectToCset.get(
+        PersistentCacheCset.hashTerm(starPatterns[0].object)
+      );
+    }
+    if (boundValue){
+      csetsSuperSet = new Set(boundValue.predKey);
+    }
+
+    const cardinality = this.getCardinality(
+      csetsSuperSet, 
+      globalDataSummary,
+      starPatterns,
+      starType,
+      isBound
+    );
+
+  }
+
+  protected getCardinality(
+    csetsSuperSet: Set<string>,
+    globalDataSummary: IReachableDataSummary,
+    starPatterns: Algebra.Pattern[],
+    starType: "subject" | "object",
+    isBound: (term: RDF.Term) => boolean,
+  ){
+    let estimatedCardinality = 0;
+
+    for (const csetKey of csetsSuperSet) {
+      const cset = globalDataSummary.csets.get(csetKey)!;
+      
+      let m = 1;
+      let o = 1;
+
+      for (const pattern of starPatterns) {
+        const isSubjBound = isBound(pattern.subject);
+        const isPredBound = isBound(pattern.predicate);
+        const isObjBound = isBound(pattern.object);
+
+        // TODO: Determine how to estimate when predicate is unbound
+        if (!isPredBound){
+
+        }
+
+        const pred = pattern.predicate.value;
+        if ((isObjBound && starType === 'subject') || (isSubjBound && starType === 'object')) {
+          // Approximate conditional selectivity using the lower bound (1 / S.distinct)
+          const conditionalSelectivity = 1 / cset.predicateCounts.get(pred)!; 
+          o = Math.min(o, conditionalSelectivity);
+        }
+        else {
+          // Calculate average predicate occurrences: S.count(p_i) / S.distinct
+          m = m * (cset.predicateCounts.get(pred)! / cset.subjCount);
+        }      
+      }
+
+      // Accumulate total cardinality
+      estimatedCardinality += cset.subjCount * m * o;
+    }
   }
 
   protected async getJoinCoefficients(
@@ -153,6 +415,45 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
       blockingItems: 0,
       requestTime: 0,
     }, { ...sideData });
+  }
+
+
+  protected intersectSets<T>(setA: Set<T>, setB: Set<T>): Set<T> {
+    // Always iterate over the smaller set to minimize loop iterations
+    if (setA.size > setB.size) {
+      return this.intersectSets(setB, setA);
+    }
+
+    const intersection = new Set<T>();
+    for (const item of setA) {
+      if (setB.has(item)) {
+        intersection.add(item);
+      }
+    }
+
+    return intersection;
+  }
+
+  protected intersectMultipleSets<T>(sets: Set<T>[]): Set<T> {
+    if (sets.length === 0) {
+      return new Set<T>();
+    }
+
+    // Sort sets by size ascending
+    sets.sort((a, b) => a.size - b.size);
+
+    let result = sets[0];
+
+    for (let i = 1; i < sets.length; i++) {
+      result = this.intersectSets(result, sets[i]);
+      
+      // Early exit if the intersection is empty
+      if (result.size === 0) {
+        break;
+      }
+    }
+
+    return result;
   }
 }
 

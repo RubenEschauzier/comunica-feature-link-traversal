@@ -71,7 +71,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
       for await (const quad of quads) {
         const { subject, predicate, object } = quad;
 
-        const subjectKey = this.serializeTerm(subject);
+        const subjectKey = PersistentCacheCset.serializeTerm(subject);
 
         let data = subjectData.get(subjectKey);
         if (!data) {
@@ -93,7 +93,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
             data.objects.set(predicateKey, objectsForPredicate);
           }
           
-          objectsForPredicate.add(this.hashTerm(this.serializeTerm(object)));        
+          objectsForPredicate.add(PersistentCacheCset.hashTerm(object));        
         }
       }
     } catch (err) {
@@ -110,7 +110,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
       const objects = data.objects;
 
       const predicateKeys = [ ...predicates.keys() ];
-      const predicateKey = this.serializePredicates(
+      const predicateKey = PersistentCacheCset.serializePredicates(
         predicateKeys
           .map(keyString => <RDF.Quad_Predicate> RdfString.stringToTerm(keyString)),
       );
@@ -118,6 +118,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
       let cset = csetsDocument.get(predicateKey);
       if (!cset) {
         cset = {
+          predKey: predicateKey,
           subjCount: 0,
           predicateCounts: new Map(predicateKeys.map(key => [ key, 0 ])),
           localSubjects: new Set(),
@@ -126,7 +127,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
         csetsDocument.set(predicateKey, cset);
       }
       cset.subjCount++;
-      cset.localSubjects.add(this.hashTerm(subjectKey));
+      cset.localSubjects.add(PersistentCacheCset.hashTermString(subjectKey));
 
       for (const [ predKey, count ] of predicates.entries()) {
         const currentTotal = cset.predicateCounts.get(predKey)!;
@@ -140,8 +141,8 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
         }
       }
     }
-    const entityResolutionMap = new Map<number, string>();
     // Map subjects to their characteristic sets
+    const entityResolutionMap = new Map<number, string>();
     for (const [csetKey, cset] of csetsDocument.entries()) {
       for (const subjectHash of cset.localSubjects) {
         entityResolutionMap.set(subjectHash, csetKey);
@@ -184,17 +185,21 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
     return `${subjKey}|${predicateKey}|${objectKey}`;
   }
   
-  private hashTerm(term: string): number{
+  public static hashTermString(term: string): number {
     return murmurhash.v3(term);
   }
 
-  private serializeTerm(term: RDF.Term): string {
+  public static hashTerm(term: RDF.Term): number {
+    return PersistentCacheCset.hashTermString(PersistentCacheCset.serializeTerm(term));
+  }
+
+  public static serializeTerm(term: RDF.Term): string {
     return term.termType === 'Quad'
       ? JSON.stringify(RdfString.quadToStringQuad(term))
       : RdfString.termToString(term);
   }
   
-  private serializePredicates(predicates: RDF.Quad_Predicate[]): string {
+  public static serializePredicates(predicates: RDF.Quad_Predicate[]): string {
     return JSON.stringify(
       predicates
         .map(pred => RdfString.termToString(pred))
@@ -259,6 +264,7 @@ export interface IPersistentCacheCsetArgs {
  * Then on dispose decrement relevant values
  */
 export interface ICharacteristicSet {
+  predKey: string;
   /**
    * Number of occurrences of this cset
    */

@@ -21,7 +21,7 @@ import { visitOperation } from '@comunica/utils-algebra/lib/utils';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
 import { UnionIterator } from 'asynciterator';
-import { ICharacteristicPair, ICharacteristicSet, IDataSummary } from '@comunica/actor-optimize-query-operation-set-cache-cset-offline-traversal';
+import { ICharacteristicPair, ICharacteristicSet, IDataSummary } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -144,7 +144,7 @@ implements ICacheView<
 > {
   protected readonly computedCounts: Record<string, number> = {};
   protected reachableDocuments: Set<string> | undefined;
-  protected globalDataSummary: IReachableDataSummary | undefined;
+  protected globalDataSummary: Promise<IReachableDataSummary> | undefined;
   protected readonly maxNumCsets: number;
 
 
@@ -177,130 +177,131 @@ implements ICacheView<
 
     const cacheEntryStream = cache.entries();
     if (!this.globalDataSummary) {
-      const globalCsetKeysSorted: ICsetPredicateKey[] = [];
-      const globalCps = new Map<string, ICharacteristicPair>();
-      const globalCsets = new Map<string, ICharacteristicSet>();
-      const globalSubjectsToCsets = new Map<number, ICharacteristicSet>();
-      const globalPredToCsets = new Map<string, Set<string>>();
-      for await (const [ key, summary ] of cacheEntryStream) {
-
-        if (this.reachableDocuments && !this.reachableDocuments.has(key)){
-          continue;
-        }
-        // Aggregate the csets in different documents to one global cset mapping
-        for (const [predKey, cset] of summary.csets.entries()){
-
-          let globalCsetEntry = globalCsets.get(predKey);
-          if (!globalCsetEntry) {
-            globalCsetKeysSorted.push({
-              predicateKey: predKey,
-              sizeCset: cset.predicateCounts.size,
-            });
-
-            globalCsetEntry = {
-              predKey,
-              subjCount: 0,
-              predicateCounts: new Map(
-                Array.from(cset.predicateCounts.keys()).map(k => [k, 0])
-              ),
-              localSubjects: new Set(),
-              localObjects: new Map(
-                Array.from(cset.localObjects.keys()).map(k => [k, new Set()])
-              ),
-            };
-
-            globalCsets.set(predKey, globalCsetEntry);
-          }    
-          globalCsetEntry.subjCount += cset.subjCount;
-          for (const [pred, count] of cset.predicateCounts.entries()) {
-            const currentCount = globalCsetEntry.predicateCounts.get(pred) || 0;
-            globalCsetEntry.predicateCounts.set(pred, currentCount + count);
+      this.globalDataSummary = new Promise<IReachableDataSummary>(async (resolve) => {
+        const globalCsetKeysSorted: ICsetPredicateKey[] = [];
+        const globalCps = new Map<string, ICharacteristicPair>();
+        const globalCsets = new Map<string, ICharacteristicSet>();
+        const globalSubjectsToCsets = new Map<number, ICharacteristicSet>();
+        const globalPredToCsets = new Map<string, Set<string>>();
+        for await (const [ key, summary ] of cacheEntryStream) {
+          if (this.reachableDocuments && !this.reachableDocuments.has(key)){
+            continue;
           }
+          // Aggregate the csets in different documents to one global cset mapping
+          for (const [predKey, cset] of summary.csets.entries()){
 
-          // Aggregate local subjects (Union of Sets)
-          for (const subj of cset.localSubjects) {
-            globalCsetEntry.localSubjects.add(subj);
-          }
+            let globalCsetEntry = globalCsets.get(predKey);
+            if (!globalCsetEntry) {
+              globalCsetKeysSorted.push({
+                predicateKey: predKey,
+                sizeCset: cset.predicateCounts.size,
+              });
 
-          // Aggregate local objects per predicate (Union of Sets)
-          for (const [pred, objects] of cset.localObjects.entries()) {
-            let globalObjSet = globalCsetEntry.localObjects.get(pred);
-            if (!globalObjSet) {
-              globalObjSet = new Set();
-              globalCsetEntry.localObjects.set(pred, globalObjSet);
+              globalCsetEntry = {
+                predKey,
+                subjCount: 0,
+                predicateCounts: new Map(
+                  Array.from(cset.predicateCounts.keys()).map(k => [k, 0])
+                ),
+                localSubjects: new Set(),
+                localObjects: new Map(
+                  Array.from(cset.localObjects.keys()).map(k => [k, new Set()])
+                ),
+              };
+
+              globalCsets.set(predKey, globalCsetEntry);
+            }    
+            globalCsetEntry.subjCount += cset.subjCount;
+            for (const [pred, count] of cset.predicateCounts.entries()) {
+              const currentCount = globalCsetEntry.predicateCounts.get(pred) || 0;
+              globalCsetEntry.predicateCounts.set(pred, currentCount + count);
             }
-            for (const obj of objects) {
-              globalObjSet.add(obj);
-            }
-          }
 
-          // Add predicate mapping
-          for (const singlePredKey of cset.predicateCounts.keys()){
-            let predCsets: Set<string> | undefined = globalPredToCsets.get(singlePredKey);
-            if (!predCsets){
-              predCsets = new Set<string>();
-              globalPredToCsets.set(singlePredKey, predCsets);
+            // Aggregate local subjects (Union of Sets)
+            for (const subj of cset.localSubjects) {
+              globalCsetEntry.localSubjects.add(subj);
             }
-            predCsets.add(predKey);
-          }
 
-        }
-        for (const [cpKey, cp] of summary.cps.entries()){
-          let globalCpEntry = globalCps.get(cpKey);
-          if (!globalCpEntry){
-            globalCpEntry = {
-              ...cp,
-              count: 0
-            }
-            globalCps.set(cpKey, globalCpEntry);
-          }
-          globalCpEntry.count += cp.count;
-        }
-      }
-
-      // Compute characteristic pairs between different reachable documents
-      const entityResolutionMap = new Map<number, string>();
-      // Map subjects to their characteristic sets
-      for (const [csetKey, cset] of globalCsets.entries()) {
-        for (const subjectHash of cset.localSubjects) {
-          entityResolutionMap.set(subjectHash, csetKey);
-          globalSubjectsToCsets.set(subjectHash, cset);
-        }
-      }
-      
-      for (const [subjectCSetKey, cset] of globalCsets.entries()) {
-        for (const [predicateKey, objectHashes] of cset.localObjects.entries()) {
-          for (const objectHash of objectHashes) {
-            const objectCSetKey = entityResolutionMap.get(objectHash);
-            // If we match an entity in the subjects with one of the objects in current
-            // cs we have need to update this cp
-            if (objectCSetKey) {
-              const cpKey = this.toCpKey(subjectCSetKey, predicateKey, objectCSetKey);
-              let cp = globalCps.get(cpKey);
-              if (!cp){
-                cp = {
-                  csetSubj: cset,
-                  csetObj: globalCsets.get(objectCSetKey)!,
-                  predicate: predicateKey,
-                  count: 0
-                }
-                globalCps.set(cpKey, cp);
+            // Aggregate local objects per predicate (Union of Sets)
+            for (const [pred, objects] of cset.localObjects.entries()) {
+              let globalObjSet = globalCsetEntry.localObjects.get(pred);
+              if (!globalObjSet) {
+                globalObjSet = new Set();
+                globalCsetEntry.localObjects.set(pred, globalObjSet);
               }
-              cp.count++;
+              for (const obj of objects) {
+                globalObjSet.add(obj);
+              }
+            }
+
+            // Add predicate mapping
+            for (const singlePredKey of cset.predicateCounts.keys()){
+              let predCsets: Set<string> | undefined = globalPredToCsets.get(singlePredKey);
+              if (!predCsets){
+                predCsets = new Set<string>();
+                globalPredToCsets.set(singlePredKey, predCsets);
+              }
+              predCsets.add(predKey);
+            }
+
+          }
+          for (const [cpKey, cp] of summary.cps.entries()){
+            let globalCpEntry = globalCps.get(cpKey);
+            if (!globalCpEntry){
+              globalCpEntry = {
+                ...cp,
+                count: 0
+              }
+              globalCps.set(cpKey, globalCpEntry);
+            }
+            globalCpEntry.count += cp.count;
+          }
+        }
+
+        // Compute characteristic pairs between different reachable documents
+        const entityResolutionMap = new Map<number, string>();
+        // Map subjects to their characteristic sets
+        for (const [csetKey, cset] of globalCsets.entries()) {
+          for (const subjectHash of cset.localSubjects) {
+            entityResolutionMap.set(subjectHash, csetKey);
+            globalSubjectsToCsets.set(subjectHash, cset);
+          }
+        }
+        
+        for (const [subjectCSetKey, cset] of globalCsets.entries()) {
+          for (const [predicateKey, objectHashes] of cset.localObjects.entries()) {
+            for (const objectHash of objectHashes) {
+              const objectCSetKey = entityResolutionMap.get(objectHash);
+              // If we match an entity in the subjects with one of the objects in current
+              // cs we have need to update this cp
+              if (objectCSetKey) {
+                const cpKey = this.toCpKey(subjectCSetKey, predicateKey, objectCSetKey);
+                let cp = globalCps.get(cpKey);
+                if (!cp){
+                  cp = {
+                    csetSubj: cset,
+                    csetObj: globalCsets.get(objectCSetKey)!,
+                    predicate: predicateKey,
+                    count: 0
+                  }
+                  globalCps.set(cpKey, cp);
+                }
+                cp.count++;
+              }
             }
           }
         }
-      }
-      console.log(`Contains: ${globalCsets.size} csets`);
-      console.log(`Contains: ${globalCps.size} cps`);
-      this.globalDataSummary = {
-        csets: globalCsets,
-        cps: globalCps,
-        subjectToCset: globalSubjectsToCsets,
-        predToCset: globalPredToCsets,
-      }
+        console.log(`Contains: ${globalCsets.size} csets`);
+        console.log(`Contains: ${globalCps.size} cps`);
+        resolve({
+          csets: globalCsets,
+          cps: globalCps,
+          subjectToCset: globalSubjectsToCsets,
+          predToCset: globalPredToCsets,
+        })
+      });
     }
-    return this.globalDataSummary;
+    return await this.globalDataSummary;
   }
 
   protected async findReachableDocuments(
@@ -388,6 +389,7 @@ implements ICacheView<
     });
     return predicates;
   }
+
   /**
    * From PersistentCacheCset and should always be aligned (possibly add to util functions)
    * @param subjKey 
@@ -397,15 +399,6 @@ implements ICacheView<
    */
   private toCpKey(subjKey: string, predicateKey: string, objectKey: string){
     return `${subjKey}|${predicateKey}|${objectKey}`;
-  }
-
-  private patternKey(pattern: Algebra.Pattern): string {
-    return [
-      pattern.subject.value,
-      pattern.predicate.value,
-      pattern.object.value,
-      pattern.graph?.value ?? '',
-    ].join('|');
   }
 }
 

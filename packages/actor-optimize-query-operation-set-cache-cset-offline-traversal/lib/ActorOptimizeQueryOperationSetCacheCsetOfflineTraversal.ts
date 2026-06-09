@@ -13,7 +13,7 @@ import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ILink, ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
 import type * as RDF from '@rdfjs/types';
-import { IDataSummary, PersistentCacheCset } from './PersistentCacheCset';
+import { IDataSummary, PersistentCacheCset } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -50,7 +50,7 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
       this.cacheQuerySourceState = new PersistentCacheCset(
         { maxNumSummaries: this.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
       );
-      console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
+      console.log(`Cleaned cset cache, size: ${await this.cacheQuerySourceState.size()}`);
     }
 
     const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
@@ -61,17 +61,20 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
-      CacheEntryDataSummary.cacheSourceStateQuerySource,
+      CacheEntryDataSummary.cacheCsetCpsSummary,
       this.cacheQuerySourceState,
       new SetSourceStateCacheOfflineTraversal(),
     );
-    console.log(`Register: ${CacheEntryDataSummary.cacheSourceStateQuerySource.id}`)
+    console.log(`Register: ${CacheEntryDataSummary.cacheCsetCpsSummary.id}`)
 
     return { context, operation: action.operation };
   }
 }
 
-export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState, ISourceState, { headers: Headers }> {
+export class SetSourceStateCacheOfflineTraversal implements 
+ISetFn<
+  ISourceState, ISourceState, { headers: Headers }
+> {
   public async setInCache(
     key: string,
     value: ISourceState,
@@ -88,6 +91,9 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
       default: [],
     };
 
+    // TODO: Add update traverse context entry that only updates metadata of the cachedState
+    // Also look into if this cMatch-based criterion is correct?
+    
     for (const traverseEntry of value.metadata.traverse) {
       const traverseMetadata = traverseEntry.metadata;
       

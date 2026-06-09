@@ -1,0 +1,44 @@
+{
+  "name": "@comunica/caches-link-traversal",
+  "version": "0.8.0",
+  "description": "A collection of reusable Comunica caches for link traversal.",
+  "license": "MIT",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/comunica-association"
+  },
+  "homepage": "https://comunica.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/comunica/comunica-feature-link-traversal.git",
+    "directory": "packages/context-entries-link-traversal"
+  },
+  "bugs": {
+    "url": "https://github.com/comunica/comunica-feature-link-traversal/issues"
+  },
+  "keywords": [
+    "comunica",
+    "context",
+    "entries",
+    "keys"
+  ],
+  "sideEffects": false,
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "scripts": {
+    "build": "node \"../../node_modules/typescript/bin/tsc\""
+  },
+  "dependencies": {
+    "@comunica/core": "^5.2.0",
+    "@comunica/types-link-traversal": "^0.8.0"
+  }
+}

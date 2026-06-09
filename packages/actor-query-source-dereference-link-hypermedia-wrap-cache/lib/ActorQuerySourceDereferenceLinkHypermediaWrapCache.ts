@@ -1,4 +1,4 @@
-import { QuerySourceCacheWrapper } from '@comunica/actor-context-preprocess-set-cache-source-state';
+import { QuerySourceCacheWrapper } from '@comunica/caches-link-traversal';
 import {
   ActorQuerySourceDereferenceLink,
 } from '@comunica/bus-query-source-dereference-link';
@@ -84,24 +84,24 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
         sourceFromCache,
       );
       
-      // Set back into cache to update any metadata for the given query (like traversal data)
-      sourceFromCache.source = new QuerySourceCacheWrapper(sourceFromCache.source);
-      await cacheManager.setCache(
-        this.cacheEntryKey,
-        action.link.url,
-        sourceFromCache,
-        { headers: {} },
-      );
-      if (this.cacheSetKeys){
-        for (const key of this.cacheSetKeys){
-          await cacheManager.setCache(
-            key,
-            action.link.url,
-            sourceFromCache,
-            { headers: {} },
-          );
-        }
-      }
+      // // Set back into cache to update any metadata for the given query (like traversal data)
+      // sourceFromCache.source = new QuerySourceCacheWrapper(sourceFromCache.source);
+      // await cacheManager.setCache(
+      //   this.cacheEntryKey,
+      //   action.link.url,
+      //   sourceFromCache,
+      //   { headers: {} },
+      // );
+      // if (this.cacheSetKeys){
+      //   for (const key of this.cacheSetKeys){
+      //     await cacheManager.setCache(
+      //       key,
+      //       action.link.url,
+      //       sourceFromCache,
+      //       { headers: {} },
+      //     );
+      //   }
+      // }
 
       return sourceFromCache;
     }

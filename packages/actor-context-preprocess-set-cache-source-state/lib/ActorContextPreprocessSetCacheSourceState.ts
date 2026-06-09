@@ -16,7 +16,7 @@ import type { ISourceState, ICacheView, IPersistentCache, ISetFn, ILink, Comunic
 
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
-import { PersistentCacheSourceStateNumTriples } from './PersistentCacheSourceStateNumTriples';
+import { PersistentCacheSourceStateUnIndexed } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.
@@ -26,7 +26,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
   protected readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
 
   private readonly cacheSizeNumTriples: number;
-  private cacheSourceState: PersistentCacheSourceStateNumTriples;
+  private cacheSourceState: PersistentCacheSourceStateUnIndexed;
   private readonly cacheDeserializationDone: Promise<void>;
 
   public readonly probabilityCacheMiss?: number;
@@ -35,7 +35,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.mediatorQuerySourceIdentifyHypermedia = args.mediatorQuerySourceIdentifyHypermedia;
-    this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
+    this.cacheSourceState = new PersistentCacheSourceStateUnIndexed(
       {
         maxNumTriples: args.cacheSizeNumTriples,
         mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
@@ -61,7 +61,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
 
     // TEMP Solution due to my own sparql benchmark runner adjustments
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
-      this.cacheSourceState = new PersistentCacheSourceStateNumTriples(
+      this.cacheSourceState = new PersistentCacheSourceStateUnIndexed(
         {
           maxNumTriples: this.cacheSizeNumTriples,
           mediatorQuerySourceIdentifyHypermedia: this.mediatorQuerySourceIdentifyHypermedia,
@@ -78,7 +78,7 @@ export class ActorContextPreprocessSetCacheSourceState extends ActorContextPrepr
     }
 
     cacheManager.registerCache(
-      CacheEntrySourceState.cacheSourceState,
+      CacheEntrySourceState.cacheSourceStateUnIndexed,
       this.cacheSourceState,
       new SetSourceStateCache(),
     );

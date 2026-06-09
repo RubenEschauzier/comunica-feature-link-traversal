@@ -11,9 +11,7 @@ import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/c
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ILink, ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
-
-import type * as RDF from '@rdfjs/types';
-import { PersistentCacheSourceStateIndexed } from './PersistentCacheSourceStateIndexed';
+import { PersistentCacheSourceStateIndexed } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -31,7 +29,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexed extends ActorOptimizeQue
       { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
-    console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
+    console.log(`${this.name}: Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
@@ -58,14 +56,12 @@ export class ActorOptimizeQueryOperationSetCacheIndexed extends ActorOptimizeQue
       console.log('Adding serialization callback to timeout callbacks');
       timeoutCallbacks.push(async() => await this.cacheQuerySourceState.serialize());
     }
-
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
-      CacheEntrySourceState.cacheSourceStateQuerySource,
+      CacheEntrySourceState.cacheSourceStateIndexed,
       this.cacheQuerySourceState,
       new SetSourceStateCache(),
     );
-
     return { context, operation: action.operation };
   }
 }
@@ -81,31 +77,6 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
   }
 }
 
-export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState, ISourceState, { headers: Headers }> {
-  public async setInCache(
-    key: string,
-    value: ISourceState,
-    cache: IPersistentCache<ISourceState, ISourceState>,
-    context: { headers: Headers },
-  ): Promise<void> {
-    const traversalAdjList: IOfflineTraversalEntry = {
-      predicates: {},
-      default: [],
-    };
-    for (const traverseEntry of value.metadata.traverse) {
-      const traverseMetadata = traverseEntry.metadata;
-      if (traverseMetadata && 'matchingPatterns' in traverseMetadata) {
-        for (const quad of (<RDF.BaseQuad[]> traverseMetadata.matchingPatterns)) {
-          traversalAdjList.predicates[quad.predicate.value] = { url: traverseEntry.url };
-        }
-      } else {
-        traversalAdjList.default.push({ url: traverseEntry.url });
-      }
-    }
-    value.metadata.offlineTraversal = traversalAdjList;
-    cache.set(key, value);
-  }
-}
 
 export interface IActorOptimizeQueryOperationSetCacheIndexedArgs extends IActorOptimizeQueryOperationArgs {
   /**

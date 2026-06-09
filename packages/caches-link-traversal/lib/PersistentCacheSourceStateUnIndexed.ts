@@ -1,41 +1,46 @@
 import * as fs from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
+import type { IActionQuerySourceIdentifyHypermedia, MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
+import { KeysInitQuery } from '@comunica/context-entries';
 import { ActionContext } from '@comunica/core';
 import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
 import { AlgebraFactory } from '@comunica/utils-algebra';
-import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
 import { LRUCache } from 'lru-cache';
 import * as n3 from 'n3';
 import { DataFactory } from 'rdf-data-factory';
-import { RdfStore } from 'rdf-stores';
+import { QuerySourceCacheWrapper } from './QuerySourceCacheWrapper';
 
-export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISourceState, ISourceState> {
+export class PersistentCacheSourceStateUnIndexed
+ implements IPersistentCache<ISourceState, ISourceState> {
   private readonly sizeMap = new Map<string, number>();
   private readonly maxNumTriples: number;
   private readonly lruCacheDocuments: LRUCache<string, ISourceState>;
 
   private readonly dataFactory = new DataFactory();
-  private readonly bindingsFactory = new BindingsFactory(this.dataFactory);
   private readonly algebraFactory = new AlgebraFactory(this.dataFactory);
 
-  private isTracking = false;
-  private cacheMetrics: ICacheMetrics;
-
   private readonly serializationLoc: string;
+  private readonly mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
+
+  // Tracking document size to use as placeholder for adding quads to the cache
+  private averageDocumentSize = 1;
+  private computedDocumentCount = 0;
+
+  private cacheMetrics: ICacheMetrics;
 
   public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
     this.maxNumTriples = args.maxNumTriples;
     this.lruCacheDocuments = new LRUCache<string, ISourceState>({
       maxSize: this.maxNumTriples,
-      sizeCalculation: (value, key) => this.sizeMap.get(key) || 1,
+      sizeCalculation: (value, key) => this.sizeMap.get(key) || this.averageDocumentSize,
       dispose: this.onDispose.bind(this),
     });
-    this.serializationLoc = args.serializationLoc;
     this.cacheMetrics = this.resetMetrics();
+    this.serializationLoc = args.serializationLoc;
+    this.mediatorQuerySourceIdentifyHypermedia = args.mediatorQuerySourceIdentifyHypermedia;
   }
 
   public async get(key: string): Promise<ISourceState | undefined> {
@@ -45,9 +50,8 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   public getSync(key: string): ISourceState | undefined {
     const cachedState = this.lruCacheDocuments.get(key);
 
-    if (this.isTracking) {
-      cachedState ? this.cacheMetrics.hits++ : this.cacheMetrics.misses++;
-    }
+    // Track metrics
+    cachedState ? this.cacheMetrics.hits++ : this.cacheMetrics.misses++;
 
     return cachedState;
   }
@@ -56,45 +60,32 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     return keys.map(key => this.getSync(key));
   }
 
-  /**
-   * Upon setting of a source, we index it and set it in the LRUCache.
-   * @param key
-   * @param value
-   * @returns
-   */
   public async set(key: string, value: ISourceState): Promise<void> {
-    const rdfStore = RdfStore.createDefault();
-    const importStream = rdfStore.import(value.source.queryQuads(
-      this.algebraFactory.createPattern(
-        this.dataFactory.variable('s'),
-        this.dataFactory.variable('p'),
-        this.dataFactory.variable('o'),
-        this.dataFactory.variable('g'),
-      ),
-      new ActionContext(),
-    ));
+    this.lruCacheDocuments.set(key, value);
+    if ('getSize' in value.source &&
+            typeof value.source.getSize === 'function') {
+      (<Promise<number>>value.source.getSize()).then((finalSize) => {
+        // Update the running average
+        this.computedDocumentCount++;
+        this.averageDocumentSize = Math.max(1, Math.floor(
+          this.averageDocumentSize + (finalSize - this.averageDocumentSize) / this.computedDocumentCount,
+        ));
 
-    return new Promise((resolve, reject) => {
-      importStream.on('end', () => {
-        this.sizeMap.set(key, rdfStore.size);
-        this.lruCacheDocuments.set(key, {
-          ...value,
-          source: new QuerySourceRdfJs(
-            rdfStore,
-            this.dataFactory,
-            this.bindingsFactory,
-          ),
-        });
-        resolve();
+        if (this.lruCacheDocuments.has(key)) {
+          this.sizeMap.set(key, finalSize);
+          // We have to explicitly delete as .set() reuses the previous computed size
+          this.lruCacheDocuments.delete(key);
+          // Re-setting the key updates its size in the LRU engine
+          this.lruCacheDocuments.set(key, value);
+        }
+      }).catch(() => {
+        // Ignore stream errors here; they are handled by the main query consumer.
       });
-      importStream.on('error', () => {
-        reject('Import stream to cache error');
-      });
-    });
+    }
   }
 
   protected onDispose(value: ISourceState, key: string, reason: LRUCache.DisposeReason): void {
-    if (reason === 'evict' && this.isTracking) {
+    if (reason === 'evict') {
       this.cacheMetrics.evictions++;
       this.cacheMetrics.evictionsCalculatedSize += this.sizeMap.get(key) ?? 1;
       this.cacheMetrics.evictionPercentage =
@@ -115,7 +106,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
   public entries(): AsyncIterator<[string, ISourceState]> {
     return new ArrayIterator(
-      this.lruCacheDocuments.entries(),
+      [ ...this.lruCacheDocuments.entries() ],
       { autoStart: false },
     );
   }
@@ -289,28 +280,30 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
           // having to re-request the document
           quadsArray = [];
         }
-        const newIndexedSource = RdfStore.createDefault();
-        for (const quad of quadsArray) {
-          const newQuad = newIndexedSource.addQuad(quad);
-          if (newQuad) {
-            quadsLoaded++;
-          }
-        }
-        this.sizeMap.set(meta.key, Math.max(newIndexedSource.size, 1));
-        this.lruCacheDocuments.set(meta.key, {
+        quadsLoaded += quadsArray.length;
+
+        const output = await this.mediatorQuerySourceIdentifyHypermedia.mediate({
+          url: meta.url,
+          metadata: meta.metadata,
+          quads: new ArrayIterator(quadsArray, { autoStart: false }),
+          handledDatasets: meta.handledDatasets,
+          context: ActionContext.ensureActionContext().set(KeysInitQuery.dataFactory, this.dataFactory),
+        });
+
+        const fullState: ISourceState = {
           link: { url: meta.url },
           metadata: meta.metadata,
           handledDatasets: meta.handledDatasets,
+          source: new QuerySourceCacheWrapper(output.source),
           headers: meta.headers ? new Headers(meta.headers) : undefined,
+          // Stub implementation for testing, we should rehydrate this in some way
+          // too for real usage
           cachePolicy: {
             satisfiesWithoutRevalidation: async() => true,
           } as any,
-          source: new QuerySourceRdfJs(
-            newIndexedSource,
-            this.dataFactory,
-            this.bindingsFactory,
-          ),
-        });
+        };
+        this.sizeMap.set(meta.key, Math.max(1, quadsArray.length));
+        this.lruCacheDocuments.set(meta.key, fullState);
       }
 
       // After rehydrating cache remove files to ensure proper shutdowns
@@ -345,13 +338,13 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   }
 
   public startSession() {
-    this.isTracking = true;
+    console.log(`Start new tracking session.`);
     this.cacheMetrics = this.resetMetrics();
     return this.cacheMetrics;
   }
 
   public endSession() {
-    this.isTracking = false;
+    console.log(`End tracking session`);
     return this.cacheMetrics;
   }
 
@@ -369,4 +362,10 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 export interface IPersistentCacheSourceStateNumTriplesArgs {
   maxNumTriples: number;
   serializationLoc: string;
+  mediatorQuerySourceIdentifyHypermedia: MediatorQuerySourceIdentifyHypermedia;
+}
+
+export interface IQuerySourceSerialization extends Omit<ISourceState, 'source'> {
+  source: IActionQuerySourceIdentifyHypermedia;
+  // CachePolicy: ISerializedCachePolicyHttp
 }

@@ -25,7 +25,7 @@ import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-
 import type * as RDF from '@rdfjs/types';
 import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
 import * as RdfString from 'rdf-string';
-import { ICharacteristicSet, PersistentCacheCset } from '@comunica/actor-optimize-query-operation-set-cache-cset-offline-traversal';
+import { ICharacteristicSet, PersistentCacheCset } from '@comunica/caches-link-traversal';
 
 /**
  * A Multi Smallest RDF Join Actor.
@@ -204,7 +204,6 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
         "subject", 
         globalDataSummary
       );
-      console.log(subjectStar.cardinality)
       
       // Collapse the star into one node if not too far off from smallest cardinality in
       // query
@@ -256,8 +255,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
         return 0;
       } 
     }
-    console.log("Returning here")
-    return this.calculateCardinality(
+    return this.calculateCardinalityClamped(
       matchingCsetKeys!, 
       globalDataSummary, 
       starPatterns, 
@@ -295,6 +293,28 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     }
     return this.intersectMultipleSets(csetKeySets);
   }  
+
+
+  protected calculateCardinalityClamped(    
+    csetsSuperSet: Set<string>,
+    globalDataSummary: IReachableDataSummary,
+    starPatterns: Algebra.Pattern[],
+    starType: "subject" | "object",
+    isBound: (term: RDF.Term) => boolean,
+    isCenterBound: boolean,
+    missingBoundValue: boolean,
+  ){
+    const estimation = this.calculateCardinality(
+      csetsSuperSet,
+      globalDataSummary,
+      starPatterns,
+      starType,
+      isBound,
+      isCenterBound,
+      missingBoundValue,
+    )
+    return Math.max(1, Math.ceil(estimation));
+  }
 
   protected calculateCardinality(
     csetsSuperSet: Set<string>,
@@ -337,6 +357,16 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
         }
 
         const pred = pattern.predicate.value;
+        const predCount = cset.predicateCounts.get(pred);
+
+        // If the exact CSet lacks this predicate, cardinality is 0
+        if (predCount === undefined) {
+          if (!isCenterBound){
+            throw new Error("Center of star is not bound but we found a predicate in query not in cset");
+          }
+          m = 0;  
+          break;
+        }
 
         // Handle bound predicates
         if (isPeripheralBound) {
@@ -344,11 +374,6 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
           const conditionalSelectivity = 1 / cset.predicateCounts.get(pred)!; 
           o = Math.min(o, conditionalSelectivity);
         } else {
-          if (!cset.predicateCounts.get(pred)){
-            // TODO This becomes undefined which is a mistake with the set intersection
-            console.log(pred);
-            console.log(cset)
-          }
           // Calculate average predicate occurrences
           m *= (cset.predicateCounts.get(pred)! / cset.subjCount);
         }      
@@ -357,8 +382,6 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
       // If the center is bound, the distinct entity count for this CSet drops to 1.
       // Otherwise, use the full subject count of the CSet.
       if (isCenterBound && !missingBoundValue){
-        console.log(m)
-        console.log(o)
         totalUnboundCardinality += 1 * m * o;
       } else {
         totalUnboundCardinality += cset.subjCount * m * o;
@@ -379,86 +402,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     else {
       finalEstimation = totalUnboundCardinality;
     }
-    console.log(finalEstimation)
-
-    return Math.max(1, Math.ceil(finalEstimation));
-  }
-
-
-  protected getCardinalityStarJoin(
-    csetsSuperSet: Set<string>,
-    globalDataSummary: IReachableDataSummary,
-    starPatterns: Algebra.Pattern[],
-    starType: "subject" | "object"
-    ){
-    const isBound = (term: RDF.Term): boolean => 
-      term.termType !== 'Variable' && term.termType !== 'BlankNode';
-
-    let boundValue: ICharacteristicSet | undefined;
-    if (starType === 'subject' && isBound(starPatterns[0].subject)) {
-      boundValue = globalDataSummary.subjectToCset.get(
-        PersistentCacheCset.hashTerm(starPatterns[0].subject)
-      );
-    }
-    if (starType === 'object' && isBound(starPatterns[0].object)) {
-      boundValue = globalDataSummary.subjectToCset.get(
-        PersistentCacheCset.hashTerm(starPatterns[0].object)
-      );
-    }
-    if (boundValue){
-      csetsSuperSet = new Set(boundValue.predKey);
-    }
-
-    const cardinality = this.getCardinality(
-      csetsSuperSet, 
-      globalDataSummary,
-      starPatterns,
-      starType,
-      isBound
-    );
-
-  }
-
-  protected getCardinality(
-    csetsSuperSet: Set<string>,
-    globalDataSummary: IReachableDataSummary,
-    starPatterns: Algebra.Pattern[],
-    starType: "subject" | "object",
-    isBound: (term: RDF.Term) => boolean,
-  ){
-    let estimatedCardinality = 0;
-
-    for (const csetKey of csetsSuperSet) {
-      const cset = globalDataSummary.csets.get(csetKey)!;
-      
-      let m = 1;
-      let o = 1;
-
-      for (const pattern of starPatterns) {
-        const isSubjBound = isBound(pattern.subject);
-        const isPredBound = isBound(pattern.predicate);
-        const isObjBound = isBound(pattern.object);
-
-        // TODO: Determine how to estimate when predicate is unbound
-        if (!isPredBound){
-
-        }
-
-        const pred = pattern.predicate.value;
-        if ((isObjBound && starType === 'subject') || (isSubjBound && starType === 'object')) {
-          // Approximate conditional selectivity using the lower bound (1 / S.distinct)
-          const conditionalSelectivity = 1 / cset.predicateCounts.get(pred)!; 
-          o = Math.min(o, conditionalSelectivity);
-        }
-        else {
-          // Calculate average predicate occurrences: S.count(p_i) / S.distinct
-          m = m * (cset.predicateCounts.get(pred)! / cset.subjCount);
-        }      
-      }
-
-      // Accumulate total cardinality
-      estimatedCardinality += cset.subjCount * m * o;
-    }
+    return finalEstimation
   }
 
   protected async getJoinCoefficients(
@@ -475,7 +419,6 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
 
 
   protected intersectSets<T>(setA: Set<T>, setB: Set<T>): Set<T> {
-    // Always iterate over the smaller set to minimize loop iterations
     if (setA.size > setB.size) {
       return this.intersectSets(setB, setA);
     }

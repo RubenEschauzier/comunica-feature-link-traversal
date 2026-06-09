@@ -81,7 +81,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   private store: Quadstore;
   private readyPromise: Promise<void>;
 
-  public constructor(args: IPersistentCacheSourceStateNumTriplesArgs) {
+  public constructor(args: IPersistentCacheIndexedDiskArgs) {
     this.maxNumTriplesDisk = args.maxNumTriples;
     this.maxNumTriplesInMemory = args.maxTriplesInMemory;
     this.serializationLoc = args.serializationLoc ?? `${__dirname}/../cache/`;
@@ -539,7 +539,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   }
 }
 
-export interface IPersistentCacheSourceStateNumTriplesArgs {
+export interface IPersistentCacheIndexedDiskArgs {
   maxNumTriples: number;
   maxTriplesInMemory: number;
   serializationLoc?: string;

@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
-import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
+import type { ISourceState, ICacheMetrics, IPersistentCache, ILink } from '@comunica/types';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
@@ -27,7 +27,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 
   private readonly serializationLoc: string;
 
-  public constructor(args: IPersistentCacheCsetArgs) {
+  public constructor(args: IPersistentCacheIndexedArgs) {
     this.maxNumTriples = args.maxNumTriples;
     this.lruCacheDocuments = new LRUCache<string, ISourceState>({
       maxSize: this.maxNumTriples,
@@ -73,10 +73,21 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       ),
       new ActionContext(),
     ));
-
+    const predicateToLinks: Record<string, Set<string>> = {}
     return new Promise((resolve, reject) => {
+      importStream.on('data', (quad: RDF.Quad) => {
+        if (quad.object.termType === 'NamedNode'){
+          let urlSet = predicateToLinks[quad.predicate.value];
+          if (!urlSet) {
+            urlSet = new Set<string>();
+            predicateToLinks[quad.predicate.value] = urlSet;
+          }
+          urlSet.add(quad.object.value);        
+        }
+      });
       importStream.on('end', () => {
         this.sizeMap.set(key, rdfStore.size);
+        value.metadata.predicateToLinks = predicateToLinks;
         this.lruCacheDocuments.set(key, {
           ...value,
           source: new QuerySourceRdfJs(
@@ -365,7 +376,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   }
 }
 
-export interface IPersistentCacheCsetArgs {
+export interface IPersistentCacheIndexedArgs {
   maxNumTriples: number;
   serializationLoc: string;
 }

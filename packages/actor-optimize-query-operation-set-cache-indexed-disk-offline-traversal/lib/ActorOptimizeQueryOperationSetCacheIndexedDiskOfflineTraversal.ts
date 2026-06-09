@@ -14,7 +14,7 @@ import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
 import type { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 import type * as RDF from '@rdfjs/types';
-import { PersistentCacheIndexedDisk } from './PersistentCacheIndexedDisk';
+import { PersistentCacheIndexedDisk } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -76,7 +76,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
-      CacheEntrySourceState.cacheSourceStateQuerySource,
+      CacheEntrySourceState.cacheSourceStateIndexed,
       this.cacheQuerySourceState,
       new SetSourceStateCacheOfflineTraversalDisk(),
     );

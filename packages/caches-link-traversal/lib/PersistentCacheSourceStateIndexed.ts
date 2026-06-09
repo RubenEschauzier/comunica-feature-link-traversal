@@ -22,6 +22,8 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   private readonly bindingsFactory = new BindingsFactory(this.dataFactory);
   private readonly algebraFactory = new AlgebraFactory(this.dataFactory);
 
+  private saveOfflineTraversalData: boolean;
+
   private isTracking = false;
   private cacheMetrics: ICacheMetrics;
 
@@ -34,6 +36,8 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       sizeCalculation: (value, key) => this.sizeMap.get(key) || 1,
       dispose: this.onDispose.bind(this),
     });
+
+    this.saveOfflineTraversalData = args.saveOfflineTraversalData;
     this.serializationLoc = args.serializationLoc;
     this.cacheMetrics = this.resetMetrics();
   }
@@ -75,19 +79,28 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
     ));
     const predicateToLinks: Record<string, Set<string>> = {}
     return new Promise((resolve, reject) => {
-      importStream.on('data', (quad: RDF.Quad) => {
-        if (quad.object.termType === 'NamedNode'){
-          let urlSet = predicateToLinks[quad.predicate.value];
-          if (!urlSet) {
-            urlSet = new Set<string>();
-            predicateToLinks[quad.predicate.value] = urlSet;
+      if (this.saveOfflineTraversalData){
+        importStream.on('data', (quad: RDF.Quad) => {
+          if (quad.object.termType === 'NamedNode'){
+            let urlSet = predicateToLinks[quad.predicate.value];
+            if (!urlSet) {
+              urlSet = new Set<string>();
+              predicateToLinks[quad.predicate.value] = urlSet;
+            }
+            urlSet.add(quad.object.value);        
           }
-          urlSet.add(quad.object.value);        
-        }
-      });
+        });
+      }
       importStream.on('end', () => {
         this.sizeMap.set(key, rdfStore.size);
-        value.metadata.predicateToLinks = predicateToLinks;
+        if (this.saveOfflineTraversalData){
+          // Convert deduplicated Sets to Arrays for safe disk serialization
+          const serializableLinks: Record<string, string[]> = {};
+          for (const [predicate, urlSet] of Object.entries(predicateToLinks)) {
+            serializableLinks[predicate] = Array.from(urlSet);
+          }
+          value.metadata.predicateToLinks = serializableLinks;
+        }        
         this.lruCacheDocuments.set(key, {
           ...value,
           source: new QuerySourceRdfJs(
@@ -379,4 +392,5 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
 export interface IPersistentCacheIndexedArgs {
   maxNumTriples: number;
   serializationLoc: string;
+  saveOfflineTraversalData: boolean;
 }

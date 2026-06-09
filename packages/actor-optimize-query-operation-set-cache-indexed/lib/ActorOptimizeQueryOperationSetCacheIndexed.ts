@@ -26,7 +26,11 @@ export class ActorOptimizeQueryOperationSetCacheIndexed extends ActorOptimizeQue
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-      { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+      { 
+        maxNumTriples: args.cacheSizeNumTriples,
+        serializationLoc: 'temp-cache-content.json',
+        saveOfflineTraversalData: false,
+      },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
     console.log(`${this.name}: Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
@@ -46,7 +50,11 @@ export class ActorOptimizeQueryOperationSetCacheIndexed extends ActorOptimizeQue
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-        { maxNumTriples: this.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+        { 
+          maxNumTriples: this.cacheSizeNumTriples,
+          serializationLoc: 'temp-cache-content.json',
+          saveOfflineTraversalData: false,
+        },
       );
       console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
     }

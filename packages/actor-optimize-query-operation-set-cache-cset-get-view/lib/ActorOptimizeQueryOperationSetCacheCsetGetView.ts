@@ -311,39 +311,48 @@ implements ICacheView<
   ): Promise<Set<string>> {
     const predicatesInQuery = this.getPredicatesFromQuery(query);
     const reachableDocuments: Set<string> = new Set();
-    const toVisit: ILink[] = [ ...seeds ];
+    const toVisit: string[] = [ ...seeds.map(seed => seed.url) ];
 
     while (toVisit.length > 0) {
       const current = toVisit.pop()!;
 
-      if (reachableDocuments.has(current.url)) {
+      if (reachableDocuments.has(current)) {
         continue;
       }
 
-      const sourceState = await cache.get(current.url);
-      if (!sourceState) {
+      const cacheEntry = await cache.get(current);
+      if (!cacheEntry) {
         continue;
       }
 
-      reachableDocuments.add(current.url);
+      reachableDocuments.add(current);
 
-      const nextLinks: IOfflineTraversalEntry = sourceState.offlineTraversal;
-      if (nextLinks === undefined) {
-        console.log(sourceState);
-        throw new Error('Found cached document without traversal information');
+      const nextDefaultLinks: string[] = cacheEntry.defaultTraversal;
+      const predicateToLinks: Record<string, string[]> = cacheEntry.predicateToLinks;
+
+      if (nextDefaultLinks === undefined || predicateToLinks === undefined) {
+        console.log(cacheEntry);
+        throw new Error('Found cached summary without traversal information');
       }
 
       // Always follow default entries
-      for (const link of nextLinks.default) {
-        if (!reachableDocuments.has(link.url)) {
+      for (const link of nextDefaultLinks) {
+        if (!reachableDocuments.has(link)) {
           toVisit.push(link);
         }
       }
 
       // Only follow predicate entries that match predicates in the query
-      for (const [ predicate, link ] of Object.entries(nextLinks.predicates)) {
-        if (predicatesInQuery.has(predicate) && !reachableDocuments.has(link.url)) {
-          toVisit.push(link);
+      for (const predicate of predicatesInQuery) {
+        const linksForPredicate = predicateToLinks[predicate];
+        
+        // If the document contains links for this predicate, push them
+        if (linksForPredicate) {
+          for (const link of linksForPredicate) {
+            if (!reachableDocuments.has(link)) {
+              toVisit.push(link);
+            }
+          }
         }
       }
     }

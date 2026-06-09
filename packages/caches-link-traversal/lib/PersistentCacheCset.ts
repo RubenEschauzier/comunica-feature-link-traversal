@@ -1,6 +1,5 @@
 import { ActionContext } from '@comunica/core';
 import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
-import { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
@@ -67,6 +66,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
       properties: Map<string, number>
       objects: Map<string, Set<number>>
     }>();
+    const predicateToLinks: Record<string, Set<string>> = {};
     try {
       for await (const quad of quads) {
         const { subject, predicate, object } = quad;
@@ -94,6 +94,15 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
           }
           
           objectsForPredicate.add(PersistentCacheCset.hashTerm(object));        
+        }
+        // Track predicate to link values
+        if (object.termType === 'NamedNode'){
+          let urlSet = predicateToLinks[quad.predicate.value];
+          if (!urlSet) {
+            urlSet = new Set<string>();
+            predicateToLinks[quad.predicate.value] = urlSet;
+          }
+          urlSet.add(quad.object.value);        
         }
       }
     } catch (err) {
@@ -174,10 +183,16 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
       }
     }
     
+    const serializableLinks: Record<string, string[]> = {};
+    for (const [predicate, urlSet] of Object.entries(predicateToLinks)) {
+      serializableLinks[predicate] = Array.from(urlSet);
+    }
+
     this.cachedSummaries.set(key, {
       csets: csetsDocument,
       cps: localCps,
-      offlineTraversal: value.metadata.offlineTraversal,
+      defaultTraversal: value.metadata.defaultTraversal,
+      predicateToLinks: serializableLinks
     });
   }
   
@@ -308,5 +323,6 @@ export interface ICharacteristicPair {
 export interface IDataSummary {
   cps: Map<string, ICharacteristicPair>;
   csets: Map<string, ICharacteristicSet>;
-  offlineTraversal: IOfflineTraversalEntry;
+  defaultTraversal: string[];
+  predicateToLinks: Record<string, string[]>;
 }

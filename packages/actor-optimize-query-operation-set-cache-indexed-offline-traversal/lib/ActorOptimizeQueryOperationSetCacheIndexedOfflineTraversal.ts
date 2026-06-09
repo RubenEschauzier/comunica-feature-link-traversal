@@ -12,7 +12,6 @@ import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
-import type { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 import type * as RDF from '@rdfjs/types';
 import { PersistentCacheSourceStateIndexed } from '@comunica/caches-link-traversal';
 
@@ -29,7 +28,11 @@ export class ActorOptimizeQueryOperationSetCacheIndexedOfflineTraversal extends 
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-      { maxNumTriples: args.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+      { 
+        maxNumTriples: args.cacheSizeNumTriples, 
+        serializationLoc: 'temp-cache-content.json',
+        saveOfflineTraversalData: true
+      },
     );
     this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
     console.log(`Created indexed cache with maxSize: ${args.cacheSizeNumTriples}`);
@@ -49,7 +52,11 @@ export class ActorOptimizeQueryOperationSetCacheIndexedOfflineTraversal extends 
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-        { maxNumTriples: this.cacheSizeNumTriples, serializationLoc: 'temp-cache-content.json' },
+        { 
+          maxNumTriples: this.cacheSizeNumTriples, 
+          serializationLoc: 'temp-cache-content.json',
+          saveOfflineTraversalData: true,
+        },
       );
       console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
     }
@@ -60,9 +67,6 @@ export class ActorOptimizeQueryOperationSetCacheIndexedOfflineTraversal extends 
       timeoutCallbacks.push(async() => await this.cacheQuerySourceState.serialize());
     }
 
-    // TODO: This still ties the implementation of the cache to the setter.
-    // True modularity would be to have a cache package with different cache implementations,
-    // cache set views and cache get views in actors.
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
       CacheEntrySourceState.cacheSourceStateIndexed,
@@ -85,35 +89,21 @@ export class SetSourceStateCacheOfflineTraversal implements ISetFn<ISourceState,
     // Retrieve the existing cached state to preserve previous traversal entries
     const cachedState = await cache.get(key);
     
-
-    // Initialize with existing cached traversal data, or create a fresh object
-    const traversalAdjList: IOfflineTraversalEntry = cachedState?.metadata.offlineTraversal ?? {
-      predicates: {},
-      default: [],
-    };
+    const previousLinks = cachedState?.metadata.defaultTraversal || [];
+    const existingDefaultLinks = new Set<string>(previousLinks);
 
     for (const traverseEntry of value.metadata.traverse) {
       const traverseMetadata = traverseEntry.metadata;
-      
-      if (traverseMetadata && 'matchingPatterns' in traverseMetadata) {
-        // Check if cMatch batched criterion produced this
-        for (const quad of (<RDF.BaseQuad[]> traverseMetadata.matchingPatterns)) {
-          traversalAdjList.predicates[quad.predicate.value] = { url: traverseEntry.url };
-        }
-      } else {
-        // Append to default array only if the URL is not already present
-        const exists = traversalAdjList.default.some(link => link.url === traverseEntry.url);
-        if (!exists) {
-          traversalAdjList.default.push({ url: traverseEntry.url });
-        }
+      if (!traverseMetadata || !('matchingPatterns' in traverseMetadata)) {
+        existingDefaultLinks.add(traverseEntry.url);
       }
     }
     
     // Attach the merged traversal list to the incoming value before saving
-    value.metadata.offlineTraversal = traversalAdjList;
+    value.metadata.defaultTraversal = Array.from(existingDefaultLinks);
     
     // Update the cache for this key
-    cache.set(key, value);
+    await cache.set(key, value);
   }
 }
 

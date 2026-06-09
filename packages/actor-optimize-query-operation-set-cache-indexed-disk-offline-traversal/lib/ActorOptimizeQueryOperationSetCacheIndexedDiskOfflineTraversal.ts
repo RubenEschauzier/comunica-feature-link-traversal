@@ -12,8 +12,6 @@ import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
-import type { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
-import type * as RDF from '@rdfjs/types';
 import { PersistentCacheIndexedDisk } from '@comunica/caches-link-traversal';
 
 /**
@@ -76,7 +74,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
-      CacheEntrySourceState.cacheSourceStateIndexed,
+      CacheEntrySourceState.cacheSourceStateIndexedDisk,
       this.cacheQuerySourceState,
       new SetSourceStateCacheOfflineTraversalDisk(),
     );
@@ -91,23 +89,22 @@ export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceSt
     cache: IPersistentCache<ISourceState, ISourceState>,
     context: { headers: Headers },
   ): Promise<void> {
-    const traversalAdjList: IOfflineTraversalEntry = {
-      predicates: {},
-      default: [],
-    };
+    // Retrieve the existing cached state to preserve previous traversal entries
+    const cachedState = await cache.get(key);
+    
+    const previousLinks = cachedState?.metadata.defaultTraversal || [];
+    const existingDefaultLinks = new Set<string>(previousLinks);
+
     for (const traverseEntry of value.metadata.traverse) {
       const traverseMetadata = traverseEntry.metadata;
-      if (traverseMetadata && 'matchingPatterns' in traverseMetadata) {
-        for (const quad of (<RDF.BaseQuad[]> traverseMetadata.matchingPatterns)) {
-          traversalAdjList.predicates[quad.predicate.value] = { url: traverseEntry.url };
-        }
-      } else {
-        traversalAdjList.default.push({ url: traverseEntry.url });
+      if (!traverseMetadata || !('matchingPatterns' in traverseMetadata)) {
+        existingDefaultLinks.add(traverseEntry.url);
       }
     }
-    value.metadata.offlineTraversal = traversalAdjList;
-    // console.log(key)
-    // console.log(traversalAdjList)
+    
+    // Attach the merged traversal list to the incoming value before saving
+    value.metadata.defaultTraversal = Array.from(existingDefaultLinks);
+
     cache.set(key, value);
   }
 }

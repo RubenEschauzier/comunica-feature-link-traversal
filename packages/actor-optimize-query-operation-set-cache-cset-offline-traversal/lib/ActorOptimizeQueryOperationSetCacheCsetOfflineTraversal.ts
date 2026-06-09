@@ -63,7 +63,7 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
     cacheManager.registerCache(
       CacheEntryDataSummary.cacheCsetCpsSummary,
       this.cacheQuerySourceState,
-      new SetSourceStateCacheOfflineTraversal(),
+      new SetCsetCacheOfflineTraversal(),
     );
     console.log(`Register: ${CacheEntryDataSummary.cacheCsetCpsSummary.id}`)
 
@@ -71,7 +71,7 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
   }
 }
 
-export class SetSourceStateCacheOfflineTraversal implements 
+export class SetCsetCacheOfflineTraversal implements 
 ISetFn<
   ISourceState, ISourceState, { headers: Headers }
 > {
@@ -84,36 +84,19 @@ ISetFn<
     // Retrieve the existing cached state to preserve previous traversal entries
     const cachedState = await cache.get(key);
     
+    const previousLinks = cachedState?.defaultTraversal || [];
+    const existingDefaultLinks = new Set<string>(previousLinks);
 
-    // Initialize with existing cached traversal data, or create a fresh object
-    const traversalAdjList: IOfflineTraversalEntry = cachedState?.offlineTraversal ?? {
-      predicates: {},
-      default: [],
-    };
-
-    // TODO: Add update traverse context entry that only updates metadata of the cachedState
-    // Also look into if this cMatch-based criterion is correct?
-    
     for (const traverseEntry of value.metadata.traverse) {
       const traverseMetadata = traverseEntry.metadata;
-      
-      if (traverseMetadata && 'matchingPatterns' in traverseMetadata) {
-        // Check if cMatch batched criterion produced this
-        for (const quad of (<RDF.BaseQuad[]> traverseMetadata.matchingPatterns)) {
-          traversalAdjList.predicates[quad.predicate.value] = { url: traverseEntry.url };
-        }
-      } else {
-        // Append to default array only if the URL is not already present
-        const exists = traversalAdjList.default.some(link => link.url === traverseEntry.url);
-        if (!exists) {
-          traversalAdjList.default.push({ url: traverseEntry.url });
-        }
+      if (!traverseMetadata || !('matchingPatterns' in traverseMetadata)) {
+        existingDefaultLinks.add(traverseEntry.url);
       }
     }
     
     // Attach the merged traversal list to the incoming value before saving
-    value.metadata.offlineTraversal = traversalAdjList;
-    
+    value.metadata.defaultTraversal = Array.from(existingDefaultLinks);
+      
     // Update the cache for this key
     cache.set(key, value);
   }

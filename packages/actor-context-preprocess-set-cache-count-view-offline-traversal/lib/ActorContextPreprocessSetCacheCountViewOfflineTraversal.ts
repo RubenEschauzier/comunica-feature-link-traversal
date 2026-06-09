@@ -6,7 +6,6 @@ import { KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, ActionContext } from '@comunica/core';
 import type { ICacheView, ILink, IPersistentCache, ISourceState } from '@comunica/types';
-import type { IOfflineTraversalEntry } from '@comunica/types-link-traversal';
 import { Algebra, algebraUtils, isKnownOperation } from '@comunica/utils-algebra';
 
 /**
@@ -101,40 +100,48 @@ number
   ): Promise<Set<string>> {
     const predicatesInQuery = this.getPredicatesFromQuery(query);
     const reachableDocuments: Set<string> = new Set();
-    const toVisit: ILink[] = [ ...seeds ];
+    const toVisit: string[] = [ ...seeds.map(seed => seed.url) ];
 
     while (toVisit.length > 0) {
       const current = toVisit.pop()!;
 
-      if (reachableDocuments.has(current.url)) {
+      if (reachableDocuments.has(current)) {
         continue;
       }
 
-      const sourceState = await cache.get(current.url);
+      const sourceState = await cache.get(current);
       if (!sourceState) {
         continue;
       }
 
-      reachableDocuments.add(current.url);
-    
-      const nextLinks: IOfflineTraversalEntry = sourceState.metadata.offlineTraversal;
-      if (nextLinks === undefined) {
+      reachableDocuments.add(current);
+      const nextDefaultLinks: string[] = sourceState.metadata.defaultTraversal;
+      const predicateToLinks: Record<string, string[]> = sourceState.metadata.predicateToLinks;
+
+      if (nextDefaultLinks === undefined || predicateToLinks === undefined) {
         console.log(sourceState.metadata);
         console.log(sourceState.link);
         throw new Error('Found cached document without traversal information');
       }
 
       // Always follow default entries
-      for (const link of nextLinks.default) {
-        if (!reachableDocuments.has(link.url)) {
+      for (const link of nextDefaultLinks) {
+        if (!reachableDocuments.has(link)) {
           toVisit.push(link);
         }
       }
 
       // Only follow predicate entries that match predicates in the query
-      for (const [ predicate, link ] of Object.entries(nextLinks.predicates)) {
-        if (predicatesInQuery.has(predicate) && !reachableDocuments.has(link.url)) {
-          toVisit.push(link);
+      for (const predicate of predicatesInQuery) {
+        const linksForPredicate = predicateToLinks[predicate];
+        
+        // If the document contains links for this predicate, push them
+        if (linksForPredicate) {
+          for (const link of linksForPredicate) {
+            if (!reachableDocuments.has(link)) {
+              toVisit.push(link);
+            }
+          }
         }
       }
     }

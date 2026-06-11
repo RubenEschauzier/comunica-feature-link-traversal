@@ -104,7 +104,6 @@ export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceSt
     
     // Attach the merged traversal list to the incoming value before saving
     value.metadata.defaultTraversal = Array.from(existingDefaultLinks);
-
     cache.set(key, value);
   }
 }

@@ -69,9 +69,11 @@ number
 
     // Compute reachable documents if this hasn't been computed yet
     // in previous executions and if any of the seed urls is in the cache
-    if (!this.reachableDocuments &&
-      context.seeds.some(seed => cache.has(seed.url))) {
-      this.reachableDocuments = await this.findReachableDocuments(context.query, context.seeds, cache);
+    if (!this.reachableDocuments) {
+      const seedChecks = await Promise.all(context.seeds.map(seed => cache.has(seed.url)));
+      if (seedChecks.some(hasSeed => hasSeed)) {
+        this.reachableDocuments = await this.findReachableDocuments(context.query, context.seeds, cache);
+      }
     }
 
     let totalCount = 0;

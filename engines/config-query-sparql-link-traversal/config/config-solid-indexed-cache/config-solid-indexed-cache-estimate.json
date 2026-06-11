@@ -13,7 +13,7 @@
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
     "ccqslt:config/context-preprocess/actors-count-quads-view.json",
-    "ccqslt:config/query-source-identify/actors-query-cache-estimate-cardinality.json",
+    "ccqslt:config/query-source-identify/actors-indexed-cache-estimate-cardinality.json",
 
     "ccqslt:config/optimize-query-operation/set-indexed-cache.json",
     "ccqslt:config/optimize-query-operation/set-indexed-cache-get-view.json",

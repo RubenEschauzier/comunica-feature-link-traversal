@@ -108,8 +108,8 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     if (this.hotCachePolicy === 'lru-filtered') {
       this.previouslyDereferenced = new LRUCache<string, number>({ max: 50000 });
     }
+    this.metadataKeysToCache = args.metadataKeysToCache ?? [ 'traverse', 'defaultTraversal', 'predicateToLinks' ];
 
-    this.metadataKeysToCache = args.metadataKeysToCache ?? [ 'traverse', 'offlineTraversal' ];
     this.cacheMetrics = this.resetMetrics();
 
     // Force close on process termination
@@ -240,8 +240,19 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     );
 
     let nTriples = 0;
+    const predicateToLinks: Record<string, Set<string>> = {};
+    const extractLinks = this.metadataKeysToCache.includes('predicateToLinks');
+
     const transformStream = quadStream.map((quad) => {
       nTriples++;
+      if (extractLinks && quad.object.termType === 'NamedNode') {
+        let urlSet = predicateToLinks[quad.predicate.value];
+        if (!urlSet) {
+          urlSet = new Set<string>();
+          predicateToLinks[quad.predicate.value] = urlSet;
+        }
+        urlSet.add(quad.object.value);
+      }
       return this.dataFactory.quad(quad.subject, quad.predicate, quad.object, cacheGraph);
     });
 
@@ -249,6 +260,15 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
 
     // After ingestion to disk is done we update the in-memory caches
     this.sizeMap.set(key, nTriples);
+
+    // Set predicate to links metadata entry
+    if (extractLinks) {
+      const serializableLinks: Record<string, string[]> = {};
+      for (const [predicate, urlSet] of Object.entries(predicateToLinks)) {
+        serializableLinks[predicate] = Array.from(urlSet);
+      }
+      value.metadata.predicateToLinks = serializableLinks;
+    }
 
     const extractedMetadata: Record<string, any> = {};
     for (const metaKey of this.metadataKeysToCache) {
@@ -293,7 +313,9 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
         object?: RDF.Quad_Object | undefined,
         graph?: RDF.Quad_Graph | undefined,
       ): Promise<number> =>
-        // We use Quadstore's native countQuads, replacing the requested graph with our cached graph boundary
+        // We use Quadstore's native countQuads, 
+        // replacing the requested graph with our cached graph boundary
+        // Note that this is an approximation
         this.store.countQuads(
           sanitizeTerm(subject),
           sanitizeTerm(predicate),

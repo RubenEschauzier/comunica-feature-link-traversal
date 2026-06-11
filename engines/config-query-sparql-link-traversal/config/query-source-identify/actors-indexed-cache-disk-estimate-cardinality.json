@@ -16,10 +16,10 @@
     {
       "@id": "urn:comunica:default:query-source-identify/actors#link-traversal",
       "@type": "ActorQuerySourceIdentifyLinkTraversal",
-      "cacheEntryName": "@comunica/persistent-cache-manager:sourceStateQuerySourceBloomFilter",
-      "cacheViewName": "@comunica/persistent-cache-manager:cacheQueryBloomFilter",
-      "cacheCountViewName": "@comunica/persistent-cache-manager:cacheCountBloomFilter",
-      "setCardinalityFromCacheMinLimit": 500,
+      "cacheEntryName": "@comunica/persistent-cache-manager:cacheSourceStateIndexedDisk",
+      "cacheViewName": "@comunica/persistent-cache-manager:cacheQuery",
+      "cacheCountViewName": "@comunica/persistent-cache-manager:cacheCount",
+      "setCardinalityFromCacheMinLimit": 250,
       "beforeActors": { "@id": "urn:comunica:default:query-source-identify/actors#hypermedia" }
     }
   ]

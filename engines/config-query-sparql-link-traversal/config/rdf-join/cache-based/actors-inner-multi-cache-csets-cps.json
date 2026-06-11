@@ -15,7 +15,8 @@
       "mediatorJoin": { "@id": "urn:comunica:default:rdf-join/mediators#main" },
       "cacheEntryName":  "@comunica/persistent-cache-manager:data-summary-cset-cp",
       "cacheGlobalStatsViewName": "@comunica/persistent-cache-manager-cset-cp-estimation-view",
-      "minCacheEntries": 100
+      "minCacheEntries": 250,
+      "maxRatio": 5
     }
   ]
 }

@@ -1,14 +1,14 @@
 {
-  "name": "@comunica/actor-rdf-join-inner-multi-star-cset-dp",
+  "name": "@comunica/actor-rdf-join-selectivity-cset-cp",
   "version": "0.8.0",
-  "description": "A inner-multi-star-cset-dp rdf-join actor",
+  "description": "A cset-cp rdf-join-selectivity actor",
   "lsd:module": true,
   "main": "lib/index.js",
   "typings": "lib/index",
   "repository": {
     "type": "git",
     "url": "https://github.com/comunica/comunica.git",
-    "directory": "packages/actor-rdf-join-inner-multi-star-cset-dp"
+    "directory": "packages/actor-rdf-join-selectivity-cset-cp"
   },
   "publishConfig": {
     "access": "public"
@@ -17,8 +17,8 @@
   "keywords": [
     "comunica",
     "actor",
-    "rdf-join",
-    "inner-multi-star-cset-dp"
+    "rdf-join-selectivity",
+    "cset-cp"
   ],
   "license": "MIT",
   "funding": {
@@ -37,7 +37,7 @@
   ],
   "dependencies": {
     "@comunica/core": "^5.2.0",
-    "@comunica/bus-rdf-join": "^5.2.0"
+    "@comunica/bus-rdf-join-selectivity": "^5.2.0"
   },
   "scripts": {
     "build": "yarn run build:ts && yarn run build:components",

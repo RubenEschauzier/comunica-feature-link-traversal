@@ -1,7 +1,15 @@
 import { IJoinEntry } from "@comunica/types";
 
-export async function dpSub(entries: IJoinEntry[], estimateCardinality: (entries: IJoinEntry[]) => number){
+export async function dpSub(
+    entries: IJoinEntry[],
+    estimateCardinality: (entries: IJoinEntry[]) => number
+): Promise<IEnumerationOutput> {
     const n = entries.length;
+
+    if (n >= 31){
+        throw new Error("Cannot enumerate more than 32 entries due to 32-bit integer masks");
+    }
+
     const maxNumBitmask = 1 << n;
 
     // Initialize dpTable
@@ -21,9 +29,9 @@ export async function dpSub(entries: IJoinEntry[], estimateCardinality: (entries
             continue;
         }
         if (planCardinality[i] === undefined){
-            // TODO Make this get as input the operation of the entry associated with 
-            // this subplan
-            planCardinality[i] = estimateCardinality()
+            const indexes = getIndexesSet(i);
+            const planEntries = indexes.map((i) => entries[i]);
+            planCardinality[i] = estimateCardinality(planEntries);
         }
 
         let tempMask = i;
@@ -42,10 +50,24 @@ export async function dpSub(entries: IJoinEntry[], estimateCardinality: (entries
                     throw new Error(`Found non zero cost ${bestPlanCost[rightPlanMask]} 
                         for right-part of left-deep plan`);
                 }
+
                 const cost = (planCardinality[leftPlanMask]! * planCardinality[rightPlanMask]!) 
                     + planCardinality[i]! + bestPlanCost[leftPlanMask];
+
                 if (cost < (bestPlanCost[i] ?? Number.POSITIVE_INFINITY)){
                     bestPlanCost[i] = cost;
+                    // Need to sort the join order to ensure smallest entry
+                    // is left
+                    if (bestPlanOrder[leftPlanMask]?.length === 1 &&
+                        planCardinality[leftPlanMask]! > planCardinality[rightPlanMask]!
+                    ){
+                        bestPlanOrder[i] = [
+                            ...bestPlanOrder[rightPlanMask]!, 
+                            ...bestPlanOrder[leftPlanMask]!
+                        ];
+                        continue;
+                    }
+
                     bestPlanOrder[i] = [
                         ...bestPlanOrder[leftPlanMask]!, 
                         ...bestPlanOrder[rightPlanMask]!
@@ -55,12 +77,23 @@ export async function dpSub(entries: IJoinEntry[], estimateCardinality: (entries
             tempMask &= tempMask - 1;
         }
     }
+
+    const bestPlan = bestPlanOrder[bestPlanOrder.length - 1]!;
+    const stepCardinalities: number[] = [];
+    let currentMask = 0;
+
+    for (const nextIdx of bestPlan) {
+        // Add the current relation index to the running bitmask
+        currentMask |= 1 << nextIdx;
+        
+        // Retrieve the cardinality for this specific subplan state
+        stepCardinalities.push(planCardinality[currentMask]!);
+    }
+
     return {
-        plan: bestPlanOrder[bestPlanOrder.length - 1],
-        cost: bestPlanCost[bestPlanCost.length - 1],
-        // TODO: Set the step cardinalities so they can be passed to the join optimization 
-        // for the correct selection of join algorithm
-        stepCardinalities: undefined
+        plan: bestPlanOrder[bestPlanOrder.length - 1]!,
+        cost: bestPlanCost[bestPlanCost.length - 1]!,
+        stepCardinalities,
     }
 }
 
@@ -72,4 +105,33 @@ export function numSet(bitMask: number){
         current = current & (current - 1);
     }
     return count;
+}
+
+export function getIndexesSet(bitMask: number){
+    const indices: number[] = [];
+    let currentMask = bitMask;
+
+    while (currentMask > 0) {
+        // Isolate the right-most set bit using two's complement
+        const rightMostBit = currentMask & -currentMask;
+
+        // Calculate the exact 0-based index using Count Leading Zeros
+        const index = 31 - Math.clz32(rightMostBit);
+        indices.push(index);
+
+        // Clear the right-most set bit to advance the loop
+        currentMask &= currentMask - 1;
+    }
+
+    return indices;
+}
+
+export function bitMaskToString(bitMask: number){
+    return bitMask.toString(2);
+}
+
+export interface IEnumerationOutput {
+    plan: number[];
+    cost: number;
+    stepCardinalities: number[];
 }

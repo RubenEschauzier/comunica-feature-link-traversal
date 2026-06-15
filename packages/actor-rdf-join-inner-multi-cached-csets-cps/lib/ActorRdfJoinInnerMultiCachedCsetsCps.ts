@@ -46,7 +46,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
   public constructor(args: IActorRdfJoinMultiCachedCsetsCpsArgs) {
     super(args, {
       logicalType: 'inner',
-      physicalName: 'multi-smallest',
+      physicalName: 'multi-cached-csets-cps',
       limitEntries: 3,
       limitEntriesMin: true,
       canHandleUndefs: true,

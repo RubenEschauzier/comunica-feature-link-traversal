@@ -1,0 +1,18 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-rdf-join-selectivity-cset-cp/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:rdf-join-selectivity/actors#cset-cp",
+      "@type": "ActorRdfJoinSelectivityCsetCp",
+      "cacheEntryName":  "@comunica/persistent-cache-manager:data-summary-cset-cp",
+      "cacheGlobalStatsViewName": "@comunica/persistent-cache-manager-cset-cp-estimation-view",
+      "minCacheEntries": 250
+    }
+  ]
+}

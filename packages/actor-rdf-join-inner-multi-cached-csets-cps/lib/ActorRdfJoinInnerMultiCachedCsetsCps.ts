@@ -187,7 +187,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
         algebraFactory
       );
     }
-
+    console.log(`Done collapsing: ${entries.length} left`);
     // Return the complete joined result
     return {
       result: await this.mediatorJoin.mediate({
@@ -229,6 +229,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
       // Collapse the star into one node if not too far off from smallest cardinality in
       // query
       if (subjectStar.cardinality < minCard * this.maxRatioCardinality){
+        console.log(`Collapsing star of size: ${subjectStar.entries}`);
         // Call join algorithm to obtain streaming output of this join.
         const subStarOutput = await this.mediatorJoin.mediate({
           type: action.type,

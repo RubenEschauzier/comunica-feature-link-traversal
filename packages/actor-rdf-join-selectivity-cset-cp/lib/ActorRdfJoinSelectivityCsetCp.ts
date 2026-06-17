@@ -4,6 +4,7 @@ import { CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-
 import { KeysCaching } from '@comunica/context-entries';
 import { TestResult, IActorTest, passTestVoid, passTest, failTest } from '@comunica/core';
 import { IMediatorTypeAccuracy } from '@comunica/mediatortype-accuracy';
+import { Algebra, algebraUtils } from '@comunica/utils-algebra';
 
 /**
  * A comunica Cset Cp RDF Join Selectivity Actor.
@@ -26,6 +27,9 @@ export class ActorRdfJoinSelectivityCsetCp extends ActorRdfJoinSelectivity {
 
   public async test(action: IActionRdfJoinSelectivity): Promise<TestResult<IMediatorTypeAccuracy>> {
     const context = action.context;
+    if (action.entries.length > 0){
+      return failTest(`${this.name} can only estimate selectivity for two entries`)
+    }
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
     if (
       !persistentCacheManager ||
@@ -43,8 +47,38 @@ export class ActorRdfJoinSelectivityCsetCp extends ActorRdfJoinSelectivity {
   }
 
   public async run(action: IActionRdfJoinSelectivity): Promise<IActorRdfJoinSelectivityOutput> {
+    console.log(action.entries.map(entry => entry.operation));
+    // TODO: How to deal with property paths?
+    const operations = action.entries.map(entry => entry.operation);
+    const operationsPatternsOrPaths = this.getPatternsOrPaths(operations);
+    const predicates = operationsPatternsOrPaths.map((patternOrPathOperation) => 
+      patternOrPathOperation.map(patternOrPath => 
+        patternOrPath.predicate.termType !== 'NamedNode'
+      )
+    )
     // Uses the CP algorithm to determine join selectivity between two entries.
-    return true; // TODO implement
+    return {
+      selectivity: 1
+    }; // TODO implement
+  }
+
+  public getPatternsOrPaths(operations: Algebra.BaseOperation[]) {
+    const patterns: (Algebra.Pattern | Algebra.Path)[][] = [];
+    for (const operation of operations) {
+      const operationPatterns: (Algebra.Pattern | Algebra.Path)[] = [];
+      algebraUtils.visitOperation(operation, {
+        [Algebra.Types.PATTERN]: { preVisitor: (pattern) => {
+          operationPatterns.push(pattern);
+          return { continue: false };
+        } },
+        [Algebra.Types.PATH]: { preVisitor: (path) => {
+          operationPatterns.push(path);
+          return { continue: false };
+        } },
+      });
+      patterns.push(operationPatterns);
+    }
+    return patterns;
   }
 }
 

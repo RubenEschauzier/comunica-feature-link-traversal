@@ -21,6 +21,7 @@
 
     "ccqslt:config/optimize-query-operation/set-cset-cache-get-view.json",
     "ccqslt:config/optimize-query-operation/set-cset-cache-offline-traversal.json",
-    "ccqslt:config/rdf-join/cache-based/actors-inner-multi-cache-csets-cps.json"
+    "ccqslt:config/rdf-join/cache-based/actors-inner-multi-cache-csets-cps.json",
+    "ccqslt:config/rdf-join-selectivity/cached-cps.json"
   ]
 }

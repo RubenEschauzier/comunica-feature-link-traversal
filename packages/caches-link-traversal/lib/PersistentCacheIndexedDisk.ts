@@ -521,7 +521,11 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   }
 
   public entries(): AsyncIterator<[string, ISourceState]> {
-    return new ArrayIterator(this.hotLRUCacheDocuments.entries(), { autoStart: false });
+    const entries = Array.from(this.sizeMap.keys()).map((key): [string, ISourceState] => {
+      const cacheGraph = this.getCacheGraphNode(key);
+      return [ key, this.createSourceStateFromDisk(key, cacheGraph) ];
+    });
+    return new ArrayIterator(entries, { autoStart: false });
   }
 
   public async size(): Promise<number> {

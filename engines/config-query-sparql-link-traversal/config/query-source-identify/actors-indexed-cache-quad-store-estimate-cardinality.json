@@ -16,7 +16,7 @@
     {
       "@id": "urn:comunica:default:query-source-identify/actors#link-traversal",
       "@type": "ActorQuerySourceIdentifyLinkTraversal",
-      "cacheEntryName": "@comunica/persistent-cache-manager:sourceStateQuerySource",
+      "cacheEntryName": "@comunica/persistent-cache-manager:cacheSourceStateIndexedQuadStore",
       "cacheViewName": "@comunica/persistent-cache-manager:cacheQuery",
       "cacheCountViewName": "@comunica/persistent-cache-manager:cacheCount",
       "setCardinalityFromCacheMinLimit": 1000,

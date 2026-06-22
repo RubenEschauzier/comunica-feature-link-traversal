@@ -48,14 +48,15 @@ export class ActorRdfJoinSelectivityCsetCp extends ActorRdfJoinSelectivity {
 
   public async run(action: IActionRdfJoinSelectivity): Promise<IActorRdfJoinSelectivityOutput> {
     console.log(action.entries.map(entry => entry.operation));
+
     // TODO: How to deal with property paths?
     const operations = action.entries.map(entry => entry.operation);
     const operationsPatternsOrPaths = this.getPatternsOrPaths(operations);
-    const predicates = operationsPatternsOrPaths.map((patternOrPathOperation) => 
-      patternOrPathOperation.map(patternOrPath => 
-        patternOrPath.predicate.termType !== 'NamedNode'
-      )
-    )
+    // const predicates = operationsPatternsOrPaths.map((patternOrPathOperation) => 
+    //   patternOrPathOperation.map(patternOrPath => 
+    //     patternOrPath.predicate.termType !== 'NamedNode'
+    //   )
+    // );
     // Uses the CP algorithm to determine join selectivity between two entries.
     return {
       selectivity: 1

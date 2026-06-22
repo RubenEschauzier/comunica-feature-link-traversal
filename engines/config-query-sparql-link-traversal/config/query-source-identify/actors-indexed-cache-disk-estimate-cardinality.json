@@ -19,7 +19,7 @@
       "cacheEntryName": "@comunica/persistent-cache-manager:cacheSourceStateIndexedDisk",
       "cacheViewName": "@comunica/persistent-cache-manager:cacheQuery",
       "cacheCountViewName": "@comunica/persistent-cache-manager:cacheCount",
-      "setCardinalityFromCacheMinLimit": 250,
+      "setCardinalityFromCacheMinLimit": 1000,
       "beforeActors": { "@id": "urn:comunica:default:query-source-identify/actors#hypermedia" }
     }
   ]

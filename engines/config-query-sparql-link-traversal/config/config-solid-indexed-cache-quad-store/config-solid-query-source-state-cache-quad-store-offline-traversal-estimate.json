@@ -4,7 +4,7 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/config-solid-base.json",
+    "ccqslt:config/config-solid-base-no-identify.json",
     "ccqslt:config/extract-links/actors/predicates-common.json",
     "ccqslt:config/extract-links/actors/predicates-ldp.json",
     "ccqslt:config/extract-links/actors/links-describedby.json",
@@ -12,7 +12,11 @@
     "ccqslt:config/extract-links/actors/quad-pattern-query.json",
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
-    "ccqslt:config/context-preprocess/actors-caching-unindexed.json",
-    "ccqslt:config/query-source-dereference-link/actors-unindexed-source.json"
+    "ccqslt:config/context-preprocess/actors-count-quads-view-offline-traversal.json",
+    "ccqslt:config/query-source-identify/actors-indexed-cache-quad-store-estimate-cardinality.json",
+
+    "ccqslt:config/optimize-query-operation/set-indexed-cache-quad-store-offline-traversal.json",
+    "ccqslt:config/optimize-query-operation/set-indexed-cache-get-view.json",
+    "ccqslt:config/query-source-dereference-link/actors-indexed-cache-quad-store.json"
   ]
 }

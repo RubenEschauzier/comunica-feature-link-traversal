@@ -12,9 +12,10 @@ import type { AsyncIterator } from 'asynciterator';
 import { ArrayIterator } from 'asynciterator';
 import { ClassicLevel } from 'classic-level';
 import { LRUCache } from 'lru-cache';
-import type { Pattern } from 'quadstore';
 import { Quadstore } from 'quadstore';
 import { DataFactory } from 'rdf-data-factory';
+import * as fsSync from 'node:fs';
+import * as readline from 'node:readline';
 
 // Maintain a single, application-wide database reference outside the class instance. This is
 // to prevent file-locks from breaking the application when a new instance of a queryEngine is made.
@@ -78,9 +79,10 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   private cacheMetrics: ICacheMetrics;
 
   private readonly serializationLoc: string;
+  private isClosed: boolean;
   private store: Quadstore;
   private readyPromise: Promise<void>;
-
+  
   public constructor(args: IPersistentCacheIndexedDiskArgs) {
     this.maxNumTriplesDisk = args.maxNumTriples;
     this.maxNumTriplesInMemory = args.maxTriplesInMemory;
@@ -89,6 +91,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     const connection = getSharedQuadstore(this.serializationLoc, this.dataFactory);
     this.store = connection.store;
     this.readyPromise = connection.readyPromise;
+    this.isClosed = false;
 
     // LRU cache storing traversal entries of disk-backed data.
     // Also used to determine eviction of quads in the disk-based store
@@ -212,6 +215,9 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   }
 
   public async set(key: string, value: ISourceState): Promise<void> {
+    if (this.isClosed){
+      return;
+    }
     await this.readyPromise;
 
     if (this.activeIngestions.has(key)) {
@@ -372,12 +378,9 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       return true;
     }
     const out = await this.store.get(
-      <Pattern> <any> this.algebraFactory.createPattern(
-        this.dataFactory.variable('s'),
-        this.dataFactory.variable('p'),
-        this.dataFactory.variable('o'),
-        this.getCacheGraphNode(key),
-      ),
+      {
+        graph: this.getCacheGraphNode(key)
+      },
       { limit: 1 },
     );
     return out.items.length > 0;
@@ -416,70 +419,85 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   }
 
   /**
-   * Serializes the in-memory maps and LRU state to disk so the cache can survive restarts
+   * Stream the cache to jsonl file
    */
   public async serialize(): Promise<void> {
+    // Close the cache from ingestions, to ensure we don't miss serializing a metadata entry
+    // added after the query finalized
+    this.isClosed = true;
+
+    // Wait for all current ingestion runs
     await this.readyPromise;
+    if (this.activeIngestions.size > 0) {
+      await Promise.allSettled([...this.activeIngestions.values()]);
+    }
+
+    const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
+    const writeStream = fsSync.createWriteStream(metadataFile, { encoding: 'utf-8' });
+
     try {
-      const metadataFile = path.join(this.serializationLoc, 'metadata.json');
+      // Serialize LRU caches (these are strictly bounded by maxSize)
+      writeStream.write(JSON.stringify({ type: 'lruDisk', data: this.lruCacheDiskBacked.dump() }) + '\n');
+      if (this.previouslyDereferenced) {
+        writeStream.write(JSON.stringify({ type: 'lruFiltered', data: this.previouslyDereferenced.dump() }) + '\n');
+      }
 
-      const serializedData = {
-        // .dump() exports an array of objects representing the exact internal state of the LRU
-        lruCacheDiskBacked: this.lruCacheDiskBacked.dump(),
-        previouslyDereferenced: this.previouslyDereferenced?.dump(),
-        // Convert Maps to array of tuples for JSON serialization
-        sizeMap: [ ...this.sizeMap.entries() ],
-        savedMetadata: [ ...this.savedMetadata.entries() ],
-      };
+      // Stream Maps entry by entry
+      for (const [key, value] of this.sizeMap.entries()) {
+        writeStream.write(JSON.stringify({ type: 'sizeMap', key, value }) + '\n');
+      }
 
-      await fs.writeFile(metadataFile, JSON.stringify(serializedData), 'utf-8');
+      for (const [key, value] of this.savedMetadata.entries()) {
+        writeStream.write(JSON.stringify({ type: 'savedMetadata', key, value }) + '\n');
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        writeStream.end(resolve);
+        writeStream.on('error', reject);
+      });
+
       console.log(`Successfully serialized cache metadata to ${metadataFile}`);
     } catch (error) {
       console.error('Failed to serialize cache metadata:', error);
     }
   }
-
-  /**
-   * Deserializes the in-memory maps and LRU state from disk
-   */
+  
   public async deserialize(): Promise<void> {
     await this.readyPromise;
+    const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
+
     try {
-      const metadataFile = path.join(this.serializationLoc, 'metadata.json');
+      await fs.access(metadataFile);
+    } catch {
+      return; 
+    }
 
-      // Check if file exists. If not, this is a fresh start; do nothing.
-      try {
-        await fs.access(metadataFile);
-      } catch {
-        return;
-      }
+    this.sizeMap.clear();
+    this.savedMetadata.clear();
 
-      const rawData = await fs.readFile(metadataFile, 'utf-8');
-      const parsedData = JSON.parse(rawData);
+    const readStream = fsSync.createReadStream(metadataFile, { encoding: 'utf-8' });
+    const rl = readline.createInterface({ input: readStream, crlfDelay: Infinity });
 
-      // Load the maps first to calculate the sizes of the items being loaded.
-      if (parsedData.sizeMap) {
-        this.sizeMap.clear();
-        for (const [ k, v ] of parsedData.sizeMap) {
-          this.sizeMap.set(k, v);
+    try {
+      for await (const line of rl) {
+        if (!line.trim()) continue;
+        const parsed = JSON.parse(line);
+
+        switch (parsed.type) {
+          case 'lruDisk':
+            this.lruCacheDiskBacked.load(parsed.data);
+            break;
+          case 'lruFiltered':
+            this.previouslyDereferenced?.load(parsed.data);
+            break;
+          case 'sizeMap':
+            this.sizeMap.set(parsed.key, parsed.value);
+            break;
+          case 'savedMetadata':
+            this.savedMetadata.set(parsed.key, parsed.value);
+            break;
         }
       }
-
-      if (parsedData.savedMetadata) {
-        this.savedMetadata.clear(); ;
-        for (const [ k, v ] of parsedData.savedMetadata) {
-          this.savedMetadata.set(k, v);
-        }
-      }
-
-      if (parsedData.lruCacheDiskBacked) {
-        this.lruCacheDiskBacked.load(parsedData.lruCacheDiskBacked);
-      }
-
-      if (parsedData.previouslyDereferenced) {
-        this.previouslyDereferenced?.load(parsedData.previouslyDereferenced);
-      }
-
       console.log(`Successfully deserialized cache metadata from ${metadataFile}`);
     } catch (error) {
       console.error('Failed to deserialize cache metadata:', error);
@@ -490,9 +508,8 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     await this.readyPromise;
 
     // Wait for ingestion to finish to not leave ghost triples
-    const pendingIngestions = [ ...this.activeIngestions.values() ];
-    if (pendingIngestions.length > 0) {
-      await Promise.allSettled(pendingIngestions);
+    if (this.activeIngestions.size > 0) {
+      await Promise.allSettled([ ...this.activeIngestions.values()]);
     }
 
     // Clear in-memory maps

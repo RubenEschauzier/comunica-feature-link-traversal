@@ -1,5 +1,4 @@
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
 import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
@@ -13,6 +12,10 @@ import { ArrayIterator } from 'asynciterator';
 import { LRUCache } from 'lru-cache';
 import { DataFactory } from 'rdf-data-factory';
 import { RdfStore } from 'rdf-stores';
+import { pipeline } from 'node:stream/promises';
+import * as fsSync from 'node:fs';
+import * as path from 'node:path';
+import * as readline from 'node:readline';
 
 export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCache<ISourceState, ISourceState> {
   private readonly maxNumTriplesStore: number;
@@ -31,6 +34,7 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
   private cacheMetrics: ICacheMetrics;
 
   private readonly serializationLoc: string;
+  private isClosed: boolean;
   private store: RdfStore;
 
   public constructor(args: ICacheInMemoryArgs) {
@@ -39,6 +43,7 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
 
     // Instantiate a standalone store tied to this cache instance
     this.store = RdfStore.createDefault();
+    this.isClosed = false;
 
     this.lruCacheStoreBacked = new LRUCache<string, string>({
       maxSize: this.maxNumTriplesStore,
@@ -91,6 +96,10 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
   }
 
   public async set(key: string, value: ISourceState): Promise<void> {
+    if (this.isClosed){
+      return;
+    }
+
     if (this.activeIngestions.has(key)) {
       return this.activeIngestions.get(key);
     }
@@ -257,56 +266,188 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
   }
 
   public async serialize(): Promise<void> {
-    try {
-      const metadataFile = path.join(this.serializationLoc, 'metadata.json');
+    this.isClosed = true;
 
-      const serializedData = {
-        lruCacheStoreBacked: this.lruCacheStoreBacked.dump(),
-        sizeMap: [ ...this.sizeMap.entries() ],
-        savedMetadata: [ ...this.savedMetadata.entries() ],
+    if (this.activeIngestions.size > 0) {
+      await Promise.allSettled([...this.activeIngestions.values()]);
+    }
+
+    try {
+      const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
+      const storeFile = path.join(this.serializationLoc, 'store.jsonl');
+
+      // Serialize metadata
+      const writeStreamMeta = fsSync.createWriteStream(metadataFile, { encoding: 'utf-8' });
+      
+      const generateMetadata = async function* (this: PersistentCacheSourceStateIndexedQuadStore) {
+        yield JSON.stringify({ type: 'lruStore', data: this.lruCacheStoreBacked.dump() }) + '\n';
+        
+        for (const [key, value] of this.sizeMap.entries()) {
+          yield JSON.stringify({ type: 'sizeMap', key, value }) + '\n';
+        }
+
+        for (const [key, value] of this.savedMetadata.entries()) {
+          yield JSON.stringify({ type: 'savedMetadata', key, value }) + '\n';
+        }
       };
 
-      await fs.writeFile(metadataFile, JSON.stringify(serializedData), 'utf-8');
-      console.log(`Successfully serialized cache metadata to ${metadataFile}`);
+      await pipeline(generateMetadata.bind(this)(), writeStreamMeta);
+
+      // Serialize quads in store
+      let nSerialized = 0;
+      const storeWriteStream = fsSync.createWriteStream(storeFile, { encoding: 'utf-8' });
+      const quadStream = this.store.match();
+      
+      const generateQuads = async function* () {
+        for await (const quad of quadStream) {
+          nSerialized++;
+          yield JSON.stringify(quad) + '\n';
+        }
+      };
+
+      await pipeline(generateQuads(), storeWriteStream);
+
+      console.log(`Successfully serialized cache metadata and store with ${nSerialized} triples`);
     } catch (error) {
-      console.error('Failed to serialize cache metadata:', error);
+      console.error('Failed to serialize cache state:', error);
+    }
+  }
+  
+  // public async serialize(): Promise<void> {
+  //   try {
+  //     const metadataFile = path.join(this.serializationLoc, 'metadata.json');
+
+  //     const serializedData = {
+  //       lruCacheStoreBacked: this.lruCacheStoreBacked.dump(),
+  //       sizeMap: [ ...this.sizeMap.entries() ],
+  //       savedMetadata: [ ...this.savedMetadata.entries() ],
+  //     };
+
+  //     await fs.writeFile(metadataFile, JSON.stringify(serializedData), 'utf-8');
+  //     console.log(`Successfully serialized cache metadata to ${metadataFile}`);
+  //   } catch (error) {
+  //     console.error('Failed to serialize cache metadata:', error);
+  //   }
+  // }
+  public async deserialize(): Promise<void> {
+    const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
+    const storeFile = path.join(this.serializationLoc, 'store.jsonl');
+
+    try {
+      await fs.access(metadataFile);
+    } catch {
+      return; 
+    }
+
+    this.sizeMap.clear();
+    this.savedMetadata.clear();
+    this.store = RdfStore.createDefault();
+
+    try {
+      // Deserialize Metadata
+      const readStreamMeta = fsSync.createReadStream(metadataFile, { encoding: 'utf-8' });
+      const rlMeta = readline.createInterface({ input: readStreamMeta, crlfDelay: Infinity });
+
+      for await (const line of rlMeta) {
+        if (!line.trim()) continue;
+        const parsed = JSON.parse(line);
+
+        switch (parsed.type) {
+          case 'lruStore':
+            this.lruCacheStoreBacked.load(parsed.data);
+            break;
+          case 'sizeMap':
+            this.sizeMap.set(parsed.key, parsed.value);
+            break;
+          case 'savedMetadata':
+            this.savedMetadata.set(parsed.key, parsed.value);
+            break;
+        }
+      }
+
+      // Deserialize Store Quads
+      let nDeserialized = 0;
+      try {
+        await fs.access(storeFile);
+
+        const readStreamStore = fsSync.createReadStream(storeFile, { encoding: 'utf-8' });
+        const rlStore = readline.createInterface({ input: readStreamStore, crlfDelay: Infinity });
+
+        for await (const line of rlStore) {
+          if (!line.trim()) continue;
+          nDeserialized++;
+          const parsedQuad = JSON.parse(line);
+          const quad = this.dataFactory.quad(
+            <RDF.Quad_Subject>this.reconstructTerm(parsedQuad.subject),
+            <RDF.Quad_Predicate>this.reconstructTerm(parsedQuad.predicate),
+            <RDF.Quad_Object>this.reconstructTerm(parsedQuad.object),
+            <RDF.Quad_Graph>this.reconstructTerm(parsedQuad.graph)
+          );
+          this.store.addQuad(quad);
+        }
+      } catch {
+        console.warn('Store file not found or corrupted; starting with empty store.');
+      }
+
+      console.log(`Successfully deserialized cache metadata and store with ${nDeserialized} triples`);
+    } catch (error) {
+      console.error('Failed to deserialize cache state:', error);
     }
   }
 
-  public async deserialize(): Promise<void> {
-    try {
-      const metadataFile = path.join(this.serializationLoc, 'metadata.json');
+  // public async deserialize(): Promise<void> {
+  //   try {
+  //     const metadataFile = path.join(this.serializationLoc, 'metadata.json');
 
-      try {
-        await fs.access(metadataFile);
-      } catch {
-        return;
+  //     try {
+  //       await fs.access(metadataFile);
+  //     } catch {
+  //       return;
+  //     }
+
+  //     const rawData = await fs.readFile(metadataFile, 'utf-8');
+  //     const parsedData = JSON.parse(rawData);
+
+  //     if (parsedData.sizeMap) {
+  //       this.sizeMap.clear();
+  //       for (const [ k, v ] of parsedData.sizeMap) {
+  //         this.sizeMap.set(k, v);
+  //       }
+  //     }
+
+  //     if (parsedData.savedMetadata) {
+  //       this.savedMetadata.clear(); ;
+  //       for (const [ k, v ] of parsedData.savedMetadata) {
+  //         this.savedMetadata.set(k, v);
+  //       }
+  //     }
+
+  //     if (parsedData.lruCacheStoreBacked) {
+  //       this.lruCacheStoreBacked.load(parsedData.lruCacheStoreBacked);
+  //     }
+
+  //     console.log(`Successfully deserialized cache metadata from ${metadataFile}`);
+  //   } catch (error) {
+  //     console.error('Failed to deserialize cache metadata:', error);
+  //   }
+  // }
+
+  protected reconstructTerm(termObj: any): RDF.Term {
+    switch (termObj.termType) {
+      case 'NamedNode':
+        return this.dataFactory.namedNode(termObj.value);
+      case 'BlankNode':
+        return this.dataFactory.blankNode(termObj.value);
+      case 'Literal': {
+        const datatype = termObj.datatype ? this.dataFactory.namedNode(termObj.datatype.value) : undefined;
+        return this.dataFactory.literal(termObj.value, termObj.language || datatype);
       }
-
-      const rawData = await fs.readFile(metadataFile, 'utf-8');
-      const parsedData = JSON.parse(rawData);
-
-      if (parsedData.sizeMap) {
-        this.sizeMap.clear();
-        for (const [ k, v ] of parsedData.sizeMap) {
-          this.sizeMap.set(k, v);
-        }
-      }
-
-      if (parsedData.savedMetadata) {
-        this.savedMetadata.clear(); ;
-        for (const [ k, v ] of parsedData.savedMetadata) {
-          this.savedMetadata.set(k, v);
-        }
-      }
-
-      if (parsedData.lruCacheStoreBacked) {
-        this.lruCacheStoreBacked.load(parsedData.lruCacheStoreBacked);
-      }
-
-      console.log(`Successfully deserialized cache metadata from ${metadataFile}`);
-    } catch (error) {
-      console.error('Failed to deserialize cache metadata:', error);
+      case 'DefaultGraph':
+        return this.dataFactory.defaultGraph();
+      case 'Variable':
+        return this.dataFactory.variable(termObj.value);
+      default:
+        throw new Error(`Unsupported term type: ${termObj.termType}`);
     }
   }
 

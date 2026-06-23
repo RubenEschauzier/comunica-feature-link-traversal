@@ -9,7 +9,7 @@ import {
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
 import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { ActionContextKey, passTestVoid } from '@comunica/core';
+import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
 
 import { PersistentCacheIndexedDisk } from '@comunica/caches-link-traversal';
@@ -18,12 +18,12 @@ import { PersistentCacheIndexedDisk } from '@comunica/caches-link-traversal';
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
  */
 export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal extends ActorOptimizeQueryOperation {
-  private cacheQuerySourceState: PersistentCacheIndexedDisk;
   private readonly cacheSizeDiskNumTriples: number;
   private readonly cacheSizeHotNumTriples: number;
   private readonly hotCachePolicy: 'lru' | 'lru-filtered';
 
-  private readonly cacheDeserializationDone: Promise<void>;
+  private cacheQuerySourceState: PersistentCacheIndexedDisk | undefined;
+  private cacheDeserializationDone: Promise<void> | undefined;
 
   public constructor(args: IActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversalArgs) {
     super(args);
@@ -31,22 +31,28 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
     this.cacheSizeHotNumTriples = args.cacheSizeHotNumTriples;
     this.hotCachePolicy = args.hotCachePolicy;
 
-    this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
-      {
-        maxNumTriples: this.cacheSizeDiskNumTriples,
-        maxTriplesInMemory: this.cacheSizeHotNumTriples,
-        hotCachePolicy: this.hotCachePolicy,
-      },
-    );
-    this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
+    // this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
+    //   {
+    //     maxNumTriples: this.cacheSizeDiskNumTriples,
+    //     maxTriplesInMemory: this.cacheSizeHotNumTriples,
+    //     hotCachePolicy: this.hotCachePolicy,
+    //   },
+    // );
+    // this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
     console.log(`Created cache with max on disk/hot size: ${this.cacheSizeDiskNumTriples}/${this.cacheSizeHotNumTriples}`);
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
+    if (action.context.get(KeysInitQuery.isMaster)){
+      return failTest(`${this.name} only creates cache for worker threads`);
+    }
     return passTestVoid();
   }
 
   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
+    if (!this.cacheQuerySourceState){
+      this.createCache(true);
+    }
     await this.cacheDeserializationDone;
 
     const context = action.context;
@@ -55,30 +61,37 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
     }
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
-      this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
-        {
-          maxNumTriples: this.cacheSizeDiskNumTriples,
-          maxTriplesInMemory: this.cacheSizeHotNumTriples,
-          hotCachePolicy: this.hotCachePolicy,
-        },
-      );
-      await this.cacheQuerySourceState.clear();
-      console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState.size()}`);
+      this.createCache(false);
+      await this.cacheQuerySourceState!.clear();
+      console.log(`Cleaned cache, size: ${await this.cacheQuerySourceState!.size()}`);
     }
 
     const timeoutCallbacks = context.get(KeysInitQuery.timeoutCallbacks);
     if (timeoutCallbacks) {
       console.log('Adding serialization callback to timeout callbacks');
-      timeoutCallbacks.push(async() => await this.cacheQuerySourceState.serialize());
+      timeoutCallbacks.push(async() => await this.cacheQuerySourceState!.serialize());
     }
 
     const cacheManager = context.getSafe(KeysCaching.cacheManager);
     cacheManager.registerCache(
       CacheEntrySourceState.cacheSourceStateIndexedDisk,
-      this.cacheQuerySourceState,
+      this.cacheQuerySourceState!,
       new SetSourceStateCacheOfflineTraversalDisk(),
     );
     return { context, operation: action.operation };
+  }
+  
+  protected createCache(deserialize: boolean){
+    this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
+      {
+        maxNumTriples: this.cacheSizeDiskNumTriples,
+        maxTriplesInMemory: this.cacheSizeHotNumTriples,
+        hotCachePolicy: this.hotCachePolicy,
+      },
+    );
+    if (deserialize){
+      this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
+    }
   }
 }
 

@@ -13,7 +13,7 @@
       "@id": "urn:comunica:default:optimize-query-operation/actors#set-cache-indexed-disk-offline-traversal",
       "@type": "ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal",
       "cacheSizeDiskNumTriples": 1600000,
-      "cacheSizeHotNumTriples": 160000,
+      "cacheSizeHotNumTriples": 16000,
       "hotCachePolicy": "lru-filtered",
       "beforeActors": [
         { "@id": "urn:comunica:default:optimize-query-operation/actors#initialize-link-traversal-manager" }

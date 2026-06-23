@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@comunica/core": "^5.2.0",
-    "@comunica/types-link-traversal": "^0.8.0"
+    "@comunica/types-link-traversal": "^0.8.0",
+    "murmurhash": "^2.0.1"
   }
 }

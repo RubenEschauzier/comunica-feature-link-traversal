@@ -16,6 +16,7 @@ import { Quadstore } from 'quadstore';
 import { DataFactory } from 'rdf-data-factory';
 import * as fsSync from 'node:fs';
 import * as readline from 'node:readline';
+import { pipeline } from 'node:stream/promises';
 
 // Maintain a single, application-wide database reference outside the class instance. This is
 // to prevent file-locks from breaking the application when a new instance of a queryEngine is made.
@@ -58,6 +59,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   private readonly maxNumTriplesDisk: number;
   private readonly maxNumTriplesInMemory: number;
   private readonly activeIngestions = new Map<string, Promise<void>>();
+  private readonly activeDeletions = new Map<string, Promise<void>>();
 
   private readonly hotLRUCacheDocuments: LRUCache<string, ISourceState>;
   // A tracker to do pre-filtering of URLs before putting into the hot-cache.
@@ -66,7 +68,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   private readonly decayThreshold = 10000;
   private nAccesses = 0;
 
-  private readonly lruCacheDiskBacked: LRUCache<string, string>;
+  private readonly lruCacheDiskBacked: LRUCache<string, boolean>;
   private readonly metadataKeysToCache: string[];
   private readonly savedMetadata = new Map<string, Record<string, any>>();
   private readonly sizeMap = new Map<string, number>();
@@ -95,7 +97,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
 
     // LRU cache storing traversal entries of disk-backed data.
     // Also used to determine eviction of quads in the disk-based store
-    this.lruCacheDiskBacked = new LRUCache<string, string>({
+    this.lruCacheDiskBacked = new LRUCache<string, boolean>({
       maxSize: this.maxNumTriplesDisk,
       sizeCalculation: (value, key) => this.sizeMap.get(key) || 1,
       dispose: this.onDispose.bind(this),
@@ -169,6 +171,12 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   public async get(key: string): Promise<ISourceState | undefined> {
     await this.readyPromise;
 
+    const ongoingDeletion = this.activeDeletions.get(key);
+    if (ongoingDeletion){
+      await ongoingDeletion;
+      return undefined;
+    }
+
     const ongoingIngestion = this.activeIngestions.get(key);
     if (ongoingIngestion) {
       await ongoingIngestion;
@@ -191,8 +199,16 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       const rehydratedState = this.createSourceStateFromDisk(key, cacheGraph);
 
       const storedMeta = this.savedMetadata.get(key);
+
       if (storedMeta === undefined) {
-        throw new Error(`Could not find saved metadata for cache entry ${key}`);
+        console.warn(`Desynchronization detected: Missing metadata for ${key}. Evicting corrupted cache entry.`);
+        await this.delete(key);
+        
+        if (this.isTracking) {
+           this.cacheMetrics.hits--;
+           this.cacheMetrics.misses++;
+        }
+        return undefined;
       }
 
       rehydratedState.metadata = { ...rehydratedState.metadata, ...storedMeta };
@@ -219,6 +235,11 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       return;
     }
     await this.readyPromise;
+
+    const ongoingDeletion = this.activeDeletions.get(key);
+    if (ongoingDeletion){
+      await ongoingDeletion;
+    }
 
     if (this.activeIngestions.has(key)) {
       return this.activeIngestions.get(key);
@@ -285,7 +306,7 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     this.savedMetadata.set(key, extractedMetadata);
 
     // Register cache entry to manage LRU-eviction of quads in disk-based cache
-    this.lruCacheDiskBacked.set(key, '');
+    this.lruCacheDiskBacked.set(key, true);
 
     // Add entry to hot cache
     const rehydratedState = this.createSourceStateFromDisk(key, cacheGraph);
@@ -352,13 +373,20 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     };
   }
 
-  protected onDispose(value: string, key: string, reason: LRUCache.DisposeReason) {
+  protected onDispose(value: boolean, key: string, reason: LRUCache.DisposeReason) {
     if (reason === 'evict' && this.isTracking) {
       this.cacheMetrics.evictions++;
       this.cacheMetrics.evictionsCalculatedSize += this.sizeMap.get(key) ?? 1;
       this.cacheMetrics.evictionPercentage =
         (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriplesDisk) * 100;
-      this._delete(key);
+    }
+
+    this.sizeMap.delete(key);
+    this.savedMetadata.delete(key);
+    this.hotLRUCacheDocuments.delete(key);
+
+    if (reason === 'evict' || reason === 'set' || reason === 'expire') {
+      this.triggerGraphDeletion(key);
     }
   }
 
@@ -389,33 +417,23 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
   public async delete(key: string): Promise<boolean> {
     await this.readyPromise;
 
-    // If the key we want to delete is still ingesting we need to wait for that
-    // to prevent dangling entries
     const ongoingIngestion = this.activeIngestions.get(key);
     if (ongoingIngestion) {
-      try {
-        await ongoingIngestion;
+      try { 
+        await ongoingIngestion; 
       } catch {
-        // Ignore the ingestion error here. We must proceed with the
-        // deletion cascade to clean up any partially written disk data.
+        
       }
     }
-    this.sizeMap.delete(key);
-    return this._delete(key);
-  }
 
-  private _delete(key: string): Promise<boolean> {
+    const existed = this.lruCacheDiskBacked.has(key);
+    if (!existed) {
+      return false;
+    }
+
     this.lruCacheDiskBacked.delete(key);
-    this.savedMetadata.delete(key);
-    this.hotLRUCacheDocuments.delete(key);
-
-    const removalStream = this.store.deleteGraph(
-      this.getCacheGraphNode(key),
-    );
-    return new Promise<boolean>((resolve, reject) => {
-      removalStream.on('end', () => resolve(true));
-      removalStream.on('error', err => reject(err));
-    });
+    await this.triggerGraphDeletion(key);
+    return true;
   }
 
   /**
@@ -433,32 +451,49 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     }
 
     const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
-    const writeStream = fsSync.createWriteStream(metadataFile, { encoding: 'utf-8' });
-
+    let nSerialized = 0
     try {
-      // Serialize LRU caches (these are strictly bounded by maxSize)
-      writeStream.write(JSON.stringify({ type: 'lruDisk', data: this.lruCacheDiskBacked.dump() }) + '\n');
-      if (this.previouslyDereferenced) {
-        writeStream.write(JSON.stringify({ type: 'lruFiltered', data: this.previouslyDereferenced.dump() }) + '\n');
+      const writeStream = fsSync.createWriteStream(metadataFile, { encoding: 'utf-8' });
+      writeStream.on('error', (err) => console.error('writeStream error:', err));
+
+      const generateMetadata = async function* (this: PersistentCacheIndexedDisk) {
+        try {
+          const lruLine = JSON.stringify({ type: 'lruDisk', data: this.lruCacheDiskBacked.dump() }) + '\n';
+          yield lruLine;
+
+          if (this.previouslyDereferenced) {
+            yield JSON.stringify({ type: 'lruFiltered', data: this.previouslyDereferenced.dump() }) + '\n';
+          }
+
+          for (const [key, value] of this.sizeMap.entries()) {
+            nSerialized++;
+            yield JSON.stringify({ type: 'sizeMap', key, value }) + '\n';
+          }
+
+          for (const [key, value] of this.savedMetadata.entries()) {
+            yield JSON.stringify({ type: 'savedMetadata', key, value }) + '\n';
+          }
+        } catch (err) {
+          console.log(err);
+          throw err;
+        }
+      };
+
+      const gen = generateMetadata.bind(this)();
+
+      try {
+        await pipeline(gen, writeStream);
+      } catch (err) {
+        console.error('pipeline rejected with:', err);
+        throw err;
       }
 
-      // Stream Maps entry by entry
-      for (const [key, value] of this.sizeMap.entries()) {
-        writeStream.write(JSON.stringify({ type: 'sizeMap', key, value }) + '\n');
-      }
-
-      for (const [key, value] of this.savedMetadata.entries()) {
-        writeStream.write(JSON.stringify({ type: 'savedMetadata', key, value }) + '\n');
-      }
-
-      await new Promise<void>((resolve, reject) => {
-        writeStream.end(resolve);
-        writeStream.on('error', reject);
-      });
-
-      console.log(`Successfully serialized cache metadata to ${metadataFile}`);
+      console.log(`Successfully serialized ${nSerialized} cache metadata to ${metadataFile}`);
     } catch (error) {
       console.error('Failed to serialize cache metadata:', error);
+      await fs.unlink(metadataFile).catch(() => {
+        console.warn('Failed to clean up partial metadata file');
+      });
     }
   }
   
@@ -469,17 +504,21 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     try {
       await fs.access(metadataFile);
     } catch {
-      return; 
+      return;
     }
 
     this.sizeMap.clear();
     this.savedMetadata.clear();
 
-    const readStream = fsSync.createReadStream(metadataFile, { encoding: 'utf-8' });
-    const rl = readline.createInterface({ input: readStream, crlfDelay: Infinity });
-
     try {
-      for await (const line of rl) {
+      // Deserialize metadata
+      const readStreamMeta = fsSync.createReadStream(metadataFile, { encoding: 'utf-8' });
+      const rlMeta = readline.createInterface({ input: readStreamMeta, crlfDelay: Infinity });
+
+      let nDeserialized = 0;
+      const startTime = performance.now();
+
+      for await (const line of rlMeta) {
         if (!line.trim()) continue;
         const parsed = JSON.parse(line);
 
@@ -492,13 +531,18 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
             break;
           case 'sizeMap':
             this.sizeMap.set(parsed.key, parsed.value);
+            nDeserialized++;
             break;
           case 'savedMetadata':
             this.savedMetadata.set(parsed.key, parsed.value);
             break;
         }
       }
-      console.log(`Successfully deserialized cache metadata from ${metadataFile}`);
+
+      console.log(
+        `Successfully deserialized cache metadata with ${nDeserialized} entries ` +
+        `in ${(performance.now() - startTime) / 1000} seconds.`,
+      );
     } catch (error) {
       console.error('Failed to deserialize cache metadata:', error);
     }
@@ -510,6 +554,10 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     // Wait for ingestion to finish to not leave ghost triples
     if (this.activeIngestions.size > 0) {
       await Promise.allSettled([ ...this.activeIngestions.values()]);
+    }
+
+    if (this.activeDeletions.size > 0) {
+          await Promise.allSettled([ ...this.activeDeletions.values()]);
     }
 
     // Clear in-memory maps
@@ -579,6 +627,26 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
         },
       },
     };
+  }
+
+  protected triggerGraphDeletion(key: string): Promise<void> {
+    if (this.activeDeletions.has(key)) {
+      return this.activeDeletions.get(key)!;
+    }
+
+    const deletionPromise = new Promise<void>((resolve) => {
+      const removalStream = this.store.deleteGraph(this.getCacheGraphNode(key));
+      removalStream.on('end', resolve);
+      removalStream.on('error', (err) => {
+        console.warn(`Background graph deletion failed for ${key}:`, err);
+        resolve(); 
+      });
+    }).finally(() => {
+      this.activeDeletions.delete(key);
+    });
+
+    this.activeDeletions.set(key, deletionPromise);
+    return deletionPromise;
   }
 }
 

@@ -13,6 +13,7 @@ import { LRUCache } from 'lru-cache';
 import { DataFactory } from 'rdf-data-factory';
 import { RdfStore } from 'rdf-stores';
 import { pipeline } from 'node:stream/promises';
+import * as n3 from 'n3';
 import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import * as readline from 'node:readline';
@@ -20,8 +21,9 @@ import * as readline from 'node:readline';
 export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCache<ISourceState, ISourceState> {
   private readonly maxNumTriplesStore: number;
   private readonly activeIngestions = new Map<string, Promise<void>>();
+  private readonly activeDeletions = new Map<string, Promise<void>>();
 
-  private readonly lruCacheStoreBacked: LRUCache<string, string>;
+  private readonly lruCacheStoreBacked: LRUCache<string, boolean>;
   private readonly metadataKeysToCache: string[];
   private readonly savedMetadata = new Map<string, Record<string, any>>();
   private readonly sizeMap = new Map<string, number>();
@@ -45,7 +47,7 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
     this.store = RdfStore.createDefault();
     this.isClosed = false;
 
-    this.lruCacheStoreBacked = new LRUCache<string, string>({
+    this.lruCacheStoreBacked = new LRUCache<string, boolean>({
       maxSize: this.maxNumTriplesStore,
       sizeCalculation: (value, key) => this.sizeMap.get(key) || 1,
       dispose: this.onDispose.bind(this),
@@ -67,6 +69,11 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
 
   public async get(key: string): Promise<ISourceState | undefined> {
     const ongoingIngestion = this.activeIngestions.get(key);
+    const ongoingDeletion = this.activeDeletions.get(key);
+    if (ongoingDeletion){
+      await ongoingDeletion;
+      return undefined;
+    }
     if (ongoingIngestion) {
       await ongoingIngestion;
     }
@@ -98,6 +105,11 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
   public async set(key: string, value: ISourceState): Promise<void> {
     if (this.isClosed){
       return;
+    }
+    
+    const ongoingDeletion = this.activeDeletions.get(key);
+    if (ongoingDeletion) {
+      await ongoingDeletion;
     }
 
     if (this.activeIngestions.has(key)) {
@@ -166,7 +178,7 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
     }
     this.savedMetadata.set(key, extractedMetadata);
 
-    this.lruCacheStoreBacked.set(key, '');
+    this.lruCacheStoreBacked.set(key, true);
   }
 
   private createSourceStateFromMemory(key: string, cacheGraph: RDF.NamedNode): ISourceState {
@@ -227,13 +239,22 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
     };
   }
 
-  protected onDispose(value: string, key: string, reason: LRUCache.DisposeReason) {
+  protected onDispose(value: boolean, key: string, reason: LRUCache.DisposeReason) {
     if (reason === 'evict' && this.isTracking) {
       this.cacheMetrics.evictions++;
       this.cacheMetrics.evictionsCalculatedSize += this.sizeMap.get(key) ?? 1;
       this.cacheMetrics.evictionPercentage =
         (this.cacheMetrics.evictionsCalculatedSize / this.maxNumTriplesStore) * 100;
-      this._delete(key);
+    }
+
+    // Clean up associated metadata maps
+    this.sizeMap.delete(key);
+    this.savedMetadata.delete(key);
+
+    // If the item is being naturally evicted or overwritten, we must trigger the async graph cleanup.
+    // Since onDispose is synchronous, we attach listeners and let the stream finish in the background.
+    if (reason === 'evict' || reason === 'set' || reason === 'expire') {
+      this.triggerGraphDeletion(key);
     }
   }
 
@@ -250,21 +271,22 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
         // Proceed with cascade to clean up memory limits
       }
     }
-    this.sizeMap.delete(key);
-    return this._delete(key);
-  }
 
-  private _delete(key: string): Promise<boolean> {
+    const existed = this.lruCacheStoreBacked.has(key);
+    if (!existed) {
+      return false;
+    }
+
+    // This synchronously triggers onDispose with reason: 'delete'.
+    // We handle the metadata cleanup there, but we skip the background graph deletion
+    // so we can explicitly await it below.
     this.lruCacheStoreBacked.delete(key);
-    this.savedMetadata.delete(key);
 
-    const result = this.store.deleteGraph(this.getCacheGraphNode(key));
-    return new Promise<boolean>((resolve) => {
-      result.on('end', () => resolve(true));
-      result.on('error', () => resolve(false));
-    });
+    // Now safely await the async event emitter
+    await this.triggerGraphDeletion(key);
+    return true;
   }
-
+  
   public async serialize(): Promise<void> {
     this.isClosed = true;
 
@@ -272,47 +294,73 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
       await Promise.allSettled([...this.activeIngestions.values()]);
     }
 
-    try {
-      const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
-      const storeFile = path.join(this.serializationLoc, 'store.jsonl');
+    const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
+    const quadsFile = path.join(this.serializationLoc, 'store.nq');
 
+    try {
       // Serialize metadata
       const writeStreamMeta = fsSync.createWriteStream(metadataFile, { encoding: 'utf-8' });
-      
+      writeStreamMeta.on('error', (err) => console.error('writeStreamMeta error:', err));
+
       const generateMetadata = async function* (this: PersistentCacheSourceStateIndexedQuadStore) {
-        yield JSON.stringify({ type: 'lruStore', data: this.lruCacheStoreBacked.dump() }) + '\n';
-        
-        for (const [key, value] of this.sizeMap.entries()) {
-          yield JSON.stringify({ type: 'sizeMap', key, value }) + '\n';
-        }
+        try {
+          const dumped = this.lruCacheStoreBacked.dump();
+          const lruLine = JSON.stringify({ type: 'lruStore', data: dumped }) + '\n';
+          yield lruLine;
 
-        for (const [key, value] of this.savedMetadata.entries()) {
-          yield JSON.stringify({ type: 'savedMetadata', key, value }) + '\n';
+          for (const [key, value] of this.sizeMap.entries()) {
+            yield JSON.stringify({ type: 'sizeMap', key, value }) + '\n';
+          }
+
+          for (const [key, value] of this.savedMetadata.entries()) {
+            yield JSON.stringify({ type: 'savedMetadata', key, value }) + '\n';
+          }
+        } catch (err) {
+          console.log(err);
+          throw err;
         }
       };
 
-      await pipeline(generateMetadata.bind(this)(), writeStreamMeta);
+      const gen = generateMetadata.bind(this)();
 
-      // Serialize quads in store
-      let nSerialized = 0;
-      const storeWriteStream = fsSync.createWriteStream(storeFile, { encoding: 'utf-8' });
-      const quadStream = this.store.match();
+      try {
+        await pipeline(gen, writeStreamMeta);
+      } catch (err) {
+        console.error('pipeline rejected with:', err);
+        throw err;
+      }      
+
+      // Serialize quads in store: pipe the store's match stream directly
+      // through an n3 StreamWriter, in one pass over the whole store.
+      const startTime = performance.now();
+      const quadsWriteStream = fsSync.createWriteStream(quadsFile, { encoding: 'utf-8' });
+      const writer = new n3.StreamWriter({ format: 'N-Quads' });
       
-      const generateQuads = async function* () {
-        for await (const quad of quadStream) {
-          nSerialized++;
-          yield JSON.stringify(quad) + '\n';
-        }
-      };
+      let nSerialized = 0;
+      const quadStream = this.store.match().map(quad => {
+        nSerialized++;
+        return quad
+      });
 
-      await pipeline(generateQuads(), storeWriteStream);
+      await pipeline(quadStream, writer, quadsWriteStream);
 
-      console.log(`Successfully serialized cache metadata and store with ${nSerialized} triples`);
+      console.log(
+        `Successfully serialized cache metadata and store with ${nSerialized} triples ` +
+        `in ${(performance.now() - startTime) / 1000} seconds.`,
+      );
     } catch (error) {
       console.error('Failed to serialize cache state:', error);
+      await Promise.allSettled([
+        fs.unlink(metadataFile).catch(() => {
+          console.warn('Failed to clean up partial metadata file');
+        }),
+        fs.unlink(quadsFile).catch(() => {
+          console.warn('Failed to clean up partial quads file');
+        }),
+      ]);
     }
   }
-  
+
   // public async serialize(): Promise<void> {
   //   try {
   //     const metadataFile = path.join(this.serializationLoc, 'metadata.json');
@@ -331,12 +379,12 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
   // }
   public async deserialize(): Promise<void> {
     const metadataFile = path.join(this.serializationLoc, 'metadata.jsonl');
-    const storeFile = path.join(this.serializationLoc, 'store.jsonl');
+    const quadsFile = path.join(this.serializationLoc, 'store.nq');
 
     try {
       await fs.access(metadataFile);
     } catch {
-      return; 
+      return;
     }
 
     this.sizeMap.clear();
@@ -344,7 +392,7 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
     this.store = RdfStore.createDefault();
 
     try {
-      // Deserialize Metadata
+      // Deserialize metadata
       const readStreamMeta = fsSync.createReadStream(metadataFile, { encoding: 'utf-8' });
       const rlMeta = readline.createInterface({ input: readStreamMeta, crlfDelay: Infinity });
 
@@ -364,37 +412,42 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
             break;
         }
       }
-
-      // Deserialize Store Quads
+      
+      // Deserialize quads: pipe the file straight through an n3 StreamParser
+      // and add each quad to the store as-is (graph term already encodes
+      // the cache key, so no reconstruction needed).
       let nDeserialized = 0;
+      const startTime = performance.now();
+
       try {
-        await fs.access(storeFile);
+        await fs.access(quadsFile);
 
-        const readStreamStore = fsSync.createReadStream(storeFile, { encoding: 'utf-8' });
-        const rlStore = readline.createInterface({ input: readStreamStore, crlfDelay: Infinity });
+        await new Promise<void>((resolve, reject) => {
+          const parser = new n3.StreamParser({ format: 'N-Quads' });
+          const fileStream = fsSync.createReadStream(quadsFile, { encoding: 'utf-8' });
 
-        for await (const line of rlStore) {
-          if (!line.trim()) continue;
-          nDeserialized++;
-          const parsedQuad = JSON.parse(line);
-          const quad = this.dataFactory.quad(
-            <RDF.Quad_Subject>this.reconstructTerm(parsedQuad.subject),
-            <RDF.Quad_Predicate>this.reconstructTerm(parsedQuad.predicate),
-            <RDF.Quad_Object>this.reconstructTerm(parsedQuad.object),
-            <RDF.Quad_Graph>this.reconstructTerm(parsedQuad.graph)
-          );
-          this.store.addQuad(quad);
-        }
+          parser.on('data', (quad: RDF.Quad) => {
+            this.store.addQuad(quad);
+            nDeserialized++;
+          });
+          parser.on('end', resolve);
+          parser.on('error', reject);
+          fileStream.on('error', reject);
+
+          fileStream.pipe(parser);
+        });
       } catch {
         console.warn('Store file not found or corrupted; starting with empty store.');
       }
 
-      console.log(`Successfully deserialized cache metadata and store with ${nDeserialized} triples`);
+      console.log(
+        `Successfully deserialized cache metadata and store with ${nDeserialized} triples ` +
+        `in ${(performance.now() - startTime) / 1000} seconds.`,
+      );
     } catch (error) {
       console.error('Failed to deserialize cache state:', error);
     }
   }
-
   // public async deserialize(): Promise<void> {
   //   try {
   //     const metadataFile = path.join(this.serializationLoc, 'metadata.json');
@@ -431,6 +484,26 @@ export class PersistentCacheSourceStateIndexedQuadStore implements IPersistentCa
   //     console.error('Failed to deserialize cache metadata:', error);
   //   }
   // }
+  protected triggerGraphDeletion(key: string): Promise<void> {
+    if (this.activeDeletions.has(key)) {
+      return this.activeDeletions.get(key)!;
+    }
+
+    const deletionPromise = new Promise<void>((resolve) => {
+      const result = this.store.deleteGraph(this.getCacheGraphNode(key));
+      result.on('end', resolve);
+      result.on('error', (err) => {
+        console.warn(`Background graph deletion failed for ${key}:`, err);
+        resolve(); 
+      });
+    }).finally(() => {
+      this.activeDeletions.delete(key);
+    });
+
+    this.activeDeletions.set(key, deletionPromise);
+    return deletionPromise;
+  }
+
 
   protected reconstructTerm(termObj: any): RDF.Term {
     switch (termObj.termType) {

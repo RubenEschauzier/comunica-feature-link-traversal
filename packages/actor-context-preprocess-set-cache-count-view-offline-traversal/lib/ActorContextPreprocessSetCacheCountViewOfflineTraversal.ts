@@ -121,8 +121,6 @@ number
       const predicateToLinks: Record<string, string[]> = sourceState.metadata.predicateToLinks;
 
       if (nextDefaultLinks === undefined || predicateToLinks === undefined) {
-        console.log(sourceState.metadata);
-        console.log(sourceState.link);
         throw new Error('Found cached document without traversal information');
       }
 

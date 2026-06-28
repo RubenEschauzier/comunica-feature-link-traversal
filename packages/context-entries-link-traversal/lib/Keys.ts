@@ -1,10 +1,12 @@
 import { ActionContextKey } from '@comunica/core';
+import { IStatisticBase } from '@comunica/types';
 import type {
   AnnotateSourcesType,
   LinkFilter,
   IAggregatedStore,
   ILinkTraversalManager,
 } from '@comunica/types-link-traversal';
+import { ITopologyUpdate } from '../../statistic-traversal-topology/lib';
 
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
@@ -78,11 +80,8 @@ export const KeysQuerySourceIdentifyHypermediaNoneLazy = {
   ),
 };
 
-// Export const KeysCaching = {
-//   /**
-//    * Caching manager that handles the logic between viewing and writing to cache
-//    */
-//   cacheManager: new ActionContextKey<PersistentCacheManager>(
-//     '@comunica/actor-context-preprocess:cacheManager',
-//   ),
-// };
+export const KeysStatisticsTraversal = {
+  traversalTopology: new ActionContextKey<IStatisticBase<ITopologyUpdate>>
+  ('@comunica/statistic-traversal-topology:Tracked'),
+  writeToFile: new ActionContextKey<IStatisticBase<any>>('@comunica/statistic-write-to-file:Writer'),
+};

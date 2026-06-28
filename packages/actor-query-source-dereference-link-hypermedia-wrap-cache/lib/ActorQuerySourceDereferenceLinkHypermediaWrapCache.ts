@@ -87,6 +87,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     }
     action.context = action.context.set(KEY_WRAPPED, true);
     const dereferenceLinkOutput = await this.mediatorQuerySourceDereferenceLink.mediate(action);
+
     dereferenceLinkOutput.source = new QuerySourceCacheWrapper(dereferenceLinkOutput.source);
     await cacheManager.setCache(
       this.cacheEntryKey,

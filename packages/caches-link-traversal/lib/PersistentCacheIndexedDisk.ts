@@ -28,7 +28,14 @@ function getSharedQuadstore(serializationLoc: string, dataFactory: any): { store
   activeConnectionCount++;
 
   if (!globalStoreInstance) {
-    globalDbInstance = new ClassicLevel(serializationLoc);
+    globalDbInstance = new ClassicLevel(serializationLoc, {
+      // Reduces the in-memory write buffer before flushing to disk (default is often 4MB-8MB)
+      writeBufferSize: 4 * 1024 * 1024, 
+            
+      // Limits how many files LevelDB keeps open simultaneously (reduces OS memory overhead)
+      maxOpenFiles: 100,
+    });    
+
     globalStoreInstance = new Quadstore({
       backend: <any> globalDbInstance,
       dataFactory,
@@ -99,7 +106,9 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
     // Also used to determine eviction of quads in the disk-based store
     this.lruCacheDiskBacked = new LRUCache<string, boolean>({
       maxSize: this.maxNumTriplesDisk,
-      sizeCalculation: (value, key) => this.sizeMap.get(key) || 1,
+      sizeCalculation: (value, key) => {
+        return this.sizeMap.get(key) || 1
+      },
       dispose: this.onDispose.bind(this),
     });
 
@@ -212,15 +221,11 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
       }
 
       rehydratedState.metadata = { ...rehydratedState.metadata, ...storedMeta };
-      // If (traverse === undefined){
-      //   throw new Error("Could not find traverse metadata for cache entry that exists within "+
-      //     "the disk-based store"
-      //   );
-      // }
-      // rehydratedState.metadata.traverse = traverse;
+
       if (this.canAddToHotCache(key)) {
         this.hotLRUCacheDocuments.set(key, rehydratedState);
       }
+
       return rehydratedState;
     }
 
@@ -458,21 +463,27 @@ export class PersistentCacheIndexedDisk implements IPersistentCache<ISourceState
 
       const generateMetadata = async function* (this: PersistentCacheIndexedDisk) {
         try {
+          console.log("Yielding lruCacheBacked dump");
           const lruLine = JSON.stringify({ type: 'lruDisk', data: this.lruCacheDiskBacked.dump() }) + '\n';
           yield lruLine;
 
           if (this.previouslyDereferenced) {
+            console.log("Yielding previously dereferenced cache metadata for serialization");
             yield JSON.stringify({ type: 'lruFiltered', data: this.previouslyDereferenced.dump() }) + '\n';
           }
+          console.log("Finished yielding previously dereferenced cache metadata for serialization");
 
           for (const [key, value] of this.sizeMap.entries()) {
             nSerialized++;
             yield JSON.stringify({ type: 'sizeMap', key, value }) + '\n';
           }
+          console.log("Finished yielding sizeMap cache metadata for serialization");
 
           for (const [key, value] of this.savedMetadata.entries()) {
             yield JSON.stringify({ type: 'savedMetadata', key, value }) + '\n';
           }
+
+          console.log("Finished yielding savedMetadata cache metadata for serialization");
         } catch (err) {
           console.log(err);
           throw err;

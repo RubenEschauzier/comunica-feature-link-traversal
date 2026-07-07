@@ -1,6 +1,6 @@
 {
   "name": "@comunica/statistic-write-to-file-overwrite",
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "Comunica package that defines a package for writing statistic output to file that is overwritten in each update.",
   "license": "MIT",
   "homepage": "https://comunica.dev/",

@@ -181,13 +181,20 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
     if (typeof link.url !== 'string') {
       return false;
     }
+    if (this.nodeMetadata[this.nodeToId(link.url)] === undefined) {
+      // console.log(link.url)
+      // console.log(this.nodeToIndexDict)
+      // console.log()
+      console.log("Warning: Dereferencing a node that has not been discovered yet. This should not happen.");
+      return false;
+    }
     if (this.nodeMetadata[this.nodeToId(link.url)].dereferenced) {
       return false;
     }
     this.nodeMetadata[this.nodeToId(link.url)].dereferenced = true;
     this.nodeMetadata[this.nodeToId(link.url)].dereferenceOrder = this.nDereferenced;
     this.dereferenceOrder.push(this.nodeToId(link.url));
-    // Remove dereferenced node from open nodes (TODO check correct implementation)
+
     this.openNodes = this.openNodes.filter(val => val !== this.nodeToId(link.url));
     this.nDereferenced++;
     return true;

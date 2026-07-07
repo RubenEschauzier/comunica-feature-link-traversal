@@ -70,7 +70,10 @@
     "@comunica/actor-context-preprocess-set-cache-source-state": "^0.8.0",
     "@comunica/actor-http-delay": "^0.8.0",
     "@comunica/actor-context-preprocess-set-persistent-cache-manager": "^5.2.0",
-    "@comunica/actor-rdf-join-entries-sort-cardinality-cache": "0.8.0",
+    "@comunica/actor-rdf-join-entries-sort-cardinality-cache": "^0.8.0",
+    "@comunica/actor-context-preprocess-set-topology-tracking": "^0.8.0",
+    "@comunica/statistic-traversal-topology": "^0.8.0",
+    "@comunica/statistic-write-to-file-overwrite": "^0.8.0",
 
 
     "@comunica/actor-bindings-aggregator-factory-average": "^5.2.0",

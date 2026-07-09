@@ -1,12 +1,12 @@
 import { ActionContextKey } from '@comunica/core';
-import { IStatisticBase } from '@comunica/types';
+import type { IStatisticBase } from '@comunica/types';
 import type {
   AnnotateSourcesType,
   LinkFilter,
   IAggregatedStore,
   ILinkTraversalManager,
 } from '@comunica/types-link-traversal';
-import { ITopologyUpdate } from '../../statistic-traversal-topology/lib';
+import type { ITopologyUpdate } from '../../statistic-traversal-topology/lib';
 
 /**
  * When adding entries to this file, also add a shortcut for them in the contextKeyShortcuts TSDoc comment in
@@ -49,7 +49,7 @@ export const KeysRdfJoin = {
    */
   isStarShapedJoin: new ActionContextKey<boolean>('@comunica/bus-rdf-join:isStarShapedJoin'),
   /**
-   * Indicator if the join is a join between meta-nodes 
+   * Indicator if the join is a join between meta-nodes
    * (nodes that are a result of aggregation of star-shaped nodes)
    */
   isMetaJoin: new ActionContextKey<boolean>('@comunica/bus-rdf-join:isMetaJoin'),

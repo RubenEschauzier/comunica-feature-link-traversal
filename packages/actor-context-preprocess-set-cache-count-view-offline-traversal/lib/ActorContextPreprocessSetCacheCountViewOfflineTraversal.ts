@@ -71,7 +71,7 @@ number
     // in previous executions and if any of the seed urls is in the cache
     if (!this.reachableDocuments) {
       const seedChecks = await Promise.all(context.seeds.map(seed => cache.has(seed.url)));
-      if (seedChecks.some(hasSeed => hasSeed)) {
+      if (seedChecks.some(Boolean)) {
         this.reachableDocuments = await this.findReachableDocuments(context.query, context.seeds, cache);
       }
     }
@@ -102,7 +102,7 @@ number
   ): Promise<Set<string>> {
     const predicatesInQuery = this.getPredicatesFromQuery(query);
     const reachableDocuments: Set<string> = new Set();
-    const toVisit: string[] = [ ...seeds.map(seed => seed.url) ];
+    const toVisit: string[] = seeds.map(seed => seed.url);
 
     while (toVisit.length > 0) {
       const current = toVisit.pop()!;
@@ -134,7 +134,7 @@ number
       // Only follow predicate entries that match predicates in the query
       for (const predicate of predicatesInQuery) {
         const linksForPredicate = predicateToLinks[predicate];
-        
+
         // If the document contains links for this predicate, push them
         if (linksForPredicate) {
           for (const link of linksForPredicate) {

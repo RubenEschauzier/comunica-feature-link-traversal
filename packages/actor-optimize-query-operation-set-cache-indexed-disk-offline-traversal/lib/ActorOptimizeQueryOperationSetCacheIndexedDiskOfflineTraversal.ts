@@ -7,12 +7,11 @@ import {
   ActorOptimizeQueryOperation,
 } from '@comunica/bus-optimize-query-operation';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
+import { PersistentCacheIndexedDisk } from '@comunica/caches-link-traversal';
 import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
 import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
-
-import { PersistentCacheIndexedDisk } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -31,7 +30,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
     this.cacheSizeHotNumTriples = args.cacheSizeHotNumTriples;
     this.hotCachePolicy = args.hotCachePolicy;
 
-    // this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
+    // This.cacheQuerySourceState = new PersistentCacheIndexedDisk(
     //   {
     //     maxNumTriples: this.cacheSizeDiskNumTriples,
     //     maxTriplesInMemory: this.cacheSizeHotNumTriples,
@@ -43,14 +42,14 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
   }
 
   public async test(action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
-    if (action.context.get(KeysInitQuery.isMaster)){
+    if (action.context.get(KeysInitQuery.isMaster)) {
       return failTest(`${this.name} only creates cache for worker threads`);
     }
     return passTestVoid();
   }
 
   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
-    if (!this.cacheQuerySourceState){
+    if (!this.cacheQuerySourceState) {
       this.createCache(true);
     }
     await this.cacheDeserializationDone;
@@ -80,8 +79,8 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
     );
     return { context, operation: action.operation };
   }
-  
-  protected createCache(deserialize: boolean){
+
+  protected createCache(deserialize: boolean) {
     this.cacheQuerySourceState = new PersistentCacheIndexedDisk(
       {
         maxNumTriples: this.cacheSizeDiskNumTriples,
@@ -89,7 +88,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexedDiskOfflineTraversal exte
         hotCachePolicy: this.hotCachePolicy,
       },
     );
-    if (deserialize){
+    if (deserialize) {
       this.cacheDeserializationDone = this.cacheQuerySourceState.deserialize();
     }
   }
@@ -104,7 +103,7 @@ export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceSt
   ): Promise<void> {
     // Retrieve the existing cached state to preserve previous traversal entries
     const cachedState = await cache.get(key);
-    
+
     const previousLinks = cachedState?.metadata.defaultTraversal || [];
     const existingDefaultLinks = new Set<string>(previousLinks);
 
@@ -114,10 +113,10 @@ export class SetSourceStateCacheOfflineTraversalDisk implements ISetFn<ISourceSt
         existingDefaultLinks.add(traverseEntry.url);
       }
     }
-    
+
     // Attach the merged traversal list to the incoming value before saving
-    value.metadata.defaultTraversal = Array.from(existingDefaultLinks);
-    cache.set(key, value);
+    value.metadata.defaultTraversal = [ ...existingDefaultLinks ];
+    await cache.set(key, value);
   }
 }
 

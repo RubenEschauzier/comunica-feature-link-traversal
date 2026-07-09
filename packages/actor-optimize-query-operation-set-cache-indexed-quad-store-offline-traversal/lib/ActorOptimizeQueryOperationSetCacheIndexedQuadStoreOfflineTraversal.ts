@@ -7,12 +7,11 @@ import {
   ActorOptimizeQueryOperation,
 } from '@comunica/bus-optimize-query-operation';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
+import { PersistentCacheSourceStateIndexedQuadStore } from '@comunica/caches-link-traversal';
 import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
-
-import { PersistentCacheSourceStateIndexedQuadStore } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -82,7 +81,7 @@ export class SetSourceStateCacheOfflineTraversalQuadStore implements ISetFn<ISou
   ): Promise<void> {
     // Retrieve the existing cached state to preserve previous traversal entries
     const cachedState = await cache.get(key);
-    
+
     const previousLinks = cachedState?.metadata.defaultTraversal || [];
     const existingDefaultLinks = new Set<string>(previousLinks);
 
@@ -92,9 +91,9 @@ export class SetSourceStateCacheOfflineTraversalQuadStore implements ISetFn<ISou
         existingDefaultLinks.add(traverseEntry.url);
       }
     }
-    
+
     // Attach the merged traversal list to the incoming value before saving
-    value.metadata.defaultTraversal = Array.from(existingDefaultLinks);
+    value.metadata.defaultTraversal = [ ...existingDefaultLinks ];
     cache.set(key, value);
   }
 }

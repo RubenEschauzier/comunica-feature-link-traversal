@@ -7,8 +7,10 @@ import type {
 } from '@comunica/bus-rdf-join';
 import { ActorRdfJoin } from '@comunica/bus-rdf-join';
 import type { MediatorRdfJoinEntriesSort } from '@comunica/bus-rdf-join-entries-sort';
-import { CacheKey, ICacheKey, IViewKey, ViewKey } from '@comunica/cache-manager-entries';
+import type { ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
+import { CacheKey, ViewKey } from '@comunica/cache-manager-entries';
 import { KeysCaching, KeysInitQuery, KeysQueryOperation } from '@comunica/context-entries';
+import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type { TestResult } from '@comunica/core';
 import { ActionContextKey, failTest, passTestWithSideData } from '@comunica/core';
 import type { IMediatorTypeJoinCoefficients } from '@comunica/mediatortype-join-coefficients';
@@ -19,13 +21,8 @@ import type {
   ComunicaDataFactory,
 } from '@comunica/types';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
-import { getSafeBindings } from '@comunica/utils-query-operation';
-import { IReachableDataSummary } from '../../actor-optimize-query-operation-set-cache-cset-get-view/lib';
-import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type * as RDF from '@rdfjs/types';
-import { Pattern } from '@comunica/utils-algebra/lib/Algebra';
-import * as RdfString from 'rdf-string';
-import { ICharacteristicSet, PersistentCacheCset } from '@comunica/caches-link-traversal';
+import type { IReachableDataSummary } from '../../actor-optimize-query-operation-set-cache-cset-get-view/lib';
 import { CsetBasedStarJoinEstimator } from './CsetBasedStarJoinEstimator';
 
 /**
@@ -37,12 +34,12 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
   public readonly mediatorJoin: MediatorRdfJoin;
   public readonly minCacheEntries: number;
   public readonly maxRatioCardinality: number;
-  
-  protected readonly cacheEntryKey: ICacheKey<unknown, unknown, unknown>
+
+  protected readonly cacheEntryKey: ICacheKey<unknown, unknown, unknown>;
   // A view over the cache that allows cache queries using quads
-  protected readonly cacheGlobalStatsViewKey: 
-    IViewKey<unknown, { [key: string]: any }, IReachableDataSummary>;
-  
+  protected readonly cacheGlobalStatsViewKey:
+  IViewKey<unknown, Record<string, any>, IReachableDataSummary>;
+
   public constructor(args: IActorRdfJoinMultiCachedCsetsCpsArgs) {
     super(args, {
       logicalType: 'inner',
@@ -61,30 +58,30 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     this.cacheGlobalStatsViewKey = new ViewKey(args.cacheGlobalStatsViewName);
   }
 
-  public override async  test(
+  public override async test(
     action: IActionRdfJoin,
   ): Promise<TestResult<IMediatorTypeJoinCoefficients, IActorRdfJoinTestSideData>> {
     const context = action.context;
 
-    if(context.get(KeysQueryOperation.joinBindings) !== undefined){
+    if (context.get(KeysQueryOperation.joinBindings) !== undefined) {
       return failTest(`${this.name} can only wrap top-level join executions`);
     }
 
-    if (context.has(KEY_CONTEXT_WRAPPED)){
+    if (context.has(KEY_CONTEXT_WRAPPED)) {
       return failTest(`${this.name} can only wrap the the join execution once`);
     }
 
     const persistentCacheManager = context.get(KeysCaching.cacheManager);
     if (
       !persistentCacheManager ||
-      !persistentCacheManager.hasCache(this.cacheEntryKey) || 
+      !persistentCacheManager.hasCache(this.cacheEntryKey) ||
       !persistentCacheManager.hasView(this.cacheGlobalStatsViewKey)
-    ){
+    ) {
       return failTest(`${this.name} requires the cache manager to contain caches for csets and cps`);
     }
 
-    const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey!)!.cache.size();
-    if (sizeCache < this.minCacheEntries){
+    const sizeCache = await persistentCacheManager.getRegisteredCache(this.cacheEntryKey)!.cache.size();
+    if (sizeCache < this.minCacheEntries) {
       return failTest(`${this.name} requires atleast ${this.minCacheEntries} cached documents to run`);
     }
 
@@ -92,24 +89,24 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
   }
 
   protected getSubjectStars(entries: IJoinEntryWithMetadata[]) {
-    const starEntries: {subject: RDF.Quad_Subject, entries: IJoinEntryWithMetadata[], cardinality: number }[] = [];
-    for (const entry of entries){
+    const starEntries: { subject: RDF.Quad_Subject; entries: IJoinEntryWithMetadata[]; cardinality: number }[] = [];
+    for (const entry of entries) {
       const operation = entry.operation;
       // This guard should always evaluate to true as this actor is a top-level join
       if (isKnownOperation(operation, Algebra.Types.PATTERN)) {
         const subject = <RDF.Quad_Subject> operation.subject;
 
         // Find existing entry and stop iterating
-        const existingStar = starEntries.find((star) => star.subject.equals(subject));
+        const existingStar = starEntries.find(star => star.subject.equals(subject));
 
         if (existingStar) {
           existingStar.entries.push(entry);
         } else {
-          starEntries.push({ subject, entries: [entry], cardinality: 0 });
+          starEntries.push({ subject, entries: [ entry ], cardinality: 0 });
         }
       }
     }
-    return starEntries.filter((starEntry) => starEntry.entries.length > 1);
+    return starEntries.filter(starEntry => starEntry.entries.length > 1);
   }
 
   /**
@@ -175,16 +172,16 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
 
     // Only run this actor if we have a data summary, otherwise we just
     // let Comunica handle it
-    if (globalDataSummary){
+    if (globalDataSummary) {
       const entriesMetadata = await ActorRdfJoin.getEntriesWithMetadatas(entries);
 
       // Collapse the subject stars into meta nodes. This mutates the action.entries
       // to include the meta nodes and removes aggregated triple patterns
       await this.contractSubjectStarToMetaNode(
-        action, 
-        entriesMetadata, 
+        action,
+        entriesMetadata,
         globalDataSummary,
-        algebraFactory
+        algebraFactory,
       );
     }
     console.log(`Done collapsing: ${entries.length} left`);
@@ -210,8 +207,8 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
     const cardinalitiesQuery = entriesMetadata.map(
       (e) => {
         const c = e.metadata.cardinality;
-        return c.type === 'estimate' ? Math.max(1, c.value): c.value;
-      }        
+        return c.type === 'estimate' ? Math.max(1, c.value) : c.value;
+      },
     );
     const minCard = Math.min(...cardinalitiesQuery);
 
@@ -221,14 +218,14 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
       const starPatterns = subjectStar.entries.map(e => <Algebra.Pattern>e.operation);
       // Estimate star cardinality using cached characteristic sets
       subjectStar.cardinality = starEstimator.estimateStarCardinality(
-        starPatterns, 
-        "subject", 
-        globalDataSummary
+        starPatterns,
+        'subject',
+        globalDataSummary,
       );
 
       // Collapse the star into one node if not too far off from smallest cardinality in
       // query
-      if (subjectStar.cardinality < minCard * this.maxRatioCardinality){
+      if (subjectStar.cardinality < minCard * this.maxRatioCardinality) {
         console.log(`Collapsing star of size: ${subjectStar.entries}`);
         // Call join algorithm to obtain streaming output of this join.
         const subStarOutput = await this.mediatorJoin.mediate({
@@ -241,7 +238,7 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
         const originalMetadataFn = subStarOutput.metadata;
 
         // Override the metadata output to set the cardinality value
-        subStarOutput.metadata = async () => {
+        subStarOutput.metadata = async() => {
           const metadata = await originalMetadataFn();
           metadata.cardinality.type = 'estimate';
           metadata.cardinality.value = subjectStar.cardinality;
@@ -256,13 +253,13 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
           }
         }
 
-        const operations = subjectStar.entries.map((entry) => entry.operation);
-        // console.log(subStarOutput);
+        const operations = subjectStar.entries.map(entry => entry.operation);
+        // Console.log(subStarOutput);
         const joinOperation = algebraFactory.createJoin(operations, true);
 
         action.entries.push({
           output: subStarOutput,
-          operation: joinOperation
+          operation: joinOperation,
         });
       }
     }
@@ -283,9 +280,9 @@ export class ActorRdfJoinMultiCachedCsetsCps extends ActorRdfJoin<IActorRdfJoinT
 }
 
 export interface IActorRdfJoinMultiCachedCsetsCpsArgs extends IActorRdfJoinArgs<IActorRdfJoinTestSideData> {
-  /**|
-   * Name of the key for obtaining the cache used in this join actor
-   */
+  // |
+  // Name of the key for obtaining the cache used in this join actor
+  //
   cacheEntryName: string;
   /**
    * Name of the key of for the view producing the global csets and cps
@@ -302,7 +299,7 @@ export interface IActorRdfJoinMultiCachedCsetsCpsArgs extends IActorRdfJoinArgs<
   /**
    * Minimal number of documents cached before this actor can start making join orders
    */
-  minCacheEntries: number
+  minCacheEntries: number;
   /**
    * Maximum ratio between smallest cardinality triple pattern and the sub-stars
    * we want to collapse. So for a ratio of 10 the star cardinality can be maximally
@@ -310,14 +307,13 @@ export interface IActorRdfJoinMultiCachedCsetsCpsArgs extends IActorRdfJoinArgs<
    * TODO determine default
    * @default {5}
    */
-  maxRatio: number
+  maxRatio: number;
 }
-
 
 export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
   '@comunica/actor-rdf-join-inner-multi-cached-csets-cps:wrapped',
 );
 
 export const KEY_IS_SUB_STAR = new ActionContextKey<boolean>(
-  '@comunica/actor-rdf-join-inner-multi-cached-csets-cps:isSubStar'
-)
+  '@comunica/actor-rdf-join-inner-multi-cached-csets-cps:isSubStar',
+);

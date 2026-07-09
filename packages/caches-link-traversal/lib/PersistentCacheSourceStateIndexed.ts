@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import { pipeline } from 'node:stream/promises';
 import { QuerySourceRdfJs } from '@comunica/actor-query-source-identify-rdfjs';
 import { ActionContext } from '@comunica/core';
-import type { ISourceState, ICacheMetrics, IPersistentCache, ILink } from '@comunica/types';
+import type { ISourceState, ICacheMetrics, IPersistentCache } from '@comunica/types';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
@@ -22,7 +22,7 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
   private readonly bindingsFactory = new BindingsFactory(this.dataFactory);
   private readonly algebraFactory = new AlgebraFactory(this.dataFactory);
 
-  private saveOfflineTraversalData: boolean;
+  private readonly saveOfflineTraversalData: boolean;
 
   private isTracking = false;
   private cacheMetrics: ICacheMetrics;
@@ -77,30 +77,30 @@ export class PersistentCacheSourceStateIndexed implements IPersistentCache<ISour
       ),
       new ActionContext(),
     ));
-    const predicateToLinks: Record<string, Set<string>> = {}
+    const predicateToLinks: Record<string, Set<string>> = {};
     return new Promise((resolve, reject) => {
-      if (this.saveOfflineTraversalData){
+      if (this.saveOfflineTraversalData) {
         importStream.on('data', (quad: RDF.Quad) => {
-          if (quad.object.termType === 'NamedNode'){
+          if (quad.object.termType === 'NamedNode') {
             let urlSet = predicateToLinks[quad.predicate.value];
             if (!urlSet) {
               urlSet = new Set<string>();
               predicateToLinks[quad.predicate.value] = urlSet;
             }
-            urlSet.add(quad.object.value);        
+            urlSet.add(quad.object.value);
           }
         });
       }
       importStream.on('end', () => {
         this.sizeMap.set(key, rdfStore.size);
-        if (this.saveOfflineTraversalData){
+        if (this.saveOfflineTraversalData) {
           // Convert deduplicated Sets to Arrays for safe disk serialization
           const serializableLinks: Record<string, string[]> = {};
-          for (const [predicate, urlSet] of Object.entries(predicateToLinks)) {
-            serializableLinks[predicate] = Array.from(urlSet);
+          for (const [ predicate, urlSet ] of Object.entries(predicateToLinks)) {
+            serializableLinks[predicate] = [ ...urlSet ];
           }
           value.metadata.predicateToLinks = serializableLinks;
-        }        
+        }
         this.lruCacheDocuments.set(key, {
           ...value,
           source: new QuerySourceRdfJs(

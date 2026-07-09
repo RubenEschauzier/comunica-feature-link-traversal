@@ -9,6 +9,7 @@ import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-sour
 import type { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries/lib';
 import { CacheSourceStateViews } from '@comunica/cache-manager-entries/lib/ViewKeys';
+import { PersistentCacheSourceStateUnIndexed } from '@comunica/caches-link-traversal';
 import { KeysCaching, KeysInitQuery } from '@comunica/context-entries';
 import type { IAction, IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
@@ -16,7 +17,6 @@ import type { ISourceState, ICacheView, IPersistentCache, ISetFn, ILink, Comunic
 
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
-import { PersistentCacheSourceStateUnIndexed } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Defaults Traversal Caching Context Preprocess Actor.

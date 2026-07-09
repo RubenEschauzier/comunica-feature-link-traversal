@@ -1,5 +1,4 @@
-import { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
-import { QuerySourceFileLazy } from '@comunica/actor-query-source-identify-hypermedia-none-lazy/lib/QuerySourceFileLazy';
+import type { ActorExtractLinksQuadPatternQuery } from '@comunica/actor-extract-links-quad-pattern-query';
 import type {
   IActionOptimizeQueryOperation,
   IActorOptimizeQueryOperationArgs,
@@ -8,20 +7,17 @@ import type {
 import {
   ActorOptimizeQueryOperation,
 } from '@comunica/bus-optimize-query-operation';
-import type { IActionQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorQuerySourceIdentifyHypermedia } from '@comunica/bus-query-source-identify-hypermedia';
-import { CacheDataSummariesViews, CacheSourceStateViews } from '@comunica/cache-manager-entries';
-import { KeysCaching, KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { CacheDataSummariesViews } from '@comunica/cache-manager-entries';
+import type { ICharacteristicPair, ICharacteristicSet, IDataSummary } from '@comunica/caches-link-traversal';
+import { KeysCaching, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
-import { ActionContext, passTestVoid } from '@comunica/core';
+import { passTestVoid } from '@comunica/core';
 import type { ILink, ISourceState, ICacheView, IPersistentCache, ComunicaDataFactory } from '@comunica/types';
 
-import { Algebra, algebraUtils, isKnownOperation } from '@comunica/utils-algebra';
+import { Algebra, algebraUtils } from '@comunica/utils-algebra';
 import { visitOperation } from '@comunica/utils-algebra/lib/utils';
-import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import type * as RDF from '@rdfjs/types';
-import { UnionIterator } from 'asynciterator';
-import { ICharacteristicPair, ICharacteristicSet, IDataSummary } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -58,7 +54,7 @@ export class ActorOptimizeQueryOperationSetCacheCsetGetView extends ActorOptimiz
       CacheDataSummariesViews.cacheCsetCpEstimationView,
       new CacheCsetViewOfflineTraversal(this.maxNumCsets),
     );
-    console.log(`Register view: ${CacheDataSummariesViews.cacheCsetCpEstimationView.id}`)
+    console.log(`Register view: ${CacheDataSummariesViews.cacheCsetCpEstimationView.id}`);
 
     return { context, operation: action.operation };
   }
@@ -147,11 +143,9 @@ implements ICacheView<
   protected globalDataSummary: Promise<IReachableDataSummary> | undefined;
   protected readonly maxNumCsets: number;
 
-
-  public constructor(maxNumCsets: number){
+  public constructor(maxNumCsets: number) {
     this.maxNumCsets = maxNumCsets;
   }
-
 
   public async construct(
     cache: IPersistentCache<ISourceState, IDataSummary>,
@@ -177,19 +171,18 @@ implements ICacheView<
 
     const cacheEntryStream = cache.entries();
     if (!this.globalDataSummary) {
-      this.globalDataSummary = new Promise<IReachableDataSummary>(async (resolve) => {
+      this.globalDataSummary = new Promise<IReachableDataSummary>(async(resolve) => {
         const globalCsetKeysSorted: ICsetPredicateKey[] = [];
         const globalCps = new Map<string, ICharacteristicPair>();
         const globalCsets = new Map<string, ICharacteristicSet>();
         const globalSubjectsToCsets = new Map<number, ICharacteristicSet>();
         const globalPredToCsets = new Map<string, Set<string>>();
         for await (const [ key, summary ] of cacheEntryStream) {
-          if (this.reachableDocuments && !this.reachableDocuments.has(key)){
+          if (this.reachableDocuments && !this.reachableDocuments.has(key)) {
             continue;
           }
           // Aggregate the csets in different documents to one global cset mapping
-          for (const [predKey, cset] of summary.csets.entries()){
-
+          for (const [ predKey, cset ] of summary.csets.entries()) {
             let globalCsetEntry = globalCsets.get(predKey);
             if (!globalCsetEntry) {
               globalCsetKeysSorted.push({
@@ -201,18 +194,18 @@ implements ICacheView<
                 predKey,
                 subjCount: 0,
                 predicateCounts: new Map(
-                  Array.from(cset.predicateCounts.keys()).map(k => [k, 0])
+                  [ ...cset.predicateCounts.keys() ].map(k => [ k, 0 ]),
                 ),
                 localSubjects: new Set(),
                 localObjects: new Map(
-                  Array.from(cset.localObjects.keys()).map(k => [k, new Set()])
+                  [ ...cset.localObjects.keys() ].map(k => [ k, new Set() ]),
                 ),
               };
 
               globalCsets.set(predKey, globalCsetEntry);
-            }    
+            }
             globalCsetEntry.subjCount += cset.subjCount;
-            for (const [pred, count] of cset.predicateCounts.entries()) {
+            for (const [ pred, count ] of cset.predicateCounts.entries()) {
               const currentCount = globalCsetEntry.predicateCounts.get(pred) || 0;
               globalCsetEntry.predicateCounts.set(pred, currentCount + count);
             }
@@ -223,7 +216,7 @@ implements ICacheView<
             }
 
             // Aggregate local objects per predicate (Union of Sets)
-            for (const [pred, objects] of cset.localObjects.entries()) {
+            for (const [ pred, objects ] of cset.localObjects.entries()) {
               let globalObjSet = globalCsetEntry.localObjects.get(pred);
               if (!globalObjSet) {
                 globalObjSet = new Set();
@@ -235,23 +228,22 @@ implements ICacheView<
             }
 
             // Add predicate mapping
-            for (const singlePredKey of cset.predicateCounts.keys()){
+            for (const singlePredKey of cset.predicateCounts.keys()) {
               let predCsets: Set<string> | undefined = globalPredToCsets.get(singlePredKey);
-              if (!predCsets){
+              if (!predCsets) {
                 predCsets = new Set<string>();
                 globalPredToCsets.set(singlePredKey, predCsets);
               }
               predCsets.add(predKey);
             }
-
           }
-          for (const [cpKey, cp] of summary.cps.entries()){
+          for (const [ cpKey, cp ] of summary.cps.entries()) {
             let globalCpEntry = globalCps.get(cpKey);
-            if (!globalCpEntry){
+            if (!globalCpEntry) {
               globalCpEntry = {
                 ...cp,
-                count: 0
-              }
+                count: 0,
+              };
               globalCps.set(cpKey, globalCpEntry);
             }
             globalCpEntry.count += cp.count;
@@ -261,15 +253,15 @@ implements ICacheView<
         // Compute characteristic pairs between different reachable documents
         const entityResolutionMap = new Map<number, string>();
         // Map subjects to their characteristic sets
-        for (const [csetKey, cset] of globalCsets.entries()) {
+        for (const [ csetKey, cset ] of globalCsets.entries()) {
           for (const subjectHash of cset.localSubjects) {
             entityResolutionMap.set(subjectHash, csetKey);
             globalSubjectsToCsets.set(subjectHash, cset);
           }
         }
-        
-        for (const [subjectCSetKey, cset] of globalCsets.entries()) {
-          for (const [predicateKey, objectHashes] of cset.localObjects.entries()) {
+
+        for (const [ subjectCSetKey, cset ] of globalCsets.entries()) {
+          for (const [ predicateKey, objectHashes ] of cset.localObjects.entries()) {
             for (const objectHash of objectHashes) {
               const objectCSetKey = entityResolutionMap.get(objectHash);
               // If we match an entity in the subjects with one of the objects in current
@@ -277,13 +269,13 @@ implements ICacheView<
               if (objectCSetKey) {
                 const cpKey = this.toCpKey(subjectCSetKey, predicateKey, objectCSetKey);
                 let cp = globalCps.get(cpKey);
-                if (!cp){
+                if (!cp) {
                   cp = {
                     csetSubj: cset,
                     csetObj: globalCsets.get(objectCSetKey)!,
                     predicate: predicateKey,
-                    count: 0
-                  }
+                    count: 0,
+                  };
                   globalCps.set(cpKey, cp);
                 }
                 cp.count++;
@@ -298,7 +290,7 @@ implements ICacheView<
           cps: globalCps,
           subjectToCset: globalSubjectsToCsets,
           predToCset: globalPredToCsets,
-        })
+        });
       });
     }
     return await this.globalDataSummary;
@@ -311,7 +303,7 @@ implements ICacheView<
   ): Promise<Set<string>> {
     const predicatesInQuery = this.getPredicatesFromQuery(query);
     const reachableDocuments: Set<string> = new Set();
-    const toVisit: string[] = [ ...seeds.map(seed => seed.url) ];
+    const toVisit: string[] = seeds.map(seed => seed.url);
 
     while (toVisit.length > 0) {
       const current = toVisit.pop()!;
@@ -345,7 +337,7 @@ implements ICacheView<
       // Only follow predicate entries that match predicates in the query
       for (const predicate of predicatesInQuery) {
         const linksForPredicate = predicateToLinks[predicate];
-        
+
         // If the document contains links for this predicate, push them
         if (linksForPredicate) {
           for (const link of linksForPredicate) {
@@ -401,16 +393,15 @@ implements ICacheView<
 
   /**
    * From PersistentCacheCset and should always be aligned (possibly add to util functions)
-   * @param subjKey 
-   * @param predicateKey 
-   * @param objectKey 
-   * @returns 
+   * @param subjKey
+   * @param predicateKey
+   * @param objectKey
+   * @returns
    */
-  private toCpKey(subjKey: string, predicateKey: string, objectKey: string){
+  private toCpKey(subjKey: string, predicateKey: string, objectKey: string) {
     return `${subjKey}|${predicateKey}|${objectKey}`;
   }
 }
-
 
 export interface IActorOptimizeQueryOperationSetCacheCsetGetViewArgs extends IActorOptimizeQueryOperationArgs {
   /**
@@ -448,7 +439,7 @@ export interface IOfflineTraversalEntry {
   default: ILink[];
 }
 
-export interface IReachableDataSummary{
+export interface IReachableDataSummary {
   cps: Map<string, ICharacteristicPair>;
   csets: Map<string, ICharacteristicSet>;
   subjectToCset: Map<number, ICharacteristicSet>;
@@ -459,9 +450,9 @@ export interface ICsetPredicateKey {
   /**
    * The actual key
    */
-  predicateKey: string,
+  predicateKey: string;
   /**
    * Number of predicates in the key
    */
-  sizeCset: number
+  sizeCset: number;
 }

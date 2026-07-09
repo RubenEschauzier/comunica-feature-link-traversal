@@ -1,8 +1,8 @@
+import * as fs from 'node:fs/promises';
 import { KeysStatisticsTraversal } from '@comunica/context-entries-link-traversal';
 import type { ActionContextKey } from '@comunica/core';
 import { StatisticBase } from '@comunica/statistic-base';
 import type { IStatisticBase } from '@comunica/types';
-import * as fs from "fs/promises";
 
 // If file size is an issue:
 // https://stackoverflow.com/questions/75501488/design-pattern-for-writing-to-a-file-from-multiple-async-functions
@@ -20,7 +20,7 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
     this.key = KeysStatisticsTraversal.writeToFile;
 
     statisticsToWrite.on((data: T) => {
-      this.updateStatistic(fileLocation, data)
+      this.updateStatistic(fileLocation, data);
     });
   }
 
@@ -32,31 +32,31 @@ export class StatisticWriteToFileOverwrite<T> extends StatisticBase<T> {
       this.writeQueue[filePath] = Promise.resolve();
     }
 
-    this.writeQueue[filePath] = this.writeQueue[filePath].then(async () => {
+    this.writeQueue[filePath] = this.writeQueue[filePath].then(async() => {
+      try {
+        // Write to a temporary file
+        await fs.writeFile(tempPath, JSON.stringify(content), { encoding: 'utf8' });
+
+        // Atomically replace the original file with the temporary file
+        await fs.rename(tempPath, filePath);
+      } catch (error) {
+        console.error('Error writing to file:', error);
+
+        // Clean up temporary file only if it exists
         try {
-            // Write to a temporary file
-            await fs.writeFile(tempPath, JSON.stringify(content), { encoding: "utf8" });
-
-            // Atomically replace the original file with the temporary file
-            await fs.rename(tempPath, filePath);
-        } catch (error) {
-            console.error("Error writing to file:", error);
-
-            // Clean up temporary file only if it exists
-            try {
-                await fs.access(tempPath);
-                await fs.unlink(tempPath);
-            } catch (cleanupError: any) {
-                if (cleanupError.code !== "ENOENT") {
-                    console.error("Error cleaning up temporary file:", cleanupError);
-                }
-            }
+          await fs.access(tempPath);
+          await fs.unlink(tempPath);
+        } catch (cleanupError: any) {
+          if (cleanupError.code !== 'ENOENT') {
+            console.error('Error cleaning up temporary file:', cleanupError);
+          }
         }
+      }
     });
 
     // Ensure errors in the queue don't break the chain
-    this.writeQueue[filePath].catch(err => {
-        console.error("Error in file queue:", err);
+    this.writeQueue[filePath].catch((err) => {
+      console.error('Error in file queue:', err);
     });
   }
 

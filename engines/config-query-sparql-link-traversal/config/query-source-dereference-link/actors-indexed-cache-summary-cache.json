@@ -15,7 +15,7 @@
       "mediatorQuerySourceDereferenceLink": { "@id": "urn:comunica:default:query-source-dereference-link/mediators#main" },
       "cacheEntryKeyName": "@comunica/persistent-cache-manager:cacheSourceStateIndexedDisk",
       "cacheViewKeyName": "@comunica/persistent-cache-manager:cacheQuery",
-      "cacheSetKeyNames": [ "@comunica/persistent-cache-manager:data-summary-cset-cp" ],
+      "cacheSetKeyNames": ["@comunica/persistent-cache-manager:data-summary-cset-cp"],
       "beforeActors": [
         {
           "@id": "urn:comunica:default:query-source-dereference-link/actors#dereference"

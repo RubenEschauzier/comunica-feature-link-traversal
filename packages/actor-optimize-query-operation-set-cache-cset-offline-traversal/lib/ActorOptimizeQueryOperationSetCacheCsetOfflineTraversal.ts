@@ -6,14 +6,13 @@ import type {
 import {
   ActorOptimizeQueryOperation,
 } from '@comunica/bus-optimize-query-operation';
-import { CacheEntryDataSummary, CacheEntrySourceState } from '@comunica/cache-manager-entries';
+import { CacheEntryDataSummary } from '@comunica/cache-manager-entries';
+import type { IDataSummary } from '@comunica/caches-link-traversal';
+import { PersistentCacheCset } from '@comunica/caches-link-traversal';
 import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ILink, ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
-
-import type * as RDF from '@rdfjs/types';
-import { IDataSummary, PersistentCacheCset } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -65,15 +64,17 @@ export class ActorOptimizeQueryOperationSetCacheCsetOfflineTraversal extends Act
       this.cacheQuerySourceState,
       new SetCsetCacheOfflineTraversal(),
     );
-    console.log(`Register: ${CacheEntryDataSummary.cacheCsetCpsSummary.id}`)
+    console.log(`Register: ${CacheEntryDataSummary.cacheCsetCpsSummary.id}`);
 
     return { context, operation: action.operation };
   }
 }
 
-export class SetCsetCacheOfflineTraversal implements 
+export class SetCsetCacheOfflineTraversal implements
 ISetFn<
-  ISourceState, ISourceState, { headers: Headers }
+  ISourceState,
+ISourceState,
+{ headers: Headers }
 > {
   public async setInCache(
     key: string,
@@ -83,7 +84,7 @@ ISetFn<
   ): Promise<void> {
     // Retrieve the existing cached state to preserve previous traversal entries
     const cachedState = await cache.get(key);
-    
+
     const previousLinks = cachedState?.defaultTraversal || [];
     const existingDefaultLinks = new Set<string>(previousLinks);
 
@@ -93,10 +94,10 @@ ISetFn<
         existingDefaultLinks.add(traverseEntry.url);
       }
     }
-    
+
     // Attach the merged traversal list to the incoming value before saving
-    value.metadata.defaultTraversal = Array.from(existingDefaultLinks);
-      
+    value.metadata.defaultTraversal = [ ...existingDefaultLinks ];
+
     // Update the cache for this key
     cache.set(key, value);
   }

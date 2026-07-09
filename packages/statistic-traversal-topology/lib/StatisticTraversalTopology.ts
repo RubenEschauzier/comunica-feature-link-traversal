@@ -117,7 +117,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: true,
         discoverOrder: [ -1 ],
         dereferenceOrder: -1,
-        ...parent.metadata
+        ...parent.metadata,
       };
     }
     // Whether the child node is new
@@ -166,7 +166,7 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
         dereferenced: false,
         discoverOrder: [ this.nDiscovered ],
         dereferenceOrder: Number.NEGATIVE_INFINITY,
-        ...child.metadata
+        ...child.metadata,
       };
     }
     // If new node we add it as an open node
@@ -182,10 +182,10 @@ export class StatisticTraversalTopology extends StatisticBase<ITopologyUpdate> {
       return false;
     }
     if (this.nodeMetadata[this.nodeToId(link.url)] === undefined) {
-      // console.log(link.url)
+      // Console.log(link.url)
       // console.log(this.nodeToIndexDict)
       // console.log()
-      console.log("Warning: Dereferencing a node that has not been discovered yet. This should not happen.");
+      console.log('Warning: Dereferencing a node that has not been discovered yet. This should not happen.');
       return false;
     }
     if (this.nodeMetadata[this.nodeToId(link.url)].dereferenced) {

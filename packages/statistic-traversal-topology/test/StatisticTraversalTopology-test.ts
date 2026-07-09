@@ -199,7 +199,7 @@ describe('StatisticTraversalTopology', () => {
           dereferenced: false,
           discoverOrder: [ 0 ],
           dereferenceOrder: Number.NEGATIVE_INFINITY,
-          key: 'value'
+          key: 'value',
         }},
         nodeToIndexDict: { url2: 0, url1: 1 },
         indexToNodeDict: { 0: 'url2', 1: 'url1' },

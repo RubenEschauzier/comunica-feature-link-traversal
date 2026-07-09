@@ -9,7 +9,7 @@ import { DataFactory } from 'rdf-data-factory';
 import * as RdfString from 'rdf-string';
 
 // eslint-disable-next-line ts/no-require-imports,ts/no-var-requires
-const murmurhash = require('murmurhash')
+const murmurhash = require('murmurhash');
 
 export class PersistentCacheCset implements IPersistentCache<ISourceState, IDataSummary> {
   private readonly dataFactory = new DataFactory();
@@ -19,7 +19,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
   private isTracking = false;
   private cacheMetrics: ICacheMetrics;
 
-  private cachedSummaries: LRUCache<string, IDataSummary>;
+  private readonly cachedSummaries: LRUCache<string, IDataSummary>;
 
   private readonly serializationLoc: string;
 
@@ -27,8 +27,8 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
     this.serializationLoc = args.serializationLoc;
     this.cacheMetrics = this.resetMetrics();
     this.cachedSummaries = new LRUCache({
-      max: args.maxNumSummaries
-    })
+      max: args.maxNumSummaries,
+    });
   }
 
   public async get(key: string): Promise<IDataSummary | undefined> {
@@ -36,11 +36,11 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
   }
 
   public getSync(key: string): IDataSummary | undefined {
-    throw new Error("Not yet implemented")
+    throw new Error('Not yet implemented');
   }
 
   public async getMany(keys: string[]): Promise<(IDataSummary | undefined)[]> {
-    throw new Error("Not yet implemented")
+    throw new Error('Not yet implemented');
   }
 
   /**
@@ -63,8 +63,8 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
     // Quads are not guaranteed grouped by subject, so we need to do a
     // pass to group them
     const subjectData = new Map<string, {
-      properties: Map<string, number>
-      objects: Map<string, Set<number>>
+      properties: Map<string, number>;
+      objects: Map<string, Set<number>>;
     }>();
     const predicateToLinks: Record<string, Set<string>> = {};
     try {
@@ -80,29 +80,29 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
         }
 
         const predicateKey = RdfString.termToString(predicate);
-        data.properties.set(predicateKey, (data.properties.get(predicateKey) ?? 0) + 1);     
+        data.properties.set(predicateKey, (data.properties.get(predicateKey) ?? 0) + 1);
 
-        if (object.termType === 'NamedNode'|| 
-          object.termType === 'BlankNode' || 
+        if (object.termType === 'NamedNode' ||
+          object.termType === 'BlankNode' ||
           object.termType === 'Quad'
-        ){          
+        ) {
           let objectsForPredicate = data.objects.get(predicateKey);
-          
+
           if (!objectsForPredicate) {
             objectsForPredicate = new Set<number>();
             data.objects.set(predicateKey, objectsForPredicate);
           }
-          
-          objectsForPredicate.add(PersistentCacheCset.hashTerm(object));        
+
+          objectsForPredicate.add(PersistentCacheCset.hashTerm(object));
         }
         // Track predicate to link values
-        if (object.termType === 'NamedNode'){
+        if (object.termType === 'NamedNode') {
           let urlSet = predicateToLinks[quad.predicate.value];
           if (!urlSet) {
             urlSet = new Set<string>();
             predicateToLinks[quad.predicate.value] = urlSet;
           }
-          urlSet.add(quad.object.value);        
+          urlSet.add(quad.object.value);
         }
       }
     } catch (err) {
@@ -114,7 +114,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
     // by iterating over the grouped subject / predicates and
     // incrementing the relevant counts
     const csetsDocument = new Map<string, ICharacteristicSet>();
-    for (const [subjectKey, data] of subjectData.entries()) {
+    for (const [ subjectKey, data ] of subjectData.entries()) {
       const predicates = data.properties;
       const objects = data.objects;
 
@@ -144,23 +144,23 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
         const objectsForPredicate = objects.get(predKey);
         if (objectsForPredicate) {
           const targetSet = cset.localObjects.get(predKey)!;
-          for (const objectHash of objectsForPredicate){
-             targetSet.add(objectHash);
+          for (const objectHash of objectsForPredicate) {
+            targetSet.add(objectHash);
           }
         }
       }
     }
     // Map subjects to their characteristic sets
     const entityResolutionMap = new Map<number, string>();
-    for (const [csetKey, cset] of csetsDocument.entries()) {
+    for (const [ csetKey, cset ] of csetsDocument.entries()) {
       for (const subjectHash of cset.localSubjects) {
         entityResolutionMap.set(subjectHash, csetKey);
       }
     }
-    
+
     const localCps: Map<string, ICharacteristicPair> = new Map();
-    for (const [subjectCSetKey, cset] of csetsDocument.entries()) {
-      for (const [predicateKey, objectHashes] of cset.localObjects.entries()) {
+    for (const [ subjectCSetKey, cset ] of csetsDocument.entries()) {
+      for (const [ predicateKey, objectHashes ] of cset.localObjects.entries()) {
         for (const objectHash of objectHashes) {
           const objectCSetKey = entityResolutionMap.get(objectHash);
           // If we match an entity in the subjects with one of the objects in current
@@ -168,13 +168,13 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
           if (objectCSetKey) {
             const cpKey = this.toCpKey(subjectCSetKey, predicateKey, objectCSetKey);
             let cp = localCps.get(cpKey);
-            if (!cp){
+            if (!cp) {
               cp = {
                 csetSubj: cset,
                 csetObj: csetsDocument.get(objectCSetKey)!,
                 predicate: predicateKey,
-                count: 0
-              }
+                count: 0,
+              };
               localCps.set(cpKey, cp);
             }
             cp.count++;
@@ -182,24 +182,24 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
         }
       }
     }
-    
+
     const serializableLinks: Record<string, string[]> = {};
-    for (const [predicate, urlSet] of Object.entries(predicateToLinks)) {
-      serializableLinks[predicate] = Array.from(urlSet);
+    for (const [ predicate, urlSet ] of Object.entries(predicateToLinks)) {
+      serializableLinks[predicate] = [ ...urlSet ];
     }
 
     this.cachedSummaries.set(key, {
       csets: csetsDocument,
       cps: localCps,
       defaultTraversal: value.metadata.defaultTraversal,
-      predicateToLinks: serializableLinks
+      predicateToLinks: serializableLinks,
     });
   }
-  
-  private toCpKey(subjKey: string, predicateKey: string, objectKey: string){
+
+  private toCpKey(subjKey: string, predicateKey: string, objectKey: string) {
     return `${subjKey}|${predicateKey}|${objectKey}`;
   }
-  
+
   public static hashTermString(term: string): number {
     return murmurhash.v3(term);
   }
@@ -209,11 +209,11 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
   }
 
   public static serializeTerm(term: RDF.Term): string {
-    return term.termType === 'Quad'
-      ? JSON.stringify(RdfString.quadToStringQuad(term))
-      : RdfString.termToString(term);
+    return term.termType === 'Quad' ?
+      JSON.stringify(RdfString.quadToStringQuad(term)) :
+      RdfString.termToString(term);
   }
-  
+
   public static serializePredicates(predicates: RDF.Quad_Predicate[]): string {
     return JSON.stringify(
       predicates
@@ -229,7 +229,7 @@ export class PersistentCacheCset implements IPersistentCache<ISourceState, IData
   }
 
   public async delete(key: string): Promise<boolean> {
-    throw new Error("Not yet implemented")
+    throw new Error('Not yet implemented');
   }
 
   public entries(): AsyncIterator<[string, IDataSummary]> {

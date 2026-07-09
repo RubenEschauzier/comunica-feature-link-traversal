@@ -7,11 +7,11 @@ import {
   ActorOptimizeQueryOperation,
 } from '@comunica/bus-optimize-query-operation';
 import { CacheEntrySourceState } from '@comunica/cache-manager-entries';
+import { PersistentCacheSourceStateIndexed } from '@comunica/caches-link-traversal';
 import { KeysCaching, KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
 import type { IActorTest, TestResult } from '@comunica/core';
 import { ActionContextKey, passTestVoid } from '@comunica/core';
 import type { ILink, ISourceState, IPersistentCache, ISetFn } from '@comunica/types';
-import { PersistentCacheSourceStateIndexed } from '@comunica/caches-link-traversal';
 
 /**
  * A comunica Set Cache Query Source Optimize Query Operation Actor.
@@ -26,7 +26,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexed extends ActorOptimizeQue
     super(args);
     this.cacheSizeNumTriples = args.cacheSizeNumTriples;
     this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-      { 
+      {
         maxNumTriples: args.cacheSizeNumTriples,
         serializationLoc: 'temp-cache-content.json',
         saveOfflineTraversalData: false,
@@ -50,7 +50,7 @@ export class ActorOptimizeQueryOperationSetCacheIndexed extends ActorOptimizeQue
 
     if (context.get(KeysCaching.clearCache) || context.get(new ActionContextKey('clearCache'))) {
       this.cacheQuerySourceState = new PersistentCacheSourceStateIndexed(
-        { 
+        {
           maxNumTriples: this.cacheSizeNumTriples,
           serializationLoc: 'temp-cache-content.json',
           saveOfflineTraversalData: false,
@@ -84,7 +84,6 @@ export class SetSourceStateCache implements ISetFn<ISourceState, ISourceState, {
     cache.set(key, value);
   }
 }
-
 
 export interface IActorOptimizeQueryOperationSetCacheIndexedArgs extends IActorOptimizeQueryOperationArgs {
   /**

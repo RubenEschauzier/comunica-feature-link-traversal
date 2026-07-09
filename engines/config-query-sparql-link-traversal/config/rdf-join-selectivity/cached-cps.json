@@ -10,7 +10,7 @@
     {
       "@id": "urn:comunica:default:rdf-join-selectivity/actors#cset-cp",
       "@type": "ActorRdfJoinSelectivityCsetCp",
-      "cacheEntryName":  "@comunica/persistent-cache-manager:data-summary-cset-cp",
+      "cacheEntryName": "@comunica/persistent-cache-manager:data-summary-cset-cp",
       "cacheGlobalStatsViewName": "@comunica/persistent-cache-manager-cset-cp-estimation-view",
       "minCacheEntries": 250
     }

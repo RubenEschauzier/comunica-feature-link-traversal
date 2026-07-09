@@ -1,4 +1,3 @@
-import { QuerySourceCacheWrapper } from '@comunica/caches-link-traversal';
 import {
   ActorQuerySourceDereferenceLink,
 } from '@comunica/bus-query-source-dereference-link';
@@ -12,6 +11,7 @@ import type { MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import type { ICacheKey, IViewKey } from '@comunica/cache-manager-entries';
 import { CacheKey, ViewKey } from '@comunica/cache-manager-entries';
+import { QuerySourceCacheWrapper } from '@comunica/caches-link-traversal';
 import { KeysCore, KeysStatistics, KeysCaching } from '@comunica/context-entries';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { ActionContextKey, failTest, passTestVoid } from '@comunica/core';
@@ -45,7 +45,7 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
     this.cacheEntryKey = new CacheKey(args.cacheEntryKeyName);
     this.cacheViewKey = new ViewKey(args.cacheViewKeyName);
     this.cacheSetKeys = args.cacheSetKeyNames?.map(
-      cacheSetKeyName => new CacheKey(cacheSetKeyName)
+      cacheSetKeyName => new CacheKey(cacheSetKeyName),
     );
   }
 
@@ -95,10 +95,10 @@ export class ActorQuerySourceDereferenceLinkHypermediaWrapCache extends ActorQue
       { link: action.link, handledDatasets: action.handledDatasets!, ...dereferenceLinkOutput },
       { headers: dereferenceLinkOutput.headers },
     );
-    
+
     // Optionally set additional cache entries.
-    if (this.cacheSetKeys){
-      for (const key of this.cacheSetKeys){
+    if (this.cacheSetKeys) {
+      for (const key of this.cacheSetKeys) {
         await cacheManager.setCache(
           key,
           action.link.url,

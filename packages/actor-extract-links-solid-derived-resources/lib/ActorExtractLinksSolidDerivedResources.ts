@@ -96,6 +96,11 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         );
       }
     });
+
+    const test = await this.mediatorDerivedResourceSelect.mediate({
+      derivedResourcesIdentified,
+      context: action.context
+    })
     // TODO: How should we return the links? I don't know for sure
     // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
     return { links: [] };

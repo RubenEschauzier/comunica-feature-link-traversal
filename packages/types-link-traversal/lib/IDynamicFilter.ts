@@ -2,6 +2,7 @@
  * Defines a dynamic filter containing exact matches and pre-compiled regular expressions.
  */
 export interface IDynamicFilter {
-  readonly exact: Set<string>;
-  readonly globs: string[];
+  addExact: (exactMatch: string) => void;
+  addGlob: (selector: string) => void;
+  matchesFilter: (url: string) => boolean;
 }

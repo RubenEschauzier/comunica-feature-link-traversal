@@ -49,7 +49,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     // Determine links to derived resources
     const derivedResources = [ ...await this.extractDerivedResourceLinks(action.metadata) ];
-
     if (derivedResources.length  === 0){
       return { links: [] }
     }
@@ -57,17 +56,18 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // Set filter immediately to prevent race conditions
     const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
     derivedResources.forEach(url => {
-      dynamicLinkFilter.exact.add(url);
+      dynamicLinkFilter.addExact(url);
     });
 
     const derivedResourcesRaw: IDerivedResourceRaw[][] = (await Promise.all(derivedResources
       .map(derivedResource => this.dereferenceDerivedResources(derivedResource, action.context))));
     const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
       derivedResourcesRaw.flat().map(resource => {
-          dynamicLinkFilter.exact.add(resource.filterUri.url);
+          dynamicLinkFilter.addExact(resource.filterUri.url);
           return this.dereferenceFilter(resource);
         }
     ));
+
     const derivedResourcesIdentifyOutputs = await Promise.all(
       derivedResourcesUnidentified.map(resource => 
         this.mediatorDerivedResourceIdentify.mediate({
@@ -79,15 +79,24 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         })
       )
     );
+
     const successfullyIdentified = derivedResourcesIdentifyOutputs.filter(
       result => result !== null
     );
+
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
-    const tempResult = this.mediatorDerivedResourceSelect.mediate(
-      {derivedResourcesIdentified, context: action.context}
-    );
+    console.log(`Derived resources identified: ${derivedResourcesIdentified.map(x=>x.iri)}`);
+    // Ensure selected files in derived resource will not be dereferenced again
+    derivedResourcesIdentified.forEach((resource) => {
+      for (const selector of resource.selectors) {
+        dynamicLinkFilter.addGlob(
+          selector.replace(/\.[^./*]+$/, '')
+        );
+      }
+    });
+    // TODO: How should we return the links? I don't know for sure
     // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
     return { links: [] };
   }

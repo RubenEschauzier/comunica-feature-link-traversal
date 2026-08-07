@@ -33,10 +33,12 @@ export class ActorDerivedResourceIdentifyQpf extends ActorDerivedResourceIdentif
       action.derivedResourceUnidentified.baseUrl,
       action.derivedResourceUnidentified.template
     );
+    
     const querySourceQpf = await this.mediatorQuerySourceDereferenceLink.mediate({
       link: { url },
       context: new ActionContext({[KeysInitQuery.dataFactory.name]: this.dataFactory })
     });
+
     const derivedResource: IActorDerivedResourceIdentifyOutput = {
       derivedResourceIdentified: {
         iri: url,

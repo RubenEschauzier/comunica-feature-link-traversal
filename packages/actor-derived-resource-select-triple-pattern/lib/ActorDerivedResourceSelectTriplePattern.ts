@@ -76,6 +76,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
           .reduce((min, curr) => (curr.cost < min.cost ? curr : min))
       ])
     );  
+
     for (const [pattern, bestResource] of bestResources.entries()){
       const quads = bestResource.resource.querySource.queryQuads(
         pattern, context
@@ -85,12 +86,20 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
       const selectors = bestResource.resource.selectors
       selectors.forEach((selector) => {
         if (this.isGlob(selector)){
-          dynamicLinkFilter.globs.push(selector);
+          dynamicLinkFilter.addGlob(selector);
         }
         else {
-          dynamicLinkFilter.exact.add(selector);
+          dynamicLinkFilter.addExact(selector)
         }
       });
+      // TODO: Think about how reachability works when we aggregate over data.
+      // When we aggregate over something that is not reachable, we will still include
+      // it in results so reachability becomes muddy. Some formalizations maybe,
+      // maybe call it the hybrid cMatch - all criterion?
+
+      // TODO: .nq and non .nq get both dereferenced!
+      // Its due to the multiple fixed mapper not working for metadata it seems.
+      // the problem doesn't occur with the remote version of SolidBench.js
 
       // TODO: Do we need this, the quads already have metadata by a call to this mediator
       // which is in the QPF query source for example.
@@ -108,14 +117,13 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
 
       const eventEmitter = manager.getAggregatedStore().import(quads);
 
-      // TODO: No URL to add?
-      await new Promise((resolve, reject) => {
-        eventEmitter.on('end', resolve);
-        eventEmitter.on('error', reject);
-      });
-;
-      // await this.aggregatedStore.importSource(nextLink.url, source, this.context);
+      // // TODO: No URL to add?
+      // await new Promise((resolve, reject) => {
+      //   eventEmitter.on('end', resolve);
+      //   eventEmitter.on('error', reject);
+      // });
 
+      // await this.aggregatedStore.importSource(nextLink.url, source, this.context);
     }
     
     // Done dereferencing, so remove controller

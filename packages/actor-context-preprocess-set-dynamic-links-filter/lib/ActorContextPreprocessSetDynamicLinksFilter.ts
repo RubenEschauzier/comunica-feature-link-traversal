@@ -1,6 +1,7 @@
 import { ActorContextPreprocess, IActionContextPreprocess, IActorContextPreprocessOutput, IActorContextPreprocessArgs } from '@comunica/bus-context-preprocess';
 import { KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal/lib/Keys';
 import { TestResult, IActorTest, passTestVoid } from '@comunica/core';
+import { DynamicFilter } from './DynamicLinksFilter';
 
 /**
  * A comunica Set Dynamic Links Filter Context Preprocess Actor.
@@ -18,10 +19,7 @@ export class ActorContextPreprocessSetDynamicLinksFilter extends ActorContextPre
     let context = action.context;
 
     // Set traverse flag to true if the flag is undefined.
-    context = context.setDefault(KeysRdfResolveHypermediaLinks.dynamicFilter, {
-      exact: new Set<string>(),
-      globs: []
-    });
+    context = context.setDefault(KeysRdfResolveHypermediaLinks.dynamicFilter, new DynamicFilter());
     
     return { context };
   }

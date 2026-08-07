@@ -37,7 +37,8 @@
   ],
   "dependencies": {
     "@comunica/core": "^5.1.3",
-    "@comunica/bus-derived-resource-select": "^0.8.0"
+    "@comunica/bus-derived-resource-select": "^0.8.0",
+    "minimatch": "^10.2.5"
   },
   "scripts": {
     "build": "yarn run build:ts && yarn run build:components",

@@ -1,6 +1,5 @@
 import { ActorRdfResolveHypermediaLinksQueue, IActionRdfResolveHypermediaLinksQueue, IActorRdfResolveHypermediaLinksQueueOutput, IActorRdfResolveHypermediaLinksQueueArgs, MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { TestResult, IActorTest, passTestVoid, failTest, ActionContextKey } from '@comunica/core';
-import { ActorRdfResolveHypermediaLinksQueueWrapperFilter } from '@comunica/actor-rdf-resolve-hypermedia-links-queue-wrapper-filter';
 import { KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { LinkQueueWrapperFilterDynamic } from './LinkQueueWrapperFilterDynamic';
 

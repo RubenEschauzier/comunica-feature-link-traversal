@@ -120,7 +120,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       // Forward errors
       metadata.on('error', reject);
 
-      // Invoke callback on each metadata quad
       metadata.on('data', (quad: RDF.Quad) => {
         if (this.derivedResourcePredicates.includes(quad.predicate.value)) {
           derivedResourcesInner.add(quad.object.value);
@@ -212,6 +211,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     });
   }
+
   /**
    * No extraction required
    * @param context 

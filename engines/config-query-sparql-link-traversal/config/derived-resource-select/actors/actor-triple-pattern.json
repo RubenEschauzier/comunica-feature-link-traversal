@@ -15,7 +15,9 @@
       "derivedResourceCoefficients_selectivity": 0,
       "mediatorExtractLinks": { 
         "@id": "urn:comunica:default:extract-links/mediators#main" 
-       }
+       },
+      "mediatorMetadata": { "@id": "urn:comunica:default:rdf-metadata/mediators#main" },
+      "mediatorMetadataExtract": { "@id": "urn:comunica:default:rdf-metadata-extract/mediators#main" }
     }
   ]
 }

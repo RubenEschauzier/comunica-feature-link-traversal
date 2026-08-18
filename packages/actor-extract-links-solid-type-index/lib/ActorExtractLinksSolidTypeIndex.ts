@@ -44,7 +44,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     // Determine links to type indexes
     const typeIndexes = [ ...await this.extractTypeIndexLinks(action.metadata) ];
-
+      
     // Dereference all type indexes, and collect them in one record
     const typeLinks = (await Promise.all(typeIndexes
       .map(typeIndex => this.dereferenceTypeIndex(typeIndex, action.context))))

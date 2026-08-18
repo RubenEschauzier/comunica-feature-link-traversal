@@ -1,51 +1,152 @@
-// import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs } from '@comunica/bus-derived-resource-identify';
-// import { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
-// import { TestResult, IActorTest, passTestVoid, failTest, ActionContext } from '@comunica/core';
-// import * as path from 'node:path';
+import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs } from '@comunica/bus-derived-resource-identify';
+import { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
+import type { MediatorQueryParse } from '@comunica/bus-query-parse';
+import { TestResult, IActorTest, passTestVoid, failTest, ActionContext } from '@comunica/core';
+import { QuerySourceParameterizedPattern } from './QuerySourceParameterizedPattern';
+import { DataFactory } from 'rdf-data-factory';
+import { KeysInitQuery } from '@comunica/context-entries';
+import type * as RDF from '@rdfjs/types';
+import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
 
-// /**
-//  * A comunica Triple Pattern Query Derived Resource Identify Actor.
-//  */
-// export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerivedResourceIdentify {
-//   protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+/**
+ * A comunica Triple Pattern Query Derived Resource Identify Actor.
+ */
+export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerivedResourceIdentify {
+  protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  protected readonly mediatorQueryParse: MediatorQueryParse;
+  protected readonly dataFactory: DataFactory = new DataFactory();
 
-//   public constructor(args: IActorDerivedResourceIdentifyTriplePatternQueryArgs) {
-//     super(args);
-//     this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
-//   }
+  public constructor(args: IActorDerivedResourceIdentifyTriplePatternQueryArgs) {
+    super(args);
+    this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
+    this.mediatorQueryParse = args.mediatorQueryParse;
+  }
 
-//   public async test(action: IActionDerivedResourceIdentify): Promise<TestResult<IActorTest>> {
-//     return failTest(`${this.name}: not yet implemented`); 
-//   }
+  public async test(action: IActionDerivedResourceIdentify): Promise<TestResult<IActorTest>> {
+    // TODO: What to do with quad patterns
+    let context = action.context;
+    const filter = action.derivedResourceUnidentified.filter;
+    const parameters = this.extractTemplateParams(action.derivedResourceUnidentified.template);
 
-//   public async run(action: IActionDerivedResourceIdentify): Promise<IActorDerivedResourceIdentifyOutput> {
-//     //TODO: Implement this for testing, this is QPF implementation
-//     const url = path.join(
-//       action.derivedResourceUnidentified.baseUrl,
-//       action.derivedResourceUnidentified.template
-//     );
-//     const querySourceQpf = await this.mediatorQuerySourceDereferenceLink.mediate({
-//       link: { url },
-//       context: new ActionContext()
-//     });
+    // General triple pattern queries require a template
+    if (parameters.size === 0){
+      return failTest(`${this.name} requires parameters in template of derived resource`);
+    }
 
-//     const derivedResource: IActorDerivedResourceIdentifyOutput = {
-//       derivedResourceIdentified: {
-//         ...action.derivedResourceUnidentified,
-//         querySource: querySourceQpf.source,
-//         resourceCoefficients:  {
-//           selectivty: 1,
-//           requests: 1,
-//           compute: 10
-//         }        
-//       }
-//     }
+    // Remove template values and add variables in their place so we can parse the query
+    const {normalized, newVariables} = this.normalizeQuery(filter, parameters);    
 
-//     return derivedResource;
-//   }
-// }
+    let queryParseOutput;
+    try {
+      const baseIRI: string | undefined = context.get(KeysInitQuery.baseIRI);
+      const queryFormat: RDF.QueryFormat = context.get(KeysInitQuery.queryFormat)!;
+      queryParseOutput = await this.mediatorQueryParse.mediate(
+        { 
+          context, 
+          query: normalized,
+          queryFormat, 
+          baseIRI 
+        }
+      );
+    }
+    catch (err: any) {
+      return failTest(`${this.name} parsing query failed with: ${err.message}`);
+    }
 
-// export interface IActorDerivedResourceIdentifyTriplePatternQueryArgs 
-// extends IActorDerivedResourceIdentifyArgs {
-//   mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
-// }
+    if (!isKnownOperation(queryParseOutput.operation, Algebra.Types.CONSTRUCT)){
+      return failTest(`${this.name} only works with construct templates`);
+    } 
+
+    if (queryParseOutput.operation.template.length != 1){
+      return failTest(`${this.name} requires a template with one constructed triple`);
+    }
+
+    if (!isKnownOperation(queryParseOutput.operation.input, Algebra.Types.BGP) ||
+    queryParseOutput.operation.input.patterns.length != 1){
+      return failTest(`${this.name} requires a WHERE clause with only one triple pattern`);
+    }
+
+    const inputPattern = queryParseOutput.operation.input.patterns[0];
+    const patternTerms = [inputPattern.subject, inputPattern.predicate, inputPattern.object];
+
+    // Ensure all pattern terms are variables
+    if (!patternTerms.every(term => term.termType === 'Variable')) {
+      return failTest(`${this.name} requires all terms in the pattern to be variables`);
+    }
+
+    // Ensure at least one variable corresponds to a template parameter
+    const containsParam = patternTerms.some(term => 
+      newVariables.has(`?${term.value}`)
+    );
+
+    if (!containsParam) {
+      return failTest(`${this.name} requires at least one template parameter in the pattern`);
+    }
+
+    return passTestVoid(); 
+  }
+
+  public async run(action: IActionDerivedResourceIdentify): Promise<IActorDerivedResourceIdentifyOutput> {
+    const filter = action.derivedResourceUnidentified.filter;
+    const templateString = new URL(
+       action.derivedResourceUnidentified.template,
+       action.derivedResourceUnidentified.baseUrl
+    ).href;
+
+    const proxySource = new QuerySourceParameterizedPattern(
+      filter,
+      templateString,
+      this.mediatorQuerySourceDereferenceLink,
+      this.dataFactory,
+    );
+
+    const derivedResource: IActorDerivedResourceIdentifyOutput = {
+      derivedResourceIdentified: {
+        iri: templateString,
+        derivedResourceSelectorShape: await proxySource.getSelectorShape(),
+        ...action.derivedResourceUnidentified,
+        querySource: proxySource,
+        resourceCoefficients:  {
+          selectivity: 1,
+          requests: 1,
+          compute: 5
+        }        
+      }
+    }
+    return derivedResource;
+  }
+
+  public extractTemplateParams(templateStr: string) {
+    const matches = templateStr.matchAll(/\{([^}]+)\}/g);
+    return new Set(Array.from(matches, m => m[1]));
+  }
+
+  /**
+   * Takes the parameters from the template (in { } brackets) and replaces those
+   * with temporary parameters
+   * @param rawQuery 
+   * @param paramNames 
+   * @returns 
+   */
+  public normalizeQuery(rawQuery: string, paramNames: Set<string>) {
+    let normalized = rawQuery;
+    
+    const newVariables = new Set();
+    for (const param of paramNames) {
+      // Escapes and replaces $param$ with a distinct valid variable
+      const regex = new RegExp(`\\$${param}\\$`, 'g');
+      normalized = normalized.replace(regex, `?__param_${param}`);
+      newVariables.add(`?__param_${param}`);
+    }
+    return {
+      normalized,
+      newVariables,
+    };
+  }
+}
+
+export interface IActorDerivedResourceIdentifyTriplePatternQueryArgs 
+extends IActorDerivedResourceIdentifyArgs {
+  mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  mediatorQueryParse: MediatorQueryParse;
+}

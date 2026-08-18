@@ -12,7 +12,7 @@ export class ActorContextPreprocessSetDynamicLinksFilter extends ActorContextPre
   }
 
   public async test(action: IActionContextPreprocess): Promise<TestResult<IActorTest>> {
-    return passTestVoid(); // TODO implement
+    return passTestVoid();
   }
 
   public async run(action: IActionContextPreprocess): Promise<IActorContextPreprocessOutput> {

@@ -2,17 +2,13 @@ import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
 import { TestResult, IActorTest, failTest, passTest, passTestWithSideData, ActionContext } from '@comunica/core';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
-import { ComunicaDataFactory } from '@comunica/types';
+import { ComunicaDataFactory, ILink } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import { minimatch } from 'minimatch'
-import type * as RDF from '@rdfjs/types';
-import { resolve } from 'path';
-import { rejects } from 'assert';
 
 /**
  * A comunica Triple Pattern Derived Resource Select Actor.
@@ -66,6 +62,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
 
     const patternToResources = testResult.derivedResourceContext
       .getSafe(KeysDerivedResourceSelect.patternToDerivedResource);
+    
     const bestResources = new Map(
       Array.from(patternToResources.entries(), ([pattern, resources]) => [
         pattern,
@@ -81,11 +78,13 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
       ])
     );  
 
-    const numResource = bestResources.size;
-    let processed = 0;
-    for (const [pattern, bestResource] of bestResources.entries()){
+    const discoveredLinks: ILink[] = [];
+    const discoveredLinksSet: Set<string> = new Set();
+
+    await Promise.all(Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
       if (signal.aborted){
-        break;
+        return;
+        // TODO: Abort here
       }
       const rawQuads = bestResource.resource.querySource.queryQuads(
         pattern, context
@@ -101,85 +100,53 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
           dynamicLinkFilter.addExact(selector)
         }
       });
+
       // TODO: Think about how reachability works when we aggregate over data.
       // When we aggregate over something that is not reachable, we will still include
       // it in results so reachability becomes muddy. Some formalizations maybe,
       // maybe call it the hybrid cMatch - all criterion?
-
-      // TODO: .nq and non .nq get both dereferenced!
-      // Its due to the multiple fixed mapper not working for metadata it seems.
-      // the problem doesn't occur with the remote version of SolidBench.js
-
-      // // Filter the links matching the selector pattern of the resource.
-      // const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-      // const selectors = bestResource.resource.selectors
-      // selectors.forEach((selector) => {
-      //   if (this.isGlob(selector)){
-      //     const globRegExp = minimatch.makeRe(selector);
-      //     if (!globRegExp){
-      //       throw new Error(`Found invalid selector pattern: ${selector}`)
-      //     }
-      //     dynamicLinkFilter.regExp.push(globRegExp);
-      //   }
-      //   else {
-      //     dynamicLinkFilter.exact.add(selector);
-      //   }
-      // });
-      // console.log("START")
-
-      // // TODO: Do we need this, the quads already have metadata by a call to this mediator
-      // // which is in the QPF query source for example.
-      // // YES WE DO, We need to add these links to the link queue!
-      // const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-      //   { context, url: bestResource.resource.iri, quads: rawQuads },
-      // );
-      // console.log("HELLO")
-      // const metadata = (await this.mediatorMetadataExtract.mediate({
-      //   context,
-      //   url: bestResource.resource.iri,
-      //   // The problem appears to be conflicting metadata keys here
-      //   metadata: rdfMetadataOutput.metadata,
-      //   headers: new Headers(),
-      //   requestTime: 0,
-      // })).metadata;
+      const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+        { context, url: bestResource.resource.iri, quads: rawQuads },
+      );
+      const { links } = await this.mediatorExtractLinks.mediate({
+        context,
+        url: bestResource.resource.iri,
+        metadata: rdfMetadataOutput.metadata, 
+        requestTime: 0,
+      });
+      for (const link of links){
+        if (!discoveredLinksSet.has(link.url)){
+          discoveredLinks.push(link);
+          discoveredLinksSet.add(link.url);
+        }
+      }
       
-      // const quads: RDF.Stream = rdfMetadataOutput.data;
-      // // TODO: No URL to add?
-      // await new Promise((resolve, reject) => {
-      //   eventEmitter.on('end', resolve);
-      //   eventEmitter.on('error', reject);
-      // });
-
-      // await this.aggregatedStore.importSource(nextLink.url, source, this.context);
-      const eventEmitter = manager.getAggregatedStore().import(rawQuads);
-      await new Promise((resolve, reject) => {
+      // TODO add back abort functionality
+      const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
+      await new Promise<void>((resolve, reject) => {
         // When traversal is aborted, we destroy the stream and
         // exit all dereference logic of this function.
         // const onAbort = () => {
         //   // TODO: How else do I do this?
-        //   (<any>rawQuads).destroy(new Error('Traversal aborted'));
+        //   (<any>rdfMetadataOutput.data).destroy(new Error('Traversal aborted'));
         //   reject(new Error('Aborted during stream processing'));
         // };
         // signal.addEventListener('abort', onAbort);
-
         eventEmitter.on('end', () => {
-          processed++;
-          console.log(`End ${processed}/${numResource}`)
           // signal.removeEventListener('abort', onAbort);
-          resolve;
+          resolve();
         });
 
         eventEmitter.on('error', (err) => {
-          console.log("HERE")
           // signal.removeEventListener('abort', onAbort);
-          reject;
+          reject(err);
         });
       });
-    }
+    }));
     
     // Done dereferencing, so remove controller
     manager.removeDereferencingDerivedResource(controller);
-    return true;
+    return { links: discoveredLinks };
   }
 
   public override hasRequiredResources(
@@ -232,71 +199,6 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     }
     return {canAnswer: true, usableResources, derivedResourceContext };
   }
-
-  /**
-   * Extract all triple patterns from a query algebra tree.
-   */
-  private extractTriplePatterns(operation: Algebra.Operation):  
-    { patterns: Algebra.Pattern[], paths: Algebra.Path[] } {
-    const patterns: Algebra.Pattern[] = [];
-    const paths: Algebra.Path[] = [];
-
-    algebraUtils.visitOperation(operation, {
-      [Algebra.Types.BGP]: {
-        visitor(bgp: Algebra.Bgp) {
-          patterns.push(...bgp.patterns);
-        },
-      },
-      [Algebra.Types.PATH]: {
-        visitor(path: Algebra.Path) {
-          paths.push(path);
-        },
-      },
-    });
-
-    return { patterns, paths };
-  }
-
-private triplePatternsToFragmentTest(patterns: Algebra.Pattern[]): Algebra.Pattern[] {
-    const seenSignatures = new Set<string>();
-    const canonicalPatterns: Algebra.Pattern[] = [];
-
-    // Helper function to evaluate structure, prevent duplicates, and generate the pattern
-    const addTestPattern = (
-      isSubjVar: boolean, 
-      isPredVar: boolean, 
-      isObjVar: boolean, 
-      isGraphVar: boolean
-    ) => {
-      const signature = `${isSubjVar}-${isPredVar}-${isObjVar}-${isGraphVar}`;
-      
-      if (!seenSignatures.has(signature)) {
-        seenSignatures.add(signature);
-        canonicalPatterns.push(
-          this.algebraFactory.createPattern(
-            isSubjVar ? this.dataFactory.variable('s') : this.dataFactory.namedNode('s'),
-            isPredVar ? this.dataFactory.variable('p') : this.dataFactory.namedNode('p'),
-            isObjVar ? this.dataFactory.variable('o') : this.dataFactory.namedNode('o'),
-            isGraphVar ? this.dataFactory.variable('g') : this.dataFactory.namedNode('g')
-          )
-        );
-      }
-    };
-
-    // Always test bound predicate as this is required for link extraction
-    addTestPattern(true, false, true, true);
-
-    for (const pattern of patterns) {
-      addTestPattern(
-        pattern.subject.termType === 'Variable',
-        pattern.predicate.termType === 'Variable',
-        pattern.object.termType === 'Variable',
-        pattern.graph.termType === 'Variable'
-      );
-    }
-
-    return canonicalPatterns;
-  }
 }
 
 export interface IActorDerivedResourceSelectTriplePatternArgs 
@@ -318,9 +220,9 @@ extends IActorDerivedResourceSelectArgs {
    * pattern queries to extract all links for traversal.
    */
   mediatorExtractLinks: MediatorExtractLinks;
-  // /**
-  //  * The metadata extract mediator
-  //  */
+  /**
+   * The metadata extract mediator
+  */
   mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
 }

@@ -29,11 +29,11 @@ export class ActorDerivedResourceIdentifyQpf extends ActorDerivedResourceIdentif
   }
 
   public async run(action: IActionDerivedResourceIdentify): Promise<IActorDerivedResourceIdentifyOutput> {
-    const url = path.join(
-      action.derivedResourceUnidentified.baseUrl,
-      action.derivedResourceUnidentified.template
-    );
-    
+    const url = new URL(
+       action.derivedResourceUnidentified.template,
+       action.derivedResourceUnidentified.baseUrl
+    ).href
+
     const querySourceQpf = await this.mediatorQuerySourceDereferenceLink.mediate({
       link: { url },
       context: new ActionContext({[KeysInitQuery.dataFactory.name]: this.dataFactory })

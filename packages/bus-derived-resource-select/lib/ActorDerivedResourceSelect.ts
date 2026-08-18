@@ -1,6 +1,6 @@
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
 import { Actor, IAction, IActorArgs, IActorOutput, IActorTest, Mediate } from '@comunica/core';
-import { IActionContext } from '@comunica/types';
+import { IActionContext, ILink } from '@comunica/types';
 
 /**
  * A comunica actor for derived-resource-select events.
@@ -65,7 +65,10 @@ export interface IActionDerivedResourceSelect extends IAction {
 }
 
 export interface IActorDerivedResourceSelectOutput extends IActorOutput {
-
+  /**
+   * Any new links discovered during the usage of the derived resource
+   */
+  links: ILink[]
 }
 
 export interface IActorDerivedResourceSelectTestSideData {

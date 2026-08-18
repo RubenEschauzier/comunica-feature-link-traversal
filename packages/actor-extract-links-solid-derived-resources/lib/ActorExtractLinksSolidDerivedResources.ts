@@ -12,6 +12,7 @@ import { FragmentSelectorShape } from '@comunica/types';
 import { MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
 import { MediatorDerivedResourceSelect } from '@comunica/bus-derived-resource-select';
 import { Algebra } from '@comunica/utils-algebra';
+import { DataFactory } from 'rdf-data-factory';
 
 /**
  * A comunica Solid Derived Resources Extract Links Actor.
@@ -47,6 +48,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   }
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
+    let context = action.context;
     // Determine links to derived resources
     const derivedResources = [ ...await this.extractDerivedResourceLinks(action.metadata) ];
     if (derivedResources.length  === 0){
@@ -54,7 +56,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     }
 
     // Set filter immediately to prevent race conditions
-    const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+    const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
     derivedResources.forEach(url => {
       dynamicLinkFilter.addExact(url);
     });
@@ -72,7 +74,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       derivedResourcesUnidentified.map(resource => 
         this.mediatorDerivedResourceIdentify.mediate({
           derivedResourceUnidentified: resource,
-          context: new ActionContext(),
+          context,
         })
         .catch((err) => {
           return null;
@@ -87,6 +89,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
+    console.log(derivedResourcesIdentified)
     console.log(`Derived resources identified: ${derivedResourcesIdentified.map(x=>x.iri)}`);
     // Ensure selected files in derived resource will not be dereferenced again
     derivedResourcesIdentified.forEach((resource) => {
@@ -96,14 +99,12 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         );
       }
     });
-
-    const test = await this.mediatorDerivedResourceSelect.mediate({
+    
+    const { links } = await this.mediatorDerivedResourceSelect.mediate({
       derivedResourcesIdentified,
-      context: action.context
+      context,
     })
-    // TODO: How should we return the links? I don't know for sure
-    // TODO: After extracting any derived resources set handled to true for the URLs I've dereferenced
-    return { links: [] };
+    return { links };
   }
 
   /**
@@ -174,6 +175,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
   public async dereferenceFilter(derivedResourcesUnidentified: IDerivedResourceRaw):
    Promise<IDerivedResourceUnidentified>{
+
     const response: IActorDereferenceOutput = await this.mediatorDereference.mediate(
       { 
         url: derivedResourcesUnidentified.filterUri.url, 

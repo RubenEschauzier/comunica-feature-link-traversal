@@ -55,7 +55,7 @@ TS = undefined,
     // Run action on all actors.
     const results: O[] = await Promise.all(testResults
       .map((result, i) => result.actor.runObservable(action, sideDatas[i]!)));
-
+      
     // Return the combined results.
     return this.combiner(results);
   }

@@ -30,7 +30,9 @@ export const KeysRdfResolveHypermediaLinks = {
   linkFilters: new ActionContextKey<LinkFilter[]>(
     '@comunica/bus-rdf-resolve-hypermedia-links:linkFilters',
   ),
-
+  /**
+   * Dynamic filter where links can dynamically be filtered based on entries added by other actors
+   */
   dynamicFilter: new ActionContextKey<IDynamicFilter>(
     '@comunica/bus-rdf-resolve-hypermedia-links-queue:filterDynamic'
   ),

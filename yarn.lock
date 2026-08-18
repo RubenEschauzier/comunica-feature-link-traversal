@@ -3127,6 +3127,11 @@
     qs "^6.10.1"
     url-parse "^1.5.3"
 
+"@rdfjs/to-ntriples@^3.0.1":
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/@rdfjs/to-ntriples/-/to-ntriples-3.0.1.tgz#db6f8adadd7b450a1c748642e1ff468cce400599"
+  integrity sha512-gjoPAvh4j7AbGMjcDn/8R4cW+d/FPtbfbMM0uQXkyfBFtNUW2iVgrqsgJ65roLc54Y9A2TTFaeeTGSvY9a0HCQ==
+
 "@rdfjs/types@*", "@rdfjs/types@>=1.0.0", "@rdfjs/types@^1.1.0":
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/@rdfjs/types/-/types-1.1.2.tgz#9c2f9848c44c26d383bed2a808571de3b93b808d"
@@ -4011,6 +4016,13 @@
   version "6.9.17"
   resolved "https://registry.yarnpkg.com/@types/qs/-/qs-6.9.17.tgz#fc560f60946d0aeff2f914eb41679659d3310e1a"
   integrity sha512-rX4/bPcfmvxHDv0XjfJELTTr+iB+tn032nPILqHm5wbthUUUuVtNGGqzhya9XUxjTP8Fpr0qYgSZZKxGY++svQ==
+
+"@types/rdfjs__to-ntriples@^3.0.0":
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/@types/rdfjs__to-ntriples/-/rdfjs__to-ntriples-3.0.0.tgz#2d0d999446f3e38b32279723467ca02be0a92803"
+  integrity sha512-3qZGpe2L3s2fAwmLvDDrcPCVDQmmEsg1KpwDd6bLPcCWQ7BISWHIQX/k/l1VU9EZB8uNoEAcmRmeVJY2jnu7wA==
+  dependencies:
+    "@rdfjs/types" ">=1.0.0"
 
 "@types/readable-stream@^2.3.13":
   version "2.3.15"
@@ -13926,6 +13938,11 @@ uri-js@^4.2.2:
   integrity sha512-7rKUyy33Q1yc98pQ1DAmLtwX109F7TIfWlW1Ydo8Wl1ii1SeHieeh0HHfPeL2fMXK6z0s8ecKs9frCuLJvndBg==
   dependencies:
     punycode "^2.1.0"
+
+uri-template-lite@^23.4.0:
+  version "23.4.0"
+  resolved "https://registry.yarnpkg.com/uri-template-lite/-/uri-template-lite-23.4.0.tgz#989158b76dba91dafbb2d558153f5359d0b04f48"
+  integrity sha512-JsAjquFMpSyZRWAUQguhHIRuh4jb/xDhwQyb1/7C42YLJgkc5WoBF3UkRRM1QtL6Vr9xBa9fB7q3xPzXRwvuUA==
 
 uritemplate@0.3.4:
   version "0.3.4"

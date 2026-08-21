@@ -274,6 +274,59 @@ describe('LinkTraversalManagerMediated', () => {
       expect(mgr.aggregatedStore.hasRunningIterators()).toBe(false);
       expect(abortSpy).toHaveBeenCalledTimes(2);
     });
+
+    it('waits for derived-resource imports before stopping', async() => {
+      const controller = new AbortController();
+      mgr = new LinkTraversalManagerMediated(
+        2,
+        1,
+        [],
+        new LinkQueueFifo(),
+        new AggregatedStoreMemory(undefined, async(left, right) => ({ ...left, ...right }), false, DF),
+        new ActionContext(),
+        DF,
+        new BindingsFactory(DF),
+        mediatorRdfResolveHypermediaLinks,
+        mediatorQuerySourceDereferenceLink,
+      );
+      mgr.addDereferencingDerivedResource(controller);
+
+      mgr.start(rejectionHandler, ctx);
+      expect(mgr.aggregatedStore.hasEnded()).toBe(false);
+
+      const stopped = new Promise<void>(resolve => mgr.addStopListener(resolve));
+      mgr.completeDereferencingDerivedResource(controller);
+      await stopped;
+
+      expect(rejectionHandler).not.toHaveBeenCalled();
+      expect(mgr.aggregatedStore.hasEnded()).toBe(true);
+    });
+
+    it('fails traversal when a derived-resource import fails', async() => {
+      const controller = new AbortController();
+      mgr.addDereferencingDerivedResource(controller);
+      mgr.start(rejectionHandler, ctx);
+
+      const stopped = new Promise<void>(resolve => mgr.addStopListener(resolve));
+      mgr.completeDereferencingDerivedResource(controller, new Error('Derived resource import failed'));
+      await stopped;
+
+      expect(rejectionHandler).toHaveBeenCalledWith(new Error('Derived resource import failed'));
+      expect(mgr.aggregatedStore.hasEnded()).toBe(true);
+    });
+
+    it('aborts derived-resource imports when stopping', async() => {
+      const abortSpy = jest.spyOn(AbortController.prototype, 'abort');
+      const controller = new AbortController();
+      mgr.addDereferencingDerivedResource(controller);
+      mgr.start(rejectionHandler, ctx);
+
+      const stopped = new Promise<void>(resolve => mgr.addStopListener(resolve));
+      mgr.stop();
+      await stopped;
+
+      expect(abortSpy).toHaveBeenCalledWith();
+    });
   });
 
   describe('getQuerySourceAggregated', () => {

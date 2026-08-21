@@ -68,6 +68,12 @@ export interface ILinkTraversalManager {
    */
   removeDereferencingDerivedResource: (controller: AbortController) => void;
   /**
+   * Indicate that a derived resource has completed importing, and resume or fail traversal as appropriate.
+   * @param controller The abort controller originally passed in addDereferencingDerivedResource.
+   * @param error An optional error that occurred while importing the derived resource.
+   */
+  completeDereferencingDerivedResource: (controller: AbortController, error?: Error) => void;
+  /**
    * Get the underlying aggregatedStore
    */
   getAggregatedStore: () => IAggregatedStore;

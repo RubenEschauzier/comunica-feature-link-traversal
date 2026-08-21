@@ -4,7 +4,7 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/config-solid-base.json",
+    "ccqslt:config/config-solid-base-adaptive-stems.json",
     "ccqslt:config/extract-links/actors/predicates-common.json",
     "ccqslt:config/extract-links/actors/predicates-ldp.json",
     "ccqslt:config/extract-links/actors/links-describedby.json",
@@ -12,11 +12,15 @@
     "ccqslt:config/extract-links/actors/quad-pattern-query.json",
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
+    "ccqslt:config/rdf-join/actors-inner-multi-adaptive-stems-lottery.json",
+    "ccqs:config/rdf-join/routers/router-lottery-selectivity.json",
+    "ccqs:config/rdf-join/routers/router-min-index.json",
+    "ccqs:config/rdf-join/routers/router-lottery.json",
+
     "ccqslt:config/extract-links/actors/solid-derived-resources.json",
     "ccqslt:config/derived-resource-identify/mediators.json",
     "ccqslt:config/derived-resource-identify/actors/qpf.json",
     "ccqslt:config/derived-resource-identify/actors/parameterized-pattern.json",
-    "ccqslt:config/derived-resource-identify/actors/parameterized-star-query.json",
 
     "ccqslt:config/derived-resource-select/actors.json",
     "ccqslt:config/derived-resource-select/mediators.json",

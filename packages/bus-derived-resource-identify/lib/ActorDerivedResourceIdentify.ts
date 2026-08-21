@@ -21,10 +21,6 @@ export abstract class ActorDerivedResourceIdentify<TS = undefined> extends Actor
   public constructor(args: IActorDerivedResourceIdentifyArgs<TS>) {
     super(args);
   }
-
-  public translateFilterIntoSelectorShape(){
-
-  }
 }
 
 export interface IActionDerivedResourceIdentify extends IAction {

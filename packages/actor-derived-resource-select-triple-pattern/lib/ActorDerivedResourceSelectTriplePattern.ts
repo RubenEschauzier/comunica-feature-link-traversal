@@ -9,6 +9,8 @@ import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
+import type * as RDF from '@rdfjs/types';
+import { AsyncIterator } from 'asynciterator';
 
 /**
  * A comunica Triple Pattern Derived Resource Select Actor.
@@ -35,7 +37,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   public async test(action: IActionDerivedResourceSelect): 
     Promise<TestResult<IActorTest, IActorDerivedResourceSelectTestSideData>> {
     const {canAnswer, usableResources, derivedResourceContext } = 
-      this.hasRequiredResources(action.derivedResourcesIdentified, action);
+      await this.hasRequiredResources(action.derivedResourcesIdentified, action);
 
     if (!canAnswer) {
       return failTest(`${this.name}: does not have the derived 
@@ -80,79 +82,120 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
 
     const discoveredLinks: ILink[] = [];
     const discoveredLinksSet: Set<string> = new Set();
+    const importCompletions: Promise<void>[] = [];
 
-    await Promise.all(Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
-      if (signal.aborted){
-        return;
-        // TODO: Abort here
-      }
-      const rawQuads = bestResource.resource.querySource.queryQuads(
-        pattern, context
-      );
-      // Filter the links matching the selector pattern of the resource.
-      const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-      const selectors = bestResource.resource.selectors
-      selectors.forEach((selector) => {
-        if (this.isGlob(selector)){
-          dynamicLinkFilter.addGlob(selector);
+    try {
+      await Promise.allSettled(Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
+        if (signal.aborted){
+          return;
         }
-        else {
-          dynamicLinkFilter.addExact(selector)
-        }
-      });
 
-      // TODO: Think about how reachability works when we aggregate over data.
-      // When we aggregate over something that is not reachable, we will still include
-      // it in results so reachability becomes muddy. Some formalizations maybe,
-      // maybe call it the hybrid cMatch - all criterion?
-      const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-        { context, url: bestResource.resource.iri, quads: rawQuads },
-      );
-      const { links } = await this.mediatorExtractLinks.mediate({
-        context,
-        url: bestResource.resource.iri,
-        metadata: rdfMetadataOutput.metadata, 
-        requestTime: 0,
-      });
-      for (const link of links){
-        if (!discoveredLinksSet.has(link.url)){
-          discoveredLinks.push(link);
-          discoveredLinksSet.add(link.url);
-        }
-      }
-      
-      // TODO add back abort functionality
-      const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
-      await new Promise<void>((resolve, reject) => {
-        // When traversal is aborted, we destroy the stream and
-        // exit all dereference logic of this function.
-        // const onAbort = () => {
-        //   // TODO: How else do I do this?
-        //   (<any>rdfMetadataOutput.data).destroy(new Error('Traversal aborted'));
-        //   reject(new Error('Aborted during stream processing'));
-        // };
-        // signal.addEventListener('abort', onAbort);
-        eventEmitter.on('end', () => {
-          // signal.removeEventListener('abort', onAbort);
-          resolve();
+        const rawQuads = bestResource.resource.querySource.queryQuads(
+          pattern, context
+        );
+
+        signal.addEventListener(
+          'abort', 
+          () => rawQuads.destroy(new Error('Traversal aborted')),
+          { once: true }
+        );
+        // TODO: What to do if a derived resource for triple pattern cannot answer all triple patterns in query?
+        // Like for example path queries and QPF! How do path queries work with derived resource with parameter. Should work?
+
+        // Filter the links matching the selector pattern of the resource.
+        const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+        const selectors = bestResource.resource.selectors;
+        selectors.forEach((selector) => {
+          if (this.isGlob(selector)){
+            dynamicLinkFilter.addGlob(selector);
+          }
+          else {
+            dynamicLinkFilter.addExact(selector);
+          }
         });
 
-        eventEmitter.on('error', (err) => {
-          // signal.removeEventListener('abort', onAbort);
-          reject(err);
+        // TODO: Think about how reachability works when we aggregate over data.
+        // When we aggregate over something that is not reachable, we will still include
+        // it in results so reachability becomes muddy. Some formalizations maybe,
+        // maybe call it the hybrid cMatch - all criterion?
+        const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+          { context, url: bestResource.resource.iri, quads: rawQuads },
+        );
+
+        const { links } = await this.mediatorExtractLinks.mediate({
+          context,
+          url: bestResource.resource.iri,
+          metadata: rdfMetadataOutput.metadata,
+          requestTime: 0,
         });
-      });
-    }));
-    
-    // Done dereferencing, so remove controller
-    manager.removeDereferencingDerivedResource(controller);
+
+        for (const link of links){
+          if (!discoveredLinksSet.has(link.url)){
+            discoveredLinks.push(link);
+            discoveredLinksSet.add(link.url);
+          }
+        }
+
+        const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
+        const importCompletion = this.waitForImport(eventEmitter, rdfMetadataOutput.data, signal);
+        importCompletions.push(importCompletion);
+      }));
+    } catch (error: unknown) {
+      manager.removeDereferencingDerivedResource(controller);
+      throw error;
+    }
+
+    void Promise.allSettled(importCompletions).then((results) => {
+      const failed = results.find(
+        (result): result is PromiseRejectedResult => result.status === 'rejected',
+      );
+
+      manager.completeDereferencingDerivedResource(
+        controller,
+        failed ? this.toError(failed.reason) : undefined,
+      );
+    });
     return { links: discoveredLinks };
   }
 
-  public override hasRequiredResources(
+  private toError(error: unknown): Error {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+
+  private waitForImport(
+    eventEmitter: NodeJS.EventEmitter,
+    data: RDF.Stream,
+    signal: AbortSignal,
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const onAbort = (): void => {
+        (<any> data).destroy(new Error('Traversal aborted'));
+      };
+      const onEnd = (): void => {
+        signal.removeEventListener('abort', onAbort);
+        resolve();
+      };
+      const onError = (error: Error): void => {
+        signal.removeEventListener('abort', onAbort);
+        if (signal.aborted) {
+          resolve();
+        } else {
+          reject(error);
+        }
+      };
+      eventEmitter.on('end', onEnd);
+      eventEmitter.on('error', onError);
+      signal.addEventListener('abort', onAbort);
+      if (signal.aborted) {
+        onAbort();
+      }
+    });
+  }
+
+  public override async hasRequiredResources(
     derivedResources: IDerivedResource[],
     action: IActionDerivedResourceSelect,
-  ): IRequiredResources {
+  ): Promise<IRequiredResources> {
     const actorsExtractLink = <ActorExtractLinks[]>((<any>this.mediatorExtractLinks.bus).actors);
 
     // Get unique patterns required to do traversal

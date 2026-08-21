@@ -126,6 +126,9 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
         for (const abortController of this.linksDereferencing) {
           abortController.abort();
         }
+        for (const abortController of this.derivedResourcesDereferencing) {
+          abortController.abort();
+        }
         for (const cb of this.stopListeners) {
           cb();
         }
@@ -211,15 +214,25 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
       });
   }
 
-  public addDereferencingDerivedResource(controller: AbortController){
+  public addDereferencingDerivedResource(controller: AbortController): void {
     this.derivedResourcesDereferencing.add(controller);
   }
 
-  public removeDereferencingDerivedResource(controller: AbortController){
+  public removeDereferencingDerivedResource(controller: AbortController): void {
     this.derivedResourcesDereferencing.delete(controller);
   }
 
-  public getAggregatedStore(){
+  public completeDereferencingDerivedResource(controller: AbortController, error?: Error): void {
+    this.removeDereferencingDerivedResource(controller);
+    if (error) {
+      this.stop();
+      this.rejectionHandler!(error);
+    } else {
+      setTimeout(() => this.tryTraversingNextLinks());
+    }
+  }
+
+  public getAggregatedStore(): IAggregatedStore {
     return this.aggregatedStore;
   }
 }

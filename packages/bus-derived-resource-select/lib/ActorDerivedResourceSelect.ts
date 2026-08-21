@@ -57,7 +57,7 @@ extends Actor<IActionDerivedResourceSelect, IActorTest, IActorDerivedResourceSel
   public abstract hasRequiredResources(
     derivedResources: IDerivedResource[],
     action: IActionDerivedResourceSelect,
-  ): IRequiredResources;
+  ): Promise<IRequiredResources>;
 }
 
 export interface IActionDerivedResourceSelect extends IAction {

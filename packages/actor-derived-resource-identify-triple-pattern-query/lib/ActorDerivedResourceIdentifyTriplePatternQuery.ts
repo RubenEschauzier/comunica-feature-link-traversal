@@ -1,7 +1,7 @@
 import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs } from '@comunica/bus-derived-resource-identify';
 import { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorQueryParse } from '@comunica/bus-query-parse';
-import { TestResult, IActorTest, passTestVoid, failTest, ActionContext } from '@comunica/core';
+import { TestResult, IActorTest, passTestVoid, failTest, ActionContext, passTestVoidWithSideData } from '@comunica/core';
 import { QuerySourceParameterizedPattern } from './QuerySourceParameterizedPattern';
 import { DataFactory } from 'rdf-data-factory';
 import { KeysInitQuery } from '@comunica/context-entries';
@@ -11,7 +11,7 @@ import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
 /**
  * A comunica Triple Pattern Query Derived Resource Identify Actor.
  */
-export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerivedResourceIdentify {
+export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerivedResourceIdentify<ITriplePatternSideData> {
   protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
   protected readonly mediatorQueryParse: MediatorQueryParse;
   protected readonly dataFactory: DataFactory = new DataFactory();
@@ -22,7 +22,7 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
     this.mediatorQueryParse = args.mediatorQueryParse;
   }
 
-  public async test(action: IActionDerivedResourceIdentify): Promise<TestResult<IActorTest>> {
+  public async test(action: IActionDerivedResourceIdentify): Promise<TestResult<IActorTest, ITriplePatternSideData>> {
     // TODO: What to do with quad patterns
     let context = action.context;
     const filter = action.derivedResourceUnidentified.filter;
@@ -69,6 +69,11 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
     const inputPattern = queryParseOutput.operation.input.patterns[0];
     const patternTerms = [inputPattern.subject, inputPattern.predicate, inputPattern.object];
 
+    const templatePattern = queryParseOutput.operation.template[0];
+    if (!templatePattern.equals(inputPattern)) {
+      return failTest(`${this.name} requires the CONSTRUCT template and WHERE pattern to be identical`);
+    }
+
     // Ensure all pattern terms are variables
     if (!patternTerms.every(term => term.termType === 'Variable')) {
       return failTest(`${this.name} requires all terms in the pattern to be variables`);
@@ -83,19 +88,26 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
       return failTest(`${this.name} requires at least one template parameter in the pattern`);
     }
 
-    return passTestVoid(); 
+    return passTestVoidWithSideData<ITriplePatternSideData>({
+      parameters,
+      operation: queryParseOutput.operation,
+    });
   }
 
-  public async run(action: IActionDerivedResourceIdentify): Promise<IActorDerivedResourceIdentifyOutput> {
-    const filter = action.derivedResourceUnidentified.filter;
+  public async run(
+    action: IActionDerivedResourceIdentify,
+    sideData: ITriplePatternSideData,
+  ): Promise<IActorDerivedResourceIdentifyOutput> {
     const templateString = new URL(
        action.derivedResourceUnidentified.template,
        action.derivedResourceUnidentified.baseUrl
     ).href;
 
     const proxySource = new QuerySourceParameterizedPattern(
-      filter,
       templateString,
+      // The test function guarantees CONSTRUCT = WHERE clause and template is one pattern
+      sideData.operation.template[0],
+      sideData.parameters,
       this.mediatorQuerySourceDereferenceLink,
       this.dataFactory,
     );
@@ -146,7 +158,12 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
 }
 
 export interface IActorDerivedResourceIdentifyTriplePatternQueryArgs 
-extends IActorDerivedResourceIdentifyArgs {
+extends IActorDerivedResourceIdentifyArgs<ITriplePatternSideData> {
   mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
   mediatorQueryParse: MediatorQueryParse;
+}
+
+export interface ITriplePatternSideData {
+  parameters: Set<string>;
+  operation: Algebra.Construct;
 }

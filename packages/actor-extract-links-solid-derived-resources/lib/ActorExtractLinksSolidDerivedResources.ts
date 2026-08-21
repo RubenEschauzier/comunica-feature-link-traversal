@@ -89,8 +89,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
-    console.log(derivedResourcesIdentified)
-    console.log(`Derived resources identified: ${derivedResourcesIdentified.map(x=>x.iri)}`);
+    
     // Ensure selected files in derived resource will not be dereferenced again
     derivedResourcesIdentified.forEach((resource) => {
       for (const selector of resource.selectors) {
@@ -222,74 +221,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public getExtractPatternRepresentation(context: IActionContext): Algebra.Pattern[] {
     return []
   }
-  /**
-   * node engines/query-sparql-link-traversal-solid/bin/query.js -q "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-PREFIX snvoc: <http://solidbench-server:3000/www.ldbc.eu/ldbc_socialnet/1.0/vocabulary/>
-SELECT ?messageId ?messageCreationDate ?messageContent WHERE {
-  ?message snvoc:hasCreator <http://solidbench-server:3000/pods/00000000000000000933/profile/card#me>;
-    rdf:type snvoc:Post;
-    snvoc:content ?messageContent;
-    snvoc:creationDate ?messageCreationDate;
-    snvoc:id ?messageId.
-}
-" --idp void --lenient
-   */
-
-  // //TODO: Move this logic into actors
-  // private async parseFilterFile(response: Response) {
-  //   const contentType = response.headers.get('content-type') || '';
-    
-  //   const rawText = await response.text();
-  //   const cleanText = rawText.trim();
-
-  //   // 2. QPF Check: The file just contains "qpf" (Plain Text)
-  //   if (cleanText === 'qpf') {
-  //     return {
-  //       type: 'QPF',
-  //       config: cleanText
-  //     };
-  //   }
-
-  //   // 3. Quad Pattern Index Check: Expecting a JSON object
-  //   if (contentType.includes('application/json') || cleanText.startsWith('{')) {
-  //     try {
-  //       const jsonObj = JSON.parse(cleanText);
-  //       return {
-  //         type: 'INDEX',
-  //         config: jsonObj // Contains the s, p, o, g and Variable fields
-  //       };
-  //     } catch (e) {
-  //       console.warn("Looked like JSON, but failed to parse.", e);
-  //     }
-  //   }
-
-  //   // 4. SPARQL Check: Expecting a CONSTRUCT query
-  //   if (contentType.includes('application/sparql-query') || cleanText.toUpperCase().includes('CONSTRUCT')) {
-  //     // Optional: Parse the SPARQL string into an AST using sparql.js so your engine can reason over it
-  //     const sparqlParser = new SparqlParser();
-  //     return {
-  //       type: 'SPARQL',
-  //       config: rawText,
-  //       ast: sparqlParser.parse(rawText) 
-  //     };
-  //   }
-
-  //   // 5. SHACL Check: Expecting text/turtle
-  //   if (contentType.includes('text/turtle') || cleanText.includes('@prefix') || cleanText.includes('sh:')) {
-  //     const n3Parser = new N3Parser({ format: 'text/turtle', baseIRI: response.url });
-  //     const store = new Store();
-      
-  //     // Parse the turtle string into an N3 store synchronously
-  //     store.addQuads(n3Parser.parse(rawText));
-      
-  //     return {
-  //       type: 'SHACL',
-  //       config: store // You can now query the shapes with store.getQuads(...)
-  //     };
-  //   }
-
-  //   throw new Error(`Unrecognized filter file format. Content-Type: ${contentType}`);
-  // }
 }
 
 

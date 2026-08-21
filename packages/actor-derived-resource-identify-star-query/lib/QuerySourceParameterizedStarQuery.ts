@@ -12,35 +12,40 @@ import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import toNT from '@rdfjs/to-ntriples';
 import * as RDF from '@rdfjs/types';
 import { AsyncIterator, TransformIterator } from 'asynciterator';
+import { Variable } from 'rdf-data-factory';
 
-export class QuerySourceParameterizedPattern implements IQuerySource {
+export class QuerySourceParameterizedStarQuery implements IQuerySource {
   public readonly referenceValue: QuerySourceReference;
   
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly algebraFactory: AlgebraFactory;
 
+  protected readonly parameterizedPatterns: IParameterizedPattern[];
+
   protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
-  
+
   protected readonly template: string;
-  protected readonly parameterizedPattern: IParameterizedPattern;
+  protected readonly parameters: Set<string>;
   protected readonly selectorShape: FragmentSelectorShape;
 
   public constructor(
     template: string,
-    operation: Algebra.Pattern,
+    operation: Algebra.Construct,
     parameters: Set<string>,
     mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink,
     dataFactory: ComunicaDataFactory,
   ) {
+    if (!isKnownOperation(operation.input, Algebra.Types.BGP)){
+        throw new Error(`Non-BGP passed to star query source`);
+    }
     this.referenceValue = template;
     this.template = template;
     this.mediatorQuerySourceDereferenceLink = mediatorQuerySourceDereferenceLink;
+    this.parameters = parameters;
     this.dataFactory = dataFactory;
 
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
-    
-    // Interface with all parameters that should be filled in when doing queryBindings
-    this.parameterizedPattern  = this.buildParameterMapping(operation, parameters);
+
 
     const cleanTerm = (term: RDF.Term): RDF.Term => {
       if (term.termType === 'Variable') {
@@ -49,47 +54,67 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
       return term;
     };
 
-    const cleanPattern = this.algebraFactory.createPattern(
-      cleanTerm(operation.subject),
-      cleanTerm(operation.predicate),
-      cleanTerm(operation.object),
-      cleanTerm(operation.graph),
+    this.parameterizedPatterns = this.buildParameterMapping(
+      operation.input.patterns, parameters
     );
+
+
+    const cleanPatterns = operation.input.patterns.map(pattern =>
+      this.algebraFactory.createPattern(
+        cleanTerm(pattern.subject),
+        cleanTerm(pattern.predicate),
+        cleanTerm(pattern.object),
+        cleanTerm(pattern.graph),
+      ),
+    );
+    const cleanBgp = this.algebraFactory.createBgp(cleanPatterns);
+
+    const variablesOptional = Array.from(
+      new Map(
+        this.parameterizedPatterns
+          .flatMap((pattern) =>
+            [...Object.values(pattern)]
+              .filter((parameterName: string | undefined) => parameterName !== undefined)
+              .map((parameterName: string) => this.dataFactory.variable(parameterName)),
+          )
+          .map((variable) => [variable.value, variable]),
+      ).values(),
+    );    
+
 
     this.selectorShape = {
       type: 'operation',
       operation: {
         operationType: 'pattern',
-        pattern: cleanPattern,
+        pattern: cleanBgp,
       },
-      variablesOptional: [
-        ...[...Object.values(this.parameterizedPattern)]
-          .filter((parameterName: string) => parameterName !== undefined)
-          .map((parameterName: string) => this.dataFactory.variable(parameterName)),
-      ],
+      variablesOptional
     };
   }
 
   private buildParameterMapping(
-    pattern: Algebra.Pattern, 
-    parameterNames: Set<string>
-  ): IParameterizedPattern {
-    const extractParam = (term: RDF.Term): string | undefined => {
-      if (term.termType === 'Variable') {
-        const cleaned = term.value.replace(/^__param_/, '');
-        return parameterNames.has(cleaned) ? cleaned : undefined;
-      }
-      return undefined;
-    };
-
-    return {
-      subject: extractParam(pattern.subject),
-      predicate: extractParam(pattern.predicate),
-      object: extractParam(pattern.object),
-      graph: extractParam(pattern.graph),
-    };
-  }
-
+      patterns: Algebra.Pattern[], 
+      parameterNames: Set<string>
+    ): IParameterizedPattern[] {
+      const extractParam = (term: RDF.Term): string | undefined => {
+        if (term.termType === 'Variable') {
+          const cleaned = term.value.replace(/^__param_/, '');
+          return parameterNames.has(cleaned) ? cleaned : undefined;
+        }
+        return undefined;
+      };
+      
+      return patterns.map((pattern) => { 
+        return {
+          subject: extractParam(pattern.subject),
+          predicate: extractParam(pattern.predicate),
+          object: extractParam(pattern.object),
+          graph: extractParam(pattern.graph)
+        }
+      });
+    }
+  
+  
 
   public async getSelectorShape(): Promise<FragmentSelectorShape> {
     return this.selectorShape;
@@ -99,13 +124,14 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     return 0;
   }
 
+
   public queryQuads(operation: Algebra.Operation, context: IActionContext): AsyncIterator<RDF.Quad> {
-    if (!isKnownOperation(operation, Algebra.Types.PATTERN)) {
-      throw new Error(`Attempted to pass non-pattern operation '${operation.type}' to QuerySourceParameterizedPattern`);
+    if (!isKnownOperation(operation, Algebra.Types.BGP)) {
+      throw new Error(`QuerySourceParameterizedStarQuery only accepts BGPs, got: ${operation.type}`);
     }
 
     if(!doesShapeAcceptOperation(this.selectorShape, operation)){
-      throw new Error(`Attempted queryQuads using operation not supported by QuerySourceParameterizedPattern`)
+      throw new Error(`Attempted queryQuads using operation not supported by QuerySourceStarQuery`)
     }
 
     const quadStreamProxy = new TransformIterator<RDF.Quad, RDF.Quad>();
@@ -121,37 +147,20 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     return quadStreamProxy;
   }
 
-  private async fillTemplateUri(template: string, operation: Algebra.Pattern){
-    
-  }
-
-  private async resolveAndExecuteQuads(operation: Algebra.Pattern, context: IActionContext): Promise<AsyncIterator<RDF.Quad>> {
+  private async resolveAndExecuteQuads(operation: Algebra.Bgp, context: IActionContext): Promise<AsyncIterator<RDF.Quad>> {
     // Fill in the parameter values of the template
-    const replaceParam = (url: string, param: string, value: RDF.Term, variableName: string) => {
-      const regex = new RegExp(`(?:\\{|%7b)${param}(?:\\}|%7d)`, 'gi');
-      // Normalize the variable names to ensure they're passed to the underlying derived resource correctly.
-      // Variable names such as "__comunica:pp_var_subj" cause issues. 
-      if (value.termType === 'Variable'){
-        value = this.dataFactory.variable(variableName);
-      }
+    const replaceParam = (url: string, param: string, value: RDF.Term) => {
+      const regex = new RegExp(`(?:\\{|%7B)${param}(?:\\}|%7D)`, 'g');
       const stringValue = toNT(value);
       return url.replace(regex, encodeURIComponent(stringValue));
     };
 
     let filledTemplateUri = this.template;
-    if (this.parameterizedPattern.subject) {
-      filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.subject, operation.subject, 's');
-    }
-    if (this.parameterizedPattern.predicate) {
-      filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.predicate, operation.predicate, 'p');
-    }
-    if (this.parameterizedPattern.object) {
-      filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.object, operation.object, 'o');
-    }
-    if (this.parameterizedPattern.graph) {
-      filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.graph, operation.graph, 'g');
-    }
-    
+    console.log("Split!");
+    console.log(filledTemplateUri)
+    // TODO: Fill in the url template using the predicates in the operation
+
+
     const dereferenceResult: IActorQuerySourceDereferenceLinkOutput = 
     await this.mediatorQuerySourceDereferenceLink.mediate({
       link: { url: filledTemplateUri },

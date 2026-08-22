@@ -93,7 +93,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
         const rawQuads = bestResource.resource.querySource.queryQuads(
           pattern, context
         );
-
+        
         signal.addEventListener(
           'abort', 
           () => rawQuads.destroy(new Error('Traversal aborted')),
@@ -113,6 +113,8 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
             dynamicLinkFilter.addExact(selector);
           }
         });
+        // TODO: Separate links following triple patterns and query answering derived resources. Link following we need
+        // to get metadata from (and not ingest), query answering we only ingest. Should speed things up.
 
         // TODO: Think about how reachability works when we aggregate over data.
         // When we aggregate over something that is not reachable, we will still include
@@ -135,7 +137,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
             discoveredLinksSet.add(link.url);
           }
         }
-
+        
         const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
         const importCompletion = this.waitForImport(eventEmitter, rdfMetadataOutput.data, signal);
         importCompletions.push(importCompletion);

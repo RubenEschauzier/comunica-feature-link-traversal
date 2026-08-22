@@ -8,11 +8,10 @@ import type {
   QuerySourceReference,
 } from '@comunica/types';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
-import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
+import { canAnswerBgp, doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import toNT from '@rdfjs/to-ntriples';
 import * as RDF from '@rdfjs/types';
 import { AsyncIterator, TransformIterator } from 'asynciterator';
-import { Variable } from 'rdf-data-factory';
 
 export class QuerySourceParameterizedStarQuery implements IQuerySource {
   public readonly referenceValue: QuerySourceReference;
@@ -21,7 +20,6 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
   protected readonly algebraFactory: AlgebraFactory;
 
   protected readonly parameterizedPatterns: IParameterizedPattern[];
-
   protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
 
   protected readonly template: string;
@@ -35,17 +33,15 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
     mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink,
     dataFactory: ComunicaDataFactory,
   ) {
-    if (!isKnownOperation(operation.input, Algebra.Types.BGP)){
-        throw new Error(`Non-BGP passed to star query source`);
+    if (!isKnownOperation(operation.input, Algebra.Types.BGP)) {
+      throw new Error(`Non-BGP passed to star query source`);
     }
     this.referenceValue = template;
     this.template = template;
     this.mediatorQuerySourceDereferenceLink = mediatorQuerySourceDereferenceLink;
     this.parameters = parameters;
     this.dataFactory = dataFactory;
-
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
-
 
     const cleanTerm = (term: RDF.Term): RDF.Term => {
       if (term.termType === 'Variable') {
@@ -55,9 +51,9 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
     };
 
     this.parameterizedPatterns = this.buildParameterMapping(
-      operation.input.patterns, parameters
+      operation.input.patterns,
+      parameters,
     );
-
 
     const cleanPatterns = operation.input.patterns.map(pattern =>
       this.algebraFactory.createPattern(
@@ -72,15 +68,14 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
     const variablesOptional = Array.from(
       new Map(
         this.parameterizedPatterns
-          .flatMap((pattern) =>
+          .flatMap(pattern =>
             [...Object.values(pattern)]
-              .filter((parameterName: string | undefined) => parameterName !== undefined)
-              .map((parameterName: string) => this.dataFactory.variable(parameterName)),
+              .filter((param): param is string => param !== undefined)
+              .map(param => this.dataFactory.variable(param)),
           )
-          .map((variable) => [variable.value, variable]),
+          .map(variable => [variable.value, variable]),
       ).values(),
-    );    
-
+    );
 
     this.selectorShape = {
       type: 'operation',
@@ -88,33 +83,50 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
         operationType: 'pattern',
         pattern: cleanBgp,
       },
-      variablesOptional
+      variablesOptional,
     };
   }
 
   private buildParameterMapping(
-      patterns: Algebra.Pattern[], 
-      parameterNames: Set<string>
-    ): IParameterizedPattern[] {
-      const extractParam = (term: RDF.Term): string | undefined => {
-        if (term.termType === 'Variable') {
-          const cleaned = term.value.replace(/^__param_/, '');
-          return parameterNames.has(cleaned) ? cleaned : undefined;
-        }
-        return undefined;
-      };
-      
-      return patterns.map((pattern) => { 
-        return {
-          subject: extractParam(pattern.subject),
-          predicate: extractParam(pattern.predicate),
-          object: extractParam(pattern.object),
-          graph: extractParam(pattern.graph)
-        }
-      });
+    patterns: Algebra.Pattern[], 
+    parameterNames: Set<string>,
+  ): IParameterizedPattern[] {
+    const extractParam = (term: RDF.Term): string | undefined => {
+      if (term.termType === 'Variable') {
+        const cleaned = term.value.replace(/^__param_/, '');
+        return parameterNames.has(cleaned) ? cleaned : undefined;
+      }
+      return undefined;
+    };
+    
+    return patterns.map(pattern => ({
+      subject: extractParam(pattern.subject),
+      predicate: extractParam(pattern.predicate),
+      object: extractParam(pattern.object),
+      graph: extractParam(pattern.graph),
+    }));
+  }
+  
+  private fillTemplateWithPattern(
+    operation: Algebra.Pattern,
+    templateUri: string,
+    parameterizedPattern: IParameterizedPattern,
+    replaceParam: (url: string, param: string, value: RDF.Term, positionPrefix: string) => string,
+  ): string {
+    if (parameterizedPattern.subject) {
+      templateUri = replaceParam(templateUri, parameterizedPattern.subject, operation.subject, 's');
     }
-  
-  
+    if (parameterizedPattern.predicate) {
+      templateUri = replaceParam(templateUri, parameterizedPattern.predicate, operation.predicate, 'p');
+    }
+    if (parameterizedPattern.object) {
+      templateUri = replaceParam(templateUri, parameterizedPattern.object, operation.object, 'o');
+    }
+    if (parameterizedPattern.graph) {
+      templateUri = replaceParam(templateUri, parameterizedPattern.graph, operation.graph, 'g');
+    }
+    return templateUri;
+  }
 
   public async getSelectorShape(): Promise<FragmentSelectorShape> {
     return this.selectorShape;
@@ -124,14 +136,21 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
     return 0;
   }
 
-
   public queryQuads(operation: Algebra.Operation, context: IActionContext): AsyncIterator<RDF.Quad> {
     if (!isKnownOperation(operation, Algebra.Types.BGP)) {
       throw new Error(`QuerySourceParameterizedStarQuery only accepts BGPs, got: ${operation.type}`);
     }
 
-    if(!doesShapeAcceptOperation(this.selectorShape, operation)){
-      throw new Error(`Attempted queryQuads using operation not supported by QuerySourceStarQuery`)
+    if (
+      this.selectorShape.type !== 'operation' || 
+      !canAnswerBgp(
+        this.selectorShape,
+        operation,
+        this.selectorShape.variablesOptional ?? [],
+        this.selectorShape.variablesRequired ?? [],
+      )
+    ) {
+      throw new Error(`Attempted queryQuads using operation not supported by QuerySourceStarQuery`);
     }
 
     const quadStreamProxy = new TransformIterator<RDF.Quad, RDF.Quad>();
@@ -148,35 +167,61 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
   }
 
   private async resolveAndExecuteQuads(operation: Algebra.Bgp, context: IActionContext): Promise<AsyncIterator<RDF.Quad>> {
-    // Fill in the parameter values of the template
-    const replaceParam = (url: string, param: string, value: RDF.Term) => {
-      const regex = new RegExp(`(?:\\{|%7B)${param}(?:\\}|%7D)`, 'g');
-      const stringValue = toNT(value);
+    // Keeps track of variable names mapped so far to avoid unintended collisions across disjoint positions
+    const variableMapping: Record<string, string> = {};
+    let varCounter = 1;
+
+    const replaceParam = (
+      url: string,
+      param: string,
+      value: RDF.Term,
+      positionPrefix: string,
+    ): string => {
+      const regex = new RegExp(`(?:\\{|%7b)${param}(?:\\}|%7d)`, 'gi');
+      
+      let targetTerm = value;
+      if (value.termType === 'Variable') {
+        const originalVarName = value.value;
+        
+        // Reuse mapping if seen before, otherwise allocate a unique name
+        if (!variableMapping[originalVarName]) {
+          const isInternalVar = originalVarName.startsWith('__comunica') || originalVarName.startsWith('__param');
+          variableMapping[originalVarName] = isInternalVar
+            ? `${positionPrefix}${varCounter++}`
+            : originalVarName;
+        }
+
+        targetTerm = this.dataFactory.variable(variableMapping[originalVarName]);
+      }
+      
+      const stringValue = toNT(targetTerm);
       return url.replace(regex, encodeURIComponent(stringValue));
-    };
+    };    
 
     let filledTemplateUri = this.template;
-    console.log("Split!");
-    console.log(filledTemplateUri)
-    // TODO: Fill in the url template using the predicates in the operation
-
+    for (let i = 0; i < operation.patterns.length; i++) {
+      filledTemplateUri = this.fillTemplateWithPattern(
+        operation.patterns[i],
+        filledTemplateUri,
+        this.parameterizedPatterns[i],
+        replaceParam,
+      );
+    }
 
     const dereferenceResult: IActorQuerySourceDereferenceLinkOutput = 
-    await this.mediatorQuerySourceDereferenceLink.mediate({
-      link: { url: filledTemplateUri },
-      context
-    });
+      await this.mediatorQuerySourceDereferenceLink.mediate({
+        link: { url: filledTemplateUri },
+        context,
+      });
 
-    // Use variable spog operation as this is only supported operation on QuerySourceFileLazy
-    // This still returns the correct results for the operation as the actual operation is executed
-    // server-side
     return dereferenceResult.source.queryQuads(
       this.algebraFactory.createPattern(
         this.dataFactory.variable('s'),
         this.dataFactory.variable('p'),
         this.dataFactory.variable('o'),
         this.dataFactory.variable('g'),
-      ), context
+      ),
+      context,
     );
   }
 
@@ -196,8 +241,6 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
     return `QuerySourceParameterizedPattern(${this.template})`;
   }
 }
-
-
 
 interface IParameterizedPattern {
   subject?: string;

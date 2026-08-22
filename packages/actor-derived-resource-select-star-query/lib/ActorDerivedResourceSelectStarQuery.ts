@@ -2,12 +2,11 @@ import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
 import { TestResult, IActorTest, failTest, passTest, passTestWithSideData, ActionContext } from '@comunica/core';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
-import { ComunicaDataFactory, ILink } from '@comunica/types';
+import { ComunicaDataFactory } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
-import { canAnswerBgp, doesShapeAcceptOperation } from '@comunica/utils-query-operation';
-import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
-import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
+import { canAnswerBgp } from '@comunica/utils-query-operation';
+import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import type * as RDF from '@rdfjs/types';
 import { AsyncIterator } from 'asynciterator';
@@ -66,26 +65,10 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     
     await Promise.allSettled(
       Array.from(bgpsToResources.entries()).map(async ([pattern, resource]) => {
-        console.log("START")
-        // TODO: GOes wrong here!
         const rawQuads = resource.querySource.queryQuads(
           this.algebraFactory.createBgp(pattern),
           context,
         );
-        console.log(rawQuads)
-
-        await new Promise<void>((resolve, reject) => {
-          rawQuads.on('data', (data: any) => {
-            console.log(data);
-          });
-          rawQuads.once('end', () => {
-            console.log('end');
-            resolve();
-          });
-          rawQuads.once('error', (err: any) => {
-            reject(err);
-          });
-        });
 
         // TODO: Think about how reachability works when we aggregate over data.
         // When we aggregate over something that is not reachable, we will still include
@@ -96,40 +79,6 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
       }),
     );
     return { links: [] };
-  }
-
-  private toError(error: unknown): Error {
-    return error instanceof Error ? error : new Error(String(error));
-  }
-
-  private waitForImport(
-    eventEmitter: NodeJS.EventEmitter,
-    data: RDF.Stream,
-    signal: AbortSignal,
-  ): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const onAbort = (): void => {
-        (<any> data).destroy(new Error('Traversal aborted'));
-      };
-      const onEnd = (): void => {
-        signal.removeEventListener('abort', onAbort);
-        resolve();
-      };
-      const onError = (error: Error): void => {
-        signal.removeEventListener('abort', onAbort);
-        if (signal.aborted) {
-          resolve();
-        } else {
-          reject(error);
-        }
-      };
-      eventEmitter.on('end', onEnd);
-      eventEmitter.on('error', onError);
-      signal.addEventListener('abort', onAbort);
-      if (signal.aborted) {
-        onAbort();
-      }
-    });
   }
 
   public override async hasRequiredResources(

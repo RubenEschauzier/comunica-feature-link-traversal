@@ -121,10 +121,6 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     return quadStreamProxy;
   }
 
-  private async fillTemplateUri(template: string, operation: Algebra.Pattern){
-    
-  }
-
   private async resolveAndExecuteQuads(operation: Algebra.Pattern, context: IActionContext): Promise<AsyncIterator<RDF.Quad>> {
     // Fill in the parameter values of the template
     const replaceParam = (url: string, param: string, value: RDF.Term, variableName: string) => {
@@ -151,7 +147,7 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     if (this.parameterizedPattern.graph) {
       filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.graph, operation.graph, 'g');
     }
-    
+
     const dereferenceResult: IActorQuerySourceDereferenceLinkOutput = 
     await this.mediatorQuerySourceDereferenceLink.mediate({
       link: { url: filledTemplateUri },

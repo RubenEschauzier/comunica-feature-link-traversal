@@ -218,8 +218,8 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     this.derivedResourcesDereferencing.add(controller);
   }
 
-  public removeDereferencingDerivedResource(controller: AbortController): void {
-    this.derivedResourcesDereferencing.delete(controller);
+  public removeDereferencingDerivedResource(controller: AbortController): boolean {
+    return this.derivedResourcesDereferencing.delete(controller);
   }
 
   public completeDereferencingDerivedResource(controller: AbortController, error?: Error): void {

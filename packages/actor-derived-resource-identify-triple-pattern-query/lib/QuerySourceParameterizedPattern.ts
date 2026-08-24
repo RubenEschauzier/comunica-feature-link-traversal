@@ -138,12 +138,12 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     if (this.parameterizedPattern.graph) {
       filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.graph, operation.graph, 'g');
     }
-    console.log(`Before dereference: ${performance.now()}`)
+    
     const dereferenceRdfOutput: IActorDereferenceRdfOutput = await this.mediatorDereferenceRdf.mediate({
       context,
       url: filledTemplateUri,
     });
-    console.log(`After deref: ${performance.now()}`);
+
     return dereferenceRdfOutput.data;
   }
 

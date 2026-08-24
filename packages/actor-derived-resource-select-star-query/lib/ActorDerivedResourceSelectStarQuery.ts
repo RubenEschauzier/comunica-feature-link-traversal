@@ -78,6 +78,8 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
         // TODO: Now we have to integrate it into our query plan!
       }),
     );
+    
+    manager.removeDereferencingDerivedResource(controller);
     return { links: [] };
   }
 

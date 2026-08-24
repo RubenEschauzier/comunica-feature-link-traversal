@@ -133,59 +133,6 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
   public extractPatternsQuery(operation: Algebra.Operation) {
     const patternQuery: Algebra.Pattern[] = [];
 
-    // Recursively extract all LINK/NPS leaves from any path expression,
-    // Falls back to a wildcard quad pattern if an unrecognised node type is encountered.
-    const extractPathPatterns = (
-      node: Algebra.Operation,
-      graph: RDF.Term,
-      out: Algebra.Pattern[],
-    ): void => {
-      switch (node.type) {
-        case Algebra.Types.LINK: {
-          const link = node as Algebra.Link;
-          out.push(AF.createPattern(VAR_SUBJ, link.iri, VAR_OBJ, VAR_GRAPH));
-          break;
-        }
-        case Algebra.Types.NPS: {
-          // NPS matches any arc *except* these IRIs.
-          // We emit a pattern per listed IRI (same as before) so callers can
-          // filter them out, but also a wildcard quad to cover the "everything
-          // else" side of the negation.
-          out.push(AF.createPattern(VAR_SUBJ, VAR_PRED, VAR_OBJ, VAR_GRAPH));
-          break;
-        }
-
-        // Unary wrappers (INV, *, +, ?) 
-        case Algebra.Types.ZERO_OR_MORE_PATH:
-        case Algebra.Types.ONE_OR_MORE_PATH: 
-        case Algebra.Types.ZERO_OR_ONE_PATH:
-        case Algebra.Types.INV: {
-          const path = <
-            Algebra.Inv | 
-            Algebra.ZeroOrMorePath | 
-            Algebra.OneOrMorePath |
-            Algebra.ZeroOrOnePath> node;
-          extractPathPatterns(path.path, graph, out);
-          break;
-        }
-        case Algebra.Types.ALT:
-        case Algebra.Types.SEQ: {
-          const seq = <Algebra.Seq | Algebra.Alt> node;
-          for (const input of seq.input){
-            extractPathPatterns(input, graph, out);
-          }
-          break;
-        }
-        default: {
-          // Unknown or future path node type: emit a wildcard quad pattern so
-          // the caller fetches everything in the graph rather than silently
-          // missing triples.
-          out.push(AF.createPattern(VAR_SUBJ, VAR_PRED, VAR_OBJ, VAR_GRAPH));
-          break;
-        }
-      }
-    };
-
     algebraUtils.visitOperation(operation, {
       [Algebra.Types.PATTERN]: {
         preVisitor: () => ({ continue: false }),
@@ -198,13 +145,26 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
       [Algebra.Types.PATH]: {
         preVisitor: () => ({ continue: false }),
         visitor: (path: Algebra.Path) => {
-          extractPathPatterns(path.predicate, path.graph, patternQuery);
+          algebraUtils.visitOperation(path, {
+            [Algebra.Types.LINK]: {
+              preVisitor: () => ({ continue: false }),
+              visitor: (link: Algebra.Link) => {
+                patternQuery.push(AF.createPattern(VAR_SUBJ, link.iri, VAR_OBJ, path.graph));
+              },
+            },
+            [Algebra.Types.NPS]: {
+              preVisitor: () => ({ continue: false }),
+              visitor: (_nps: Algebra.Nps) => {
+                patternQuery.push(AF.createPattern(VAR_SUBJ, VAR_PRED, VAR_OBJ, path.graph));
+              },
+            },
+          });
         },
       },
     });
-
     return patternQuery;
   }
+  
   /**
    * 
    * @param context 

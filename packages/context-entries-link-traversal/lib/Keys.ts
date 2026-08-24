@@ -45,7 +45,7 @@ export const KeysExtractLinksTree = {
    * Default true.
    */
   strictTraversal:
- new ActionContextKey<boolean>('@comunica/actor-extract-links-tree:strictTraversal'),
+    new ActionContextKey<boolean>('@comunica/actor-extract-links-tree:strictTraversal'),
 };
 
 export const KeysRdfJoin = {

@@ -10,6 +10,17 @@ import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal, KeysRd
 import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import type * as RDF from '@rdfjs/types';
+import async_hooks from 'node:async_hooks';
+import { ActorInitQuery } from '@comunica/actor-init-query';
+import { KeysInitQuery } from '@comunica/context-entries';
+import { visitOperation } from '@comunica/utils-algebra/lib/utils';
+
+
+const DF = new DataFactory<RDF.BaseQuad>();
+const VAR_SUBJ = DF.variable('__comunica:pp_var_subj');
+const VAR_PRED = DF.variable('__comunica:pp_var_pred');
+const VAR_OBJ = DF.variable('__comunica:pp_var_obj');
+const VAR_GRAPH = DF.variable('__comunica:pp_var_graph')
 
 export class ActorDerivedResourceSelectTriplePattern extends
   ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
@@ -46,6 +57,7 @@ export class ActorDerivedResourceSelectTriplePattern extends
     action: IActionDerivedResourceSelect,
     testResult: IActorDerivedResourceSelectTestSideData,
   ): Promise<IActorDerivedResourceSelectOutput> {
+    // TODO: Use signal to abort!!
     const controller = new AbortController();
     const signal = controller.signal;
 
@@ -75,10 +87,9 @@ export class ActorDerivedResourceSelectTriplePattern extends
     );
 
     const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-    const discoveredLinks: ILink[] = [];
-    const discoveredLinksSet: Set<string> = new Set();
 
-    // 2. Register all selectors upfront synchronously so traversal engine does not crawl them
+
+    // Add glob-based filters to link queue
     for (const [, bestResource] of bestResources.entries()) {
       for (const selector of bestResource.resource.selectors) {
         if (this.isGlob(selector)) {
@@ -89,56 +100,34 @@ export class ActorDerivedResourceSelectTriplePattern extends
       }
     }
 
-    // 3. Dispatch all resource streams in parallel (Eliminates sequential mediator & fetch roundtrips)
-    const resourceTasks = Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
-      if (signal.aborted) return;
+    const extractLinksOutput = await Promise.all(
+      Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
+        const rawQuads = bestResource.resource.querySource.queryQuads(pattern, context);
 
-      const rawQuads = bestResource.resource.querySource.queryQuads(pattern, context);
-      signal.addEventListener('abort', () => rawQuads.destroy(new Error('Traversal aborted')), { once: true });
+        const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+          { context, url: bestResource.resource.iri, quads: rawQuads },
+        );
 
-      const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-        { context, url: bestResource.resource.iri, quads: rawQuads },
-      );
+        const extractedLinks = this.mediatorExtractLinks.mediate({
+          context,
+          url: bestResource.resource.iri,
+          metadata: rdfMetadataOutput.metadata,
+          requestTime: 0,
+        })
 
-      // Ingestion and link extraction run concurrently on the split streams
-      const importPromise = (async () => {
         const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
-        await this.waitForImport(eventEmitter, rdfMetadataOutput.data, signal);
-      })();
-
-      const extractPromise = this.mediatorExtractLinks.mediate({
-        context,
-        url: bestResource.resource.iri,
-        metadata: rdfMetadataOutput.metadata,
-        requestTime: 0,
+        await new Promise((resolve, reject) => {
+          eventEmitter.on('end', resolve);
+          eventEmitter.on('error', reject);
+        }).catch(() => { throw new Error(`Importing triple pattern derived resource failed`) });
+        return extractedLinks;
       })
-      // .then(({ links }) => {
-      //   for (const link of links) {
-      //     if (!discoveredLinksSet.has(link.url)) {
-      //       discoveredLinksSet.add(link.url);
-      //       discoveredLinks.push(link);
-      //       if (manager.pushLink) {
-      //         manager.pushLink(link);
-      //       }
-      //     }
-      //   }
-      // });
+    );
 
-      await Promise.all([extractPromise]);
-    });
+    manager.removeDereferencingDerivedResource(controller);
+    const links = [...new Set(extractLinksOutput.flatMap(output => output.links))];
 
-    // 4. Concurrently settle the background imports without blocking returning discovered links
-    void Promise.allSettled(resourceTasks).then((results) => {
-      const failed = results.find(
-        (result): result is PromiseRejectedResult => result.status === 'rejected',
-      );
-      manager.completeDereferencingDerivedResource(
-        controller,
-        failed ? this.toError(failed.reason) : undefined,
-      );
-    });
-
-    return { links: discoveredLinks };
+    return { links };
   }
 
   private toError(error: unknown): Error {
@@ -184,7 +173,7 @@ export class ActorDerivedResourceSelectTriplePattern extends
     const actorsExtractLink = <ActorExtractLinks[]>((<any>this.mediatorExtractLinks.bus).actors);
 
     const seen = new Set<string>();
-    const patterns = actorsExtractLink
+    const patternsLinkFollowing = actorsExtractLink
       .flatMap(actor => actor.getExtractPatternRepresentation(action.context))
       .filter(pattern => {
         const key = [pattern.subject, pattern.predicate, pattern.object, pattern.graph]
@@ -195,6 +184,9 @@ export class ActorDerivedResourceSelectTriplePattern extends
         seen.add(key);
         return true;
       });
+    const queryPatterns = this.extractPatternsQuery(action.context.getSafe(KeysInitQuery.query));
+
+    // TODO: Compare the two and see if one is specialization of the other
 
     const usableResources: Set<IDerivedResource> = new Set();
     const patternToResources: Map<Algebra.Pattern, IDerivedResource[]> = new Map();
@@ -202,11 +194,11 @@ export class ActorDerivedResourceSelectTriplePattern extends
     const derivedResourceContext = new ActionContext()
       .set(KeysDerivedResourceSelect.patternToDerivedResource, patternToResources);
 
-    for (const pattern of patterns) {
+    for (const pattern of patternsLinkFollowing) {
       let canAnswer = false;
       for (const derivedResource of derivedResources) {
         if (doesShapeAcceptOperation(derivedResource.derivedResourceSelectorShape, pattern)) {
-          
+
           usableResources.add(derivedResource);
           if (!patternToResources.has(pattern)) {
             patternToResources.set(pattern, []);
@@ -225,6 +217,41 @@ export class ActorDerivedResourceSelectTriplePattern extends
     }
     return { canAnswer: true, usableResources, derivedResourceContext };
   }
+  
+  private extractPatternsQuery(operation: Algebra.Operation) {
+    const patternQuery: Algebra.Pattern[] = [];
+
+    visitOperation(operation, {
+      [Algebra.Types.PATTERN]: {
+        preVisitor: () => ({ continue: false }),
+        visitor: (pattern: Algebra.Pattern) => {
+          patternQuery.push(pattern);        
+        },
+      },
+      [Algebra.Types.PATH]: {
+        preVisitor: () => ({ continue: false }),
+        visitor: (path: Algebra.Path) => {
+          visitOperation(path, {
+            [Algebra.Types.LINK]: {
+              preVisitor: () => ({ continue: false }),
+              visitor: (link: Algebra.Link) => {
+                patternQuery.push(this.algebraFactory.createPattern(VAR_SUBJ, link.iri, VAR_OBJ, path.graph));
+              },
+            },
+            [Algebra.Types.NPS]: {
+              preVisitor: () => ({ continue: false }),
+              visitor: (_nps: Algebra.Nps) => {
+                patternQuery.push(this.algebraFactory.createPattern(VAR_SUBJ, VAR_PRED, VAR_OBJ, path.graph));
+              },
+            },
+          });
+        },
+      },
+    });
+
+    return patternQuery;
+  }
+
 }
 
 export interface IActorDerivedResourceSelectTriplePatternArgs

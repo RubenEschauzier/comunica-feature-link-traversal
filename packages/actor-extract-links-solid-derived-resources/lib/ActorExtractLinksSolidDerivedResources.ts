@@ -48,14 +48,14 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   }
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
+    // TODO: Make sure each pod entry has a predicate pointing to a derived resource. So we prioritize that instead of dereferencing
+    // a ton of non-derived data
     let context = action.context;
     // Determine links to derived resources
-    console.log(`Start extract: ${performance.now()}`)
     const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)];
     if (derivedResources.length === 0) {
       return { links: [] }
     }
-    console.log(`Start run: ${performance.now()}`)
 
     // Set filter immediately to prevent race conditions
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
@@ -71,7 +71,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         return this.dereferenceFilter(resource);
       }
       ));
-    console.log(`After querying derived resource: ${performance.now()}`);
 
     const derivedResourcesIdentifyOutputs = await Promise.all(
       derivedResourcesUnidentified.map(resource =>
@@ -92,7 +91,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
-    console.log(`Identified: ${performance.now()}`)
+
     // Ensure selected files in derived resource will not be dereferenced again
     derivedResourcesIdentified.forEach((resource) => {
       for (const selector of resource.selectors) {
@@ -101,12 +100,11 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         );
       }
     });
-    console.log(`Glob: ${performance.now()}`)
     const { links } = await this.mediatorDerivedResourceSelect.mediate({
       derivedResourcesIdentified,
       context,
     })
-    console.log(`Select: ${performance.now()}`)
+
     return { links };
   }
 

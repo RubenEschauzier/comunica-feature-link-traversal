@@ -29,8 +29,6 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
 
   protected readonly dataFactory: ComunicaDataFactory;
 
-  public nImportCalls: number = 0;
-
   /**
    * Whether the AggregatedStoreMemory should emit updated partial cardinalities
    * for each matching quad. Enabling this option may impact performance due to
@@ -78,8 +76,6 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
     if (!this.ended) {
       super.import(stream);
     }
-    stream.on('data', () => this.nImportCalls++);
-    stream.on('end', () => console.log(`Done, total quads: ${this.nImportCalls}, time: ${performance.now()}`))
     return stream;
   }
 

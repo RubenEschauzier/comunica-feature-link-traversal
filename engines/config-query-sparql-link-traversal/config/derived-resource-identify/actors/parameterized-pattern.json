@@ -10,8 +10,8 @@
     {
       "@id": "urn:comunica:default:derived-resource-identify/actors#triple-pattern-query",
       "@type": "ActorDerivedResourceIdentifyTriplePatternQuery",
-      "mediatorQuerySourceDereferenceLink": { 
-        "@id": "urn:comunica:default:query-source-dereference-link/mediators#main" 
+      "mediatorDereferenceRdf": { 
+        "@id": "urn:comunica:default:dereference-rdf/mediators#main" 
       },
       "mediatorQueryParse": { "@id": "urn:comunica:default:query-parse/mediators#main" }
     }

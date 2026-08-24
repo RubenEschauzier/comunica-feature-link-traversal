@@ -1,4 +1,5 @@
 import { IActorDereferenceOutput } from '@comunica/bus-dereference';
+import { IActorDereferenceRdfOutput, MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import type { IActorQuerySourceDereferenceLinkOutput, MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type {
   IQuerySource,
@@ -11,7 +12,7 @@ import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algeb
 import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import toNT from '@rdfjs/to-ntriples';
 import * as RDF from '@rdfjs/types';
-import { AsyncIterator, TransformIterator } from 'asynciterator';
+import { AsyncIterator, wrap } from 'asynciterator';
 
 export class QuerySourceParameterizedPattern implements IQuerySource {
   public readonly referenceValue: QuerySourceReference;
@@ -19,7 +20,7 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly algebraFactory: AlgebraFactory;
 
-  protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  protected readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
   
   protected readonly template: string;
   protected readonly parameterizedPattern: IParameterizedPattern;
@@ -29,12 +30,12 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     template: string,
     operation: Algebra.Pattern,
     parameters: Set<string>,
-    mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink,
+    mediatorQuerySourceDereferenceLink: MediatorDereferenceRdf,
     dataFactory: ComunicaDataFactory,
   ) {
     this.referenceValue = template;
     this.template = template;
-    this.mediatorQuerySourceDereferenceLink = mediatorQuerySourceDereferenceLink;
+    this.mediatorDereferenceRdf = mediatorQuerySourceDereferenceLink;
     this.dataFactory = dataFactory;
 
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
@@ -107,21 +108,11 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     if(!doesShapeAcceptOperation(this.selectorShape, operation)){
       throw new Error(`Attempted queryQuads using operation not supported by QuerySourceParameterizedPattern`)
     }
-
-    const quadStreamProxy = new TransformIterator<RDF.Quad, RDF.Quad>();
     
-    this.resolveAndExecuteQuads(operation, context)
-      .then(stream => { 
-        quadStreamProxy.source = stream; 
-      })
-      .catch(error => {
-        quadStreamProxy.destroy(error);
-      });
-
-    return quadStreamProxy;
+    return wrap(this.resolveAndExecuteQuads(operation, context));
   }
 
-  private async resolveAndExecuteQuads(operation: Algebra.Pattern, context: IActionContext): Promise<AsyncIterator<RDF.Quad>> {
+  private async resolveAndExecuteQuads(operation: Algebra.Pattern, context: IActionContext): Promise<RDF.Stream<RDF.Quad>> {
     // Fill in the parameter values of the template
     const replaceParam = (url: string, param: string, value: RDF.Term, variableName: string) => {
       const regex = new RegExp(`(?:\\{|%7b)${param}(?:\\}|%7d)`, 'gi');
@@ -147,24 +138,13 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     if (this.parameterizedPattern.graph) {
       filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.graph, operation.graph, 'g');
     }
-
-    const dereferenceResult: IActorQuerySourceDereferenceLinkOutput = 
-    await this.mediatorQuerySourceDereferenceLink.mediate({
-      link: { url: filledTemplateUri },
-      context
+    console.log(`Before dereference: ${performance.now()}`)
+    const dereferenceRdfOutput: IActorDereferenceRdfOutput = await this.mediatorDereferenceRdf.mediate({
+      context,
+      url: filledTemplateUri,
     });
-
-    // Use variable spog operation as this is only supported operation on QuerySourceFileLazy
-    // This still returns the correct results for the operation as the actual operation is executed
-    // server-side
-    return dereferenceResult.source.queryQuads(
-      this.algebraFactory.createPattern(
-        this.dataFactory.variable('s'),
-        this.dataFactory.variable('p'),
-        this.dataFactory.variable('o'),
-        this.dataFactory.variable('g'),
-      ), context
-    );
+    console.log(`After deref: ${performance.now()}`);
+    return dereferenceRdfOutput.data;
   }
 
   public queryBindings(_operation: Algebra.Operation, _context: IActionContext): any {

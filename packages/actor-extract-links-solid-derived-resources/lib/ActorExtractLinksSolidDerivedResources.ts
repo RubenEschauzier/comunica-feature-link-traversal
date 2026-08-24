@@ -28,7 +28,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public constructor(args: IActorExtractLinksSolidDerivedResourcesArgs) {
     super(args);
     this.derivedResourcePredicates = args.derivedResourcePredicates;
-    
+
     this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
     this.mediatorDereference = args.mediatorDereference
     this.mediatorDerivedResourceIdentify = args.mediatorDerivedResourceIdentify;
@@ -50,10 +50,12 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
     let context = action.context;
     // Determine links to derived resources
-    const derivedResources = [ ...await this.extractDerivedResourceLinks(action.metadata) ];
-    if (derivedResources.length  === 0){
+    console.log(`Start extract: ${performance.now()}`)
+    const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)];
+    if (derivedResources.length === 0) {
       return { links: [] }
     }
+    console.log(`Start run: ${performance.now()}`)
 
     // Set filter immediately to prevent race conditions
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
@@ -65,20 +67,21 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       .map(derivedResource => this.dereferenceDerivedResources(derivedResource, action.context))));
     const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
       derivedResourcesRaw.flat().map(resource => {
-          dynamicLinkFilter.addExact(resource.filterUri.url);
-          return this.dereferenceFilter(resource);
-        }
-    ));
+        dynamicLinkFilter.addExact(resource.filterUri.url);
+        return this.dereferenceFilter(resource);
+      }
+      ));
+    console.log(`After querying derived resource: ${performance.now()}`);
 
     const derivedResourcesIdentifyOutputs = await Promise.all(
-      derivedResourcesUnidentified.map(resource => 
+      derivedResourcesUnidentified.map(resource =>
         this.mediatorDerivedResourceIdentify.mediate({
           derivedResourceUnidentified: resource,
           context,
         })
-        .catch((err) => {
-          return null;
-        })
+          .catch((err) => {
+            return null;
+          })
       )
     );
 
@@ -89,7 +92,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
-    
+    console.log(`Identified: ${performance.now()}`)
     // Ensure selected files in derived resource will not be dereferenced again
     derivedResourcesIdentified.forEach((resource) => {
       for (const selector of resource.selectors) {
@@ -98,11 +101,12 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         );
       }
     });
-    
+    console.log(`Glob: ${performance.now()}`)
     const { links } = await this.mediatorDerivedResourceSelect.mediate({
       derivedResourcesIdentified,
       context,
     })
+    console.log(`Select: ${performance.now()}`)
     return { links };
   }
 
@@ -133,7 +137,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
     });
   }
-  
+
   public async dereferenceDerivedResources(derivedResource: string, context: IActionContext): Promise<IDerivedResourceRaw[]> {
     // Parse the type index document
     const response = await this.mediatorDereferenceRdf.mediate({ url: derivedResource, context });
@@ -147,7 +151,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
             <urn:npm:solid:derived-resources:selector> ?selector ;
             <urn:npm:solid:derived-resources:filter> ?filter .
         }`, {
-        sources: [ store ],
+        sources: [store],
         [KeysQuerySourceIdentify.traverse.name]: false,
         [KeysRdfJoin.skipAdaptiveJoin.name]: true,
         [KeysStatistics.skipStatisticTracking.name]: true,
@@ -159,7 +163,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
     for (const bindings of bindingsArray) {
       const resourceIdentifier = bindings.get('resource')!.value;
-      if (!derivedResourcesRaw[resourceIdentifier]){
+      if (!derivedResourcesRaw[resourceIdentifier]) {
         derivedResourcesRaw[resourceIdentifier] = {
           baseUrl: derivedResource.split(".meta")[0],
           template: bindings.get('template')!.value,
@@ -173,30 +177,30 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   }
 
   public async dereferenceFilter(derivedResourcesUnidentified: IDerivedResourceRaw):
-   Promise<IDerivedResourceUnidentified>{
+    Promise<IDerivedResourceUnidentified> {
 
     const response: IActorDereferenceOutput = await this.mediatorDereference.mediate(
-      { 
-        url: derivedResourcesUnidentified.filterUri.url, 
+      {
+        url: derivedResourcesUnidentified.filterUri.url,
         acceptErrors: true,
-          method: "GET",
-          // We use the headers to ensure the server knows we are looking for RDF
-          headers: new Headers({
-            "Accept": "text/turtle,application/n-quads,application/trig,application/ld+json,application/sparql-query"
-          }),
-          mediaTypes: async () => ({
-            // SHACL-based filters use turtle
-            "text/turtle": 1.0,          
-            // Quad pattern indexes are represented as json
-            "application/json": 0.4,  
-            // SPARQL-based filters
-            "application/sparql-query": 0.7, 
-            // QPF uses plain text filter files
-            "text/plain": .4,
-            // Fallback (TODO: Should we even have this?)
-            "*/*": 0.1                     
-          }),
-          context: new ActionContext(),
+        method: "GET",
+        // We use the headers to ensure the server knows we are looking for RDF
+        headers: new Headers({
+          "Accept": "text/turtle,application/n-quads,application/trig,application/ld+json,application/sparql-query"
+        }),
+        mediaTypes: async () => ({
+          // SHACL-based filters use turtle
+          "text/turtle": 1.0,
+          // Quad pattern indexes are represented as json
+          "application/json": 0.4,
+          // SPARQL-based filters
+          "application/sparql-query": 0.7,
+          // QPF uses plain text filter files
+          "text/plain": .4,
+          // Fallback (TODO: Should we even have this?)
+          "*/*": 0.1
+        }),
+        context: new ActionContext(),
       }
     );
     const rawText = await this.streamToString(response.data);
@@ -217,7 +221,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
    * No extraction required
    * @param context 
    * @returns 
-   */ 
+   */
   public getExtractPatternRepresentation(context: IActionContext): Algebra.Pattern[] {
     return []
   }
@@ -321,7 +325,7 @@ export interface IDerivedResource {
   /**
    * The query source obtained from identifying and dereferencing the derived resource
    */
-  querySource: IQuerySource;  
+  querySource: IQuerySource;
   /**
    * Performance coefficients, used to determine the best resource for a given task when multiple resources
    * can be used
@@ -330,21 +334,21 @@ export interface IDerivedResource {
 }
 
 export interface IDerivedResourceCoefficients {
-    /**
-     * How costly the resource is server-side
-     * e.g. a parameterized query requires full query execution, while precomputed queries or QPF require
-     * less compute
-     */
-    compute: number,
-    /**
-     * Number of requests required to obtain the full resource. 
-     * e.g. a QPF requires more request to obtain the data, while a parameterized single triple pattern
-     * query requires only one
-     */
-    requests: number,
-    /**
-     * The selectivity of the resource to answer a question
-     * e.g. a parameterized join query is highly selective, while a union-based query must be filtered
-     */
-    selectivity: number
+  /**
+   * How costly the resource is server-side
+   * e.g. a parameterized query requires full query execution, while precomputed queries or QPF require
+   * less compute
+   */
+  compute: number,
+  /**
+   * Number of requests required to obtain the full resource. 
+   * e.g. a QPF requires more request to obtain the data, while a parameterized single triple pattern
+   * query requires only one
+   */
+  requests: number,
+  /**
+   * The selectivity of the resource to answer a question
+   * e.g. a parameterized join query is highly selective, while a union-based query must be filtered
+   */
+  selectivity: number
 }

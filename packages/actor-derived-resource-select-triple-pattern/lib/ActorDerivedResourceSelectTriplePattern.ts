@@ -1,29 +1,24 @@
 import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-extract-links-solid-derived-resources';
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
-import { TestResult, IActorTest, failTest, passTest, passTestWithSideData, ActionContext } from '@comunica/core';
+import { TestResult, IActorTest, failTest, passTestWithSideData, ActionContext } from '@comunica/core';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import { ComunicaDataFactory, ILink } from '@comunica/types';
-import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
+import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import type * as RDF from '@rdfjs/types';
-import { AsyncIterator } from 'asynciterator';
 
-/**
- * A comunica Triple Pattern Derived Resource Select Actor.
- */
-export class ActorDerivedResourceSelectTriplePattern extends 
-ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
+export class ActorDerivedResourceSelectTriplePattern extends
+  ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   protected dataFactory: ComunicaDataFactory = new DataFactory();
   protected algebraFactory: AlgebraFactory = new AlgebraFactory(this.dataFactory);
-  
+
   public readonly mediatorMetadata: MediatorRdfMetadata;
   public readonly mediatorExtractLinks: MediatorExtractLinks;
   public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
-
   protected derivedResourceCoefficients: IDerivedResourceCoefficients;
 
   public constructor(args: IActorDerivedResourceSelectTriplePatternArgs) {
@@ -34,17 +29,15 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     this.derivedResourceCoefficients = args.derivedResourceCoefficients;
   }
 
-  public async test(action: IActionDerivedResourceSelect): 
+  public async test(action: IActionDerivedResourceSelect):
     Promise<TestResult<IActorTest, IActorDerivedResourceSelectTestSideData>> {
-    const {canAnswer, usableResources, derivedResourceContext } = 
+    const { canAnswer, usableResources, derivedResourceContext } =
       await this.hasRequiredResources(action.derivedResourcesIdentified, action);
-
     if (!canAnswer) {
-      return failTest(`${this.name}: does not have the derived 
-        resources required for the operation`);
+      return failTest(`${this.name}: does not have the derived resources required for the operation`);
     }
 
-    return passTestWithSideData({}, 
+    return passTestWithSideData({},
       { usableResources: Array.from(usableResources.values()), derivedResourceContext }
     );
   }
@@ -55,7 +48,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   ): Promise<IActorDerivedResourceSelectOutput> {
     const controller = new AbortController();
     const signal = controller.signal;
-    
+
     const context = action.context;
     const manager = context.getSafe(
       KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager
@@ -64,7 +57,8 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
 
     const patternToResources = testResult.derivedResourceContext
       .getSafe(KeysDerivedResourceSelect.patternToDerivedResource);
-    
+
+    // Pick lowest-cost resource per pattern
     const bestResources = new Map(
       Array.from(patternToResources.entries(), ([pattern, resources]) => [
         pattern,
@@ -78,85 +72,72 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
           }))
           .reduce((min, curr) => (curr.cost < min.cost ? curr : min))
       ])
-    );  
+    );
 
+    const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
     const discoveredLinks: ILink[] = [];
     const discoveredLinksSet: Set<string> = new Set();
-    const importCompletions: Promise<void>[] = [];
 
-    try {
-      await Promise.allSettled(Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
-        if (signal.aborted){
-          return;
+    // 2. Register all selectors upfront synchronously so traversal engine does not crawl them
+    for (const [, bestResource] of bestResources.entries()) {
+      for (const selector of bestResource.resource.selectors) {
+        if (this.isGlob(selector)) {
+          dynamicLinkFilter.addGlob(selector);
+        } else {
+          dynamicLinkFilter.addExact(selector);
         }
-
-        const rawQuads = bestResource.resource.querySource.queryQuads(
-          pattern, context
-        );
-        
-        signal.addEventListener(
-          'abort', 
-          () => rawQuads.destroy(new Error('Traversal aborted')),
-          { once: true }
-        );
-        // TODO: What to do if a derived resource for triple pattern cannot answer all triple patterns in query?
-        // Like for example path queries and QPF! How do path queries work with derived resource with parameter. Should work?
-
-        // Filter the links matching the selector pattern of the resource.
-        const dynamicLinkFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-        const selectors = bestResource.resource.selectors;
-        selectors.forEach((selector) => {
-          if (this.isGlob(selector)){
-            dynamicLinkFilter.addGlob(selector);
-          }
-          else {
-            dynamicLinkFilter.addExact(selector);
-          }
-        });
-        // TODO: Separate links following triple patterns and query answering derived resources. Link following we need
-        // to get metadata from (and not ingest), query answering we only ingest. Should speed things up.
-
-        // TODO: Think about how reachability works when we aggregate over data.
-        // When we aggregate over something that is not reachable, we will still include
-        // it in results so reachability becomes muddy. Some formalizations maybe,
-        // maybe call it the hybrid cMatch - all criterion?
-        const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-          { context, url: bestResource.resource.iri, quads: rawQuads },
-        );
-
-        const { links } = await this.mediatorExtractLinks.mediate({
-          context,
-          url: bestResource.resource.iri,
-          metadata: rdfMetadataOutput.metadata,
-          requestTime: 0,
-        });
-
-        for (const link of links){
-          if (!discoveredLinksSet.has(link.url)){
-            discoveredLinks.push(link);
-            discoveredLinksSet.add(link.url);
-          }
-        }
-        
-        const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
-        const importCompletion = this.waitForImport(eventEmitter, rdfMetadataOutput.data, signal);
-        importCompletions.push(importCompletion);
-      }));
-    } catch (error: unknown) {
-      manager.removeDereferencingDerivedResource(controller);
-      throw error;
+      }
     }
 
-    void Promise.allSettled(importCompletions).then((results) => {
+    // 3. Dispatch all resource streams in parallel (Eliminates sequential mediator & fetch roundtrips)
+    const resourceTasks = Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
+      if (signal.aborted) return;
+
+      const rawQuads = bestResource.resource.querySource.queryQuads(pattern, context);
+      signal.addEventListener('abort', () => rawQuads.destroy(new Error('Traversal aborted')), { once: true });
+
+      const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+        { context, url: bestResource.resource.iri, quads: rawQuads },
+      );
+
+      // Ingestion and link extraction run concurrently on the split streams
+      const importPromise = (async () => {
+        const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
+        await this.waitForImport(eventEmitter, rdfMetadataOutput.data, signal);
+      })();
+
+      const extractPromise = this.mediatorExtractLinks.mediate({
+        context,
+        url: bestResource.resource.iri,
+        metadata: rdfMetadataOutput.metadata,
+        requestTime: 0,
+      })
+      // .then(({ links }) => {
+      //   for (const link of links) {
+      //     if (!discoveredLinksSet.has(link.url)) {
+      //       discoveredLinksSet.add(link.url);
+      //       discoveredLinks.push(link);
+      //       if (manager.pushLink) {
+      //         manager.pushLink(link);
+      //       }
+      //     }
+      //   }
+      // });
+
+      await Promise.all([extractPromise]);
+    });
+
+    // 4. Concurrently settle the background imports without blocking returning discovered links
+    void Promise.allSettled(resourceTasks).then((results) => {
       const failed = results.find(
         (result): result is PromiseRejectedResult => result.status === 'rejected',
       );
-
       manager.completeDereferencingDerivedResource(
         controller,
         failed ? this.toError(failed.reason) : undefined,
       );
     });
+
     return { links: discoveredLinks };
   }
 
@@ -171,7 +152,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const onAbort = (): void => {
-        (<any> data).destroy(new Error('Traversal aborted'));
+        (<any>data).destroy(new Error('Traversal aborted'));
       };
       const onEnd = (): void => {
         signal.removeEventListener('abort', onAbort);
@@ -185,9 +166,11 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
           reject(error);
         }
       };
-      eventEmitter.on('end', onEnd);
-      eventEmitter.on('error', onError);
-      signal.addEventListener('abort', onAbort);
+
+      eventEmitter.once('end', onEnd);
+      eventEmitter.once('error', onError);
+      signal.addEventListener('abort', onAbort, { once: true });
+
       if (signal.aborted) {
         onAbort();
       }
@@ -200,74 +183,54 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   ): Promise<IRequiredResources> {
     const actorsExtractLink = <ActorExtractLinks[]>((<any>this.mediatorExtractLinks.bus).actors);
 
-    // Get unique patterns required to do traversal
     const seen = new Set<string>();
     const patterns = actorsExtractLink
       .flatMap(actor => actor.getExtractPatternRepresentation(action.context))
       .filter(pattern => {
-        // Generate a unique signature for the pattern's shape
         const key = [pattern.subject, pattern.predicate, pattern.object, pattern.graph]
           .map(term => term.termType === 'Variable' ? 'VAR' : term.value)
           .join('|');
 
-        // Keep only the first instance of each unique signature
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      });   
+      });
 
     const usableResources: Set<IDerivedResource> = new Set();
     const patternToResources: Map<Algebra.Pattern, IDerivedResource[]> = new Map();
 
     const derivedResourceContext = new ActionContext()
-    .set(KeysDerivedResourceSelect.patternToDerivedResource, patternToResources);
+      .set(KeysDerivedResourceSelect.patternToDerivedResource, patternToResources);
 
-    for (const pattern of patterns){
+    for (const pattern of patterns) {
       let canAnswer = false;
-      for (const derivedResource of derivedResources){
-        if (doesShapeAcceptOperation(derivedResource.derivedResourceSelectorShape, pattern)){
+      for (const derivedResource of derivedResources) {
+        if (doesShapeAcceptOperation(derivedResource.derivedResourceSelectorShape, pattern)) {
+          
           usableResources.add(derivedResource);
-          if (!patternToResources.has(pattern)){
+          if (!patternToResources.has(pattern)) {
             patternToResources.set(pattern, []);
           }
           patternToResources.get(pattern)!.push(derivedResource);
           canAnswer = true;
         }
       }
-      if (!canAnswer){
+      if (!canAnswer) {
         return {
-          canAnswer: false, 
-          usableResources: new Set(), 
+          canAnswer: false,
+          usableResources: new Set(),
           derivedResourceContext: new ActionContext()
         };
       }
     }
-    return {canAnswer: true, usableResources, derivedResourceContext };
+    return { canAnswer: true, usableResources, derivedResourceContext };
   }
 }
 
-export interface IActorDerivedResourceSelectTriplePatternArgs 
-extends IActorDerivedResourceSelectArgs {
-  /**
-   * The coefficients for choosing the best resource.
-   * It could be interesting to make these adaptive, for example,
-   * when using QPF with many IRIs, such as <ex:s> <ex:p> ?o ? g
-   * we can reasonably expect that QPF will require very little requests,
-   * while if we use an ?s ?p ?o ?g pattern it will require more.
-   */
+export interface IActorDerivedResourceSelectTriplePatternArgs
+  extends IActorDerivedResourceSelectArgs {
   derivedResourceCoefficients: IDerivedResourceCoefficients;
-  /**
-   * The metadata mediator
-   */
   mediatorMetadata: MediatorRdfMetadata;
-  /**
-   * Extract links mediator, used to determine the required triple 
-   * pattern queries to extract all links for traversal.
-   */
   mediatorExtractLinks: MediatorExtractLinks;
-  /**
-   * The metadata extract mediator
-  */
   mediatorMetadataExtract: MediatorRdfMetadataExtract;
-
 }

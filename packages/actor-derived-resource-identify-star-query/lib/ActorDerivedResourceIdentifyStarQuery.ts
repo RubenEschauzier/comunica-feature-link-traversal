@@ -138,7 +138,7 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
    * @returns 
    */
   public isStarShaped(operation: Algebra.Bgp): boolean {
-    if (operation.patterns.length === 0) {
+    if (operation.patterns.length === 0 || operation.patterns.length === 1) {
       return false;
     }
 

@@ -7,18 +7,19 @@ import { DataFactory } from 'rdf-data-factory';
 import { KeysInitQuery } from '@comunica/context-entries';
 import type * as RDF from '@rdfjs/types';
 import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
+import { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 
 /**
  * A comunica Triple Pattern Query Derived Resource Identify Actor.
  */
 export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerivedResourceIdentify<ITriplePatternSideData> {
-  protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  protected readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
   protected readonly mediatorQueryParse: MediatorQueryParse;
   protected readonly dataFactory: DataFactory = new DataFactory();
 
   public constructor(args: IActorDerivedResourceIdentifyTriplePatternQueryArgs) {
     super(args);
-    this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
+    this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
     this.mediatorQueryParse = args.mediatorQueryParse;
   }
 
@@ -108,7 +109,7 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
       // The test function guarantees CONSTRUCT = WHERE clause and template is one pattern
       sideData.operation.template[0],
       sideData.parameters,
-      this.mediatorQuerySourceDereferenceLink,
+      this.mediatorDereferenceRdf,
       this.dataFactory,
     );
 
@@ -159,7 +160,7 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
 
 export interface IActorDerivedResourceIdentifyTriplePatternQueryArgs 
 extends IActorDerivedResourceIdentifyArgs<ITriplePatternSideData> {
-  mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  mediatorDereferenceRdf: MediatorDereferenceRdf;
   mediatorQueryParse: MediatorQueryParse;
 }
 

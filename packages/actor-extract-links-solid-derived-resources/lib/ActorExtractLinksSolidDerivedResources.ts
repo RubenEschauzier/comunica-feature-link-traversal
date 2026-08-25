@@ -48,8 +48,11 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   }
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
-    // TODO: Make sure each pod entry has a predicate pointing to a derived resource. So we prioritize that instead of dereferencing
-    // a ton of non-derived data
+    // TODO: Make sure each pod entry has a predicate pointing to a derived resource. 
+    // So we prioritize that instead of dereferencing a ton of non-derived data
+
+    // TODO: Smart deduplication after using star-shaped resources!
+    
     let context = action.context;
     // Determine links to derived resources
     const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)];

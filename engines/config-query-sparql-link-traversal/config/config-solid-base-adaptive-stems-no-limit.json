@@ -21,7 +21,7 @@
     "ccqs:config/hash-bindings/mediators.json",
     "ccqs:config/hash-quads/actors.json",
     "ccqs:config/hash-quads/mediators.json",
-    "ccqss:config/http/actors.json",
+    "ccqslt:config/http/actors-no-limit.json",
     "ccqs:config/http/mediators.json",
     "ccqs:config/http-invalidate/actors.json",
     "ccqs:config/http-invalidate/mediators.json",
@@ -52,7 +52,11 @@
     "ccqs:config/dereference/mediators.json",
     "ccqs:config/dereference-rdf/actors.json",
     "ccqs:config/dereference-rdf/mediators.json",
-    "ccqslt:config/rdf-join/actors.json",
+
+    "ccqslt:config/rdf-join/actors-inner-no-bind.json",
+    "ccqs:config/rdf-join/actors-minus.json",
+    "ccqs:config/rdf-join/actors-optional.json",
+
     "ccqs:config/rdf-join/mediators.json",
     "ccqslt:config/rdf-join-entries-sort/actors.json",
     "ccqs:config/rdf-join-entries-sort/mediators.json",
@@ -83,3 +87,4 @@
     "ccqs:config/term-comparator-factory/mediators.json"
   ]
 }
+

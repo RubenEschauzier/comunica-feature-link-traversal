@@ -64,9 +64,9 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
       .getSafe(KeysDerivedResourceSelect.starPatternToDerivedResource);
     
     await Promise.allSettled(
-      Array.from(bgpsToResources.entries()).map(async ([pattern, resource]) => {
+      Array.from(bgpsToResources.entries()).map(async ([patterns, resource]) => {
         const rawQuads = resource.querySource.queryQuads(
-          this.algebraFactory.createBgp(pattern),
+          this.algebraFactory.createBgp(patterns),
           context,
         );
 

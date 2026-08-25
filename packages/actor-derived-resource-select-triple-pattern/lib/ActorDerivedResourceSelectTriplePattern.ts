@@ -16,6 +16,10 @@ import { KeysInitQuery } from '@comunica/context-entries';
 import { visitOperation } from '@comunica/utils-algebra/lib/utils';
 
 
+import { wrap } from 'asynciterator';
+import { filterQuadTermNames, getTerms, getVariables, matchPatternComplete, matchPatternMappings } from 'rdf-terms';
+
+
 const DF = new DataFactory<RDF.BaseQuad>();
 const VAR_SUBJ = DF.variable('__comunica:pp_var_subj');
 const VAR_PRED = DF.variable('__comunica:pp_var_pred');
@@ -67,6 +71,14 @@ export class ActorDerivedResourceSelectTriplePattern extends
     );
     manager.addDereferencingDerivedResource(controller);
 
+    const query = context.get(KeysInitQuery.query);
+    const queryPatterns = query ? this.extractPatternsQuery(query) : [];
+    const isWildcardPattern = (pattern: Algebra.Pattern): boolean => {
+      const varNames = filterQuadTermNames(pattern, term => term.termType === 'Variable');
+      return varNames.length === 4 || (varNames.length === 3 && pattern.graph.termType !== 'Variable');
+    };
+    const hasWildcardQueryPattern = queryPatterns.some(qp => isWildcardPattern(qp));
+
     const patternToResources = testResult.derivedResourceContext
       .getSafe(KeysDerivedResourceSelect.patternToDerivedResource);
 
@@ -100,10 +112,43 @@ export class ActorDerivedResourceSelectTriplePattern extends
       }
     }
 
+    // Fast path: if the query contains a ?s ?p ?o 
+    // (e.g. wildcard or NPS), all data is fetched in one request
+    if (hasWildcardQueryPattern) {
+      let wildcardEntry = Array.from(bestResources.entries()).find(([p]) => isWildcardPattern(p))!;
+
+      if (wildcardEntry) {
+        const [wildcardPattern, bestResource] = wildcardEntry;
+        const rawQuads = bestResource.resource.querySource.queryQuads(wildcardPattern, context);
+        const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+          { context, url: bestResource.resource.iri, quads: rawQuads },
+        );
+        const extractedLinks = await this.mediatorExtractLinks.mediate({
+          context,
+          url: bestResource.resource.iri,
+          metadata: rdfMetadataOutput.metadata,
+          requestTime: 0,
+        });
+
+        const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
+        // TODO: Use signal here
+        await new Promise((resolve, reject) => {
+          eventEmitter.on('end', resolve);
+          eventEmitter.on('error', reject);
+        }).catch(() => { throw new Error(`Importing triple pattern derived resource failed`) });
+
+        manager.removeDereferencingDerivedResource(controller);
+        return { links: [...new Set(extractedLinks.links)] };
+      }
+    }
+
+    const answeredQueryPatterns = new Set<Algebra.Pattern>();
+
     const extractLinksOutput = await Promise.all(
       Array.from(bestResources.entries()).map(async ([pattern, bestResource]) => {
         const rawQuads = bestResource.resource.querySource.queryQuads(pattern, context);
-
+        
+        // We always need to extract links of each of the patterns
         const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
           { context, url: bestResource.resource.iri, quads: rawQuads },
         );
@@ -113,13 +158,23 @@ export class ActorDerivedResourceSelectTriplePattern extends
           url: bestResource.resource.iri,
           metadata: rdfMetadataOutput.metadata,
           requestTime: 0,
-        })
+        });
 
-        const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
-        await new Promise((resolve, reject) => {
-          eventEmitter.on('end', resolve);
-          eventEmitter.on('error', reject);
-        }).catch(() => { throw new Error(`Importing triple pattern derived resource failed`) });
+        const dataToImport = this.filterDataToImport(
+          pattern,
+          rdfMetadataOutput.data,
+          queryPatterns,
+          answeredQueryPatterns,
+        );
+
+        if (dataToImport) {
+          const eventEmitter = manager.getAggregatedStore().import(dataToImport);
+          await new Promise((resolve, reject) => {
+            eventEmitter.on('end', resolve);
+            eventEmitter.on('error', reject);
+          }).catch(() => { throw new Error(`Importing triple pattern derived resource failed`) });
+        }
+
         return extractedLinks;
       })
     );
@@ -128,6 +183,42 @@ export class ActorDerivedResourceSelectTriplePattern extends
     const links = [...new Set(extractLinksOutput.flatMap(output => output.links))];
 
     return { links };
+  }
+
+  /**
+   * Determine the data stream to import into the aggregated store for a given traversal pattern.
+   * Filters out quads if the query patterns are specializations of the traversal pattern,
+   * or returns undefined if the pattern is solely for traversal or already answered.
+   */
+  public filterDataToImport(
+    pattern: Algebra.Pattern,
+    data: RDF.Stream<RDF.Quad>,
+    queryPatterns: Algebra.Pattern[],
+    answeredQueryPatterns: Set<Algebra.Pattern>,
+  ): RDF.Stream<RDF.Quad> | undefined {
+    // Only import when actually in query and not already answered
+    const matchingQueryPatterns = queryPatterns.filter(qp =>
+      !answeredQueryPatterns.has(qp) &&
+      matchPatternMappings(qp, pattern, { skipVarMapping: true }),
+    );
+    for (const qp of matchingQueryPatterns) {
+      answeredQueryPatterns.add(qp);
+    }
+
+    if (matchingQueryPatterns.length === 0) {
+      return undefined;
+    }
+
+    const isSpecialization = matchingQueryPatterns.every(qp =>
+      filterQuadTermNames(pattern, term => term.termType === 'Variable')
+        .some(name => qp[name].termType !== 'Variable'),
+    );
+
+    return isSpecialization
+      ? wrap<RDF.Quad>(data).filter(quad =>
+        matchingQueryPatterns.some(qp => matchPatternComplete(quad, qp)),
+      )
+      : data;
   }
 
   private toError(error: unknown): Error {
@@ -184,9 +275,6 @@ export class ActorDerivedResourceSelectTriplePattern extends
         seen.add(key);
         return true;
       });
-    const queryPatterns = this.extractPatternsQuery(action.context.getSafe(KeysInitQuery.query));
-
-    // TODO: Compare the two and see if one is specialization of the other
 
     const usableResources: Set<IDerivedResource> = new Set();
     const patternToResources: Map<Algebra.Pattern, IDerivedResource[]> = new Map();

@@ -38,8 +38,6 @@ export abstract class RouterBaseDerivedResource
     // by appending. We can say to start with the derived resource in those cases to obtain data on
     // tickets
     
-    // How do we represent the other derived resources and how do we access them if they're not in the done bits?
-    // Create a new operator stream from the derived resource
 
     // Determine what bits in mask are answered by derived resource
     const setBitsMask = this.getDerivedResourceBits(derivedOperations);
@@ -47,6 +45,8 @@ export abstract class RouterBaseDerivedResource
     // TODO: What should derivedOperations be, probably a regular Algebra.Operation 
     // TODO: We need to convert the derived resource into bindings, which depends on the other variables
     // the derived resource should join over.
+    
+    // Create a new operator stream from the derived resource
     const derivedResourceStemOperator = new StemsOperatorStream(
       entry.output.bindingsStream,
       timestampGenerator,
@@ -66,7 +66,10 @@ export abstract class RouterBaseDerivedResource
       // If the done signature has no overlap with the current entry we can route to this derived resource
       if ((key & setBitsMask) === 0){
         const newRouting = []
+        // TODO Iterate over all the other operators in the table and determine if there is any overlap with current
+        // doneKey +  doneKey of derived resource
       }
+      // TODO, do we need to update existing routing?
     }
 
 

@@ -1,1 +1,1 @@
-export * from './StatisticBase';
+export * from './BaseDerivedResourceRouter';

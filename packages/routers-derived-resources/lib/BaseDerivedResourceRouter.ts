@@ -5,21 +5,29 @@ import {
   stemsContextKeys, 
   IStemsRouter, 
   IStemsRoutingEntry, 
-  RouterBase
+  RouterBase,
+  HashFunction,
+  ITimestampGenerator,
+  JoinFunction
 } from '@comunica/actor-rdf-join-inner-multi-stems';
-import type { StemsOperatorStream } from '@comunica/actor-rdf-join-inner-multi-stems';
+import { StemsOperatorStream } from '@comunica/actor-rdf-join-inner-multi-stems';
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
 import { Algebra } from '@comunica/utils-algebra';
+import equal from 'deep-equal';
+import { ActorRdfJoin } from '@comunica/bus-rdf-join';
 
 // TODO: Maybe make optional to only update certain routing table entries
 export abstract class RouterBaseDerivedResource 
   extends RouterBase implements IEddiesRouterDerivedResource {
   
   public addDerivedResource(
-    patterns: Algebra.Pattern[],
+    derivedOperations: Algebra.Operation[],
     derivedResource: IDerivedResource, 
-    routingTable: Record<number, IStemsRoutingEntry[][]>
+    routeTable: Record<number, IStemsRoutingEntry[][]>,
+    timestampGenerator: ITimestampGenerator,
+    hashFn: HashFunction,
   ): Record<number, IStemsRoutingEntry[][]> {
+
     // Steps: 
     // 0.5 (Optional) update existing routing table.
     // 1. Determine the set bits of a derived resource. 
@@ -29,18 +37,62 @@ export abstract class RouterBaseDerivedResource
     // 3. If it can, add a routing table for that derived resource to the IStemsRoutingEntry[][] 
     // by appending. We can say to start with the derived resource in those cases to obtain data on
     // tickets
+    
+    // How do we represent the other derived resources and how do we access them if they're not in the done bits?
+    // Create a new operator stream from the derived resource
 
-    // (In the operator stream) Add an eddies operator to controller stream.
+    // Determine what bits in mask are answered by derived resource
+    const setBitsMask = this.getDerivedResourceBits(derivedOperations);
 
-    return routingTable;
+    // TODO: What should derivedOperations be, probably a regular Algebra.Operation 
+    // TODO: We need to convert the derived resource into bindings, which depends on the other variables
+    // the derived resource should join over.
+    const derivedResourceStemOperator = new StemsOperatorStream(
+      entry.output.bindingsStream,
+      timestampGenerator,
+      hashFn,
+      <JoinFunction> ActorRdfJoin.joinBindings,
+      this.routeOperations.length,
+      setBitsMask,
+      entry.operation,
+      (await entry.output.metadata()).variables.map(x => x.variable),
+      this.getComponentSubjectIRIs(entry),
+      entriesJoinVariables[i],
+      false,
+    );
+
+    for (const [ doneKey, routing ] of Object.entries(routeTable)) {
+      const key = Number.parseInt(doneKey, 10);
+      // If the done signature has no overlap with the current entry we can route to this derived resource
+      if ((key & setBitsMask) === 0){
+        const newRouting = []
+      }
+    }
+
+
+    // TODO How to? (In the operator stream) Add an eddies operator to controller stream.
+
+    return routeTable;
   }
+
+  protected getDerivedResourceBits(derivedOperations: Algebra.Operation[]){
+    const indexes = this.routeOperations.flatMap((routeOperation, idx) =>
+      derivedOperations.some(derivedOperation =>
+        equal(derivedOperation, routeOperation.operation)
+      ) ? [idx] : []
+    );
+    if (indexes.length === 0){
+      throw new Error("Tried to add derived resource with no overlap with current routingTable");
+    }
+    return this.doneIndexesToMask(indexes);
+  }
+
 }
 
 export interface IEddiesRouterDerivedResource extends IStemsRouter {
   addDerivedResource: (
-    patterns: Algebra.Pattern[],
+    patterns: Algebra.Operation[],
     derivedResource: IDerivedResource, 
     routingTable: Record<number, IStemsRoutingEntry[][]>,
   ) => Record<number, IStemsRoutingEntry[][]>;
-
 }

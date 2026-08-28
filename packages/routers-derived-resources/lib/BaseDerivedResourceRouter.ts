@@ -42,9 +42,12 @@ export abstract class RouterBaseDerivedResource
     // Determine what bits in mask are answered by derived resource
     const setBitsMask = this.getDerivedResourceBits(derivedOperations);
 
-    // TODO: What should derivedOperations be, probably a regular Algebra.Operation 
+    // TODO: What should derivedOperations be, probably a regular Algebra.Operation not an array 
     // TODO: We need to convert the derived resource into bindings, which depends on the other variables
     // the derived resource should join over.
+    // TODO: Determine metadata
+    // TODO: How do we expose new operator stream to the existing controller stream, context entry mapping
+    // operations to controller?
     
     // Create a new operator stream from the derived resource
     const derivedResourceStemOperator = new StemsOperatorStream(

@@ -20,7 +20,6 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
   protected readonly dataFactory: ComunicaDataFactory = new DataFactory();
   public constructor(args: IActorDerivedResourceIdentifyStarQueryArgs) {
     super(args);
-
     this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
     this.mediatorQueryParse = args.mediatorQueryParse;
   }
@@ -79,7 +78,6 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
     ){
       return failTest(`${this.name} requires exclusively predicate parameters without repeats`);
     }
-
 
     return passTestVoidWithSideData<IStarQuerySideData>({
       parameters,

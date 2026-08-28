@@ -1,1 +1,1 @@
-export * from './BaseDerivedResourceRouter';
+// export * from './BaseDerivedResourceRouter';

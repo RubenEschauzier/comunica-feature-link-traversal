@@ -2,10 +2,10 @@ import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDer
 import { TestResult, IActorTest, passTestVoidWithSideData, failTest } from '@comunica/core';
 import type * as RDF from '@rdfjs/types';
 import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
-import { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
+import type { MediatorDereference } from '@comunica/bus-dereference';
+import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import { MediatorQueryParse } from '@comunica/bus-query-parse';
 import { KeysInitQuery } from '@comunica/context-entries';
-import { QuerySourceParameterizedPattern } from '../../actor-derived-resource-identify-triple-pattern-query/lib/QuerySourceParameterizedPattern';
 import { ComunicaDataFactory } from '@comunica/types';
 import { DataFactory } from 'rdf-data-factory';
 import { QuerySourceParameterizedStarQuery } from './QuerySourceParameterizedStarQuery';
@@ -14,12 +14,14 @@ import { QuerySourceParameterizedStarQuery } from './QuerySourceParameterizedSta
  * A comunica Star Query Derived Resource Identify Actor.
  */
 export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceIdentify<IStarQuerySideData> {
-  protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  protected readonly mediatorDereference: MediatorDereference;
+  protected readonly mediatorQuerySourceDereferenceLink?: MediatorQuerySourceDereferenceLink;
   protected readonly mediatorQueryParse: MediatorQueryParse;
   
   protected readonly dataFactory: ComunicaDataFactory = new DataFactory();
   public constructor(args: IActorDerivedResourceIdentifyStarQueryArgs) {
     super(args);
+    this.mediatorDereference = args.mediatorDereference;
     this.mediatorQuerySourceDereferenceLink = args.mediatorQuerySourceDereferenceLink;
     this.mediatorQueryParse = args.mediatorQueryParse;
   }
@@ -54,12 +56,11 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
       return failTest(`${this.name} parsing query failed with: ${err.message}`);
     }
 
-    if (!isKnownOperation(queryParseOutput.operation, Algebra.Types.CONSTRUCT)){
-      return failTest(`${this.name} only works with construct templates`);
+    if (!isKnownOperation(queryParseOutput.operation, Algebra.Types.PROJECT)){
+      return failTest(`${this.name} only works with select templates`);
     } 
 
     const operationInput = queryParseOutput.operation.input;
-    const operationTemplate = queryParseOutput.operation.template;
     if (!isKnownOperation(operationInput, Algebra.Types.BGP)){
       return failTest(`${this.name} requires a WHERE clause with only a BGP`);
     }
@@ -68,11 +69,11 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
       return failTest(`${this.name} requires a star-shaped query with all objects different and variable subject`);
     }
 
-    if (!this.constructsEqualStar(operationInput, operationTemplate)){
-      return failTest(`${this.name} requires the template to match the bgp in the WHERE clause`)
+    if (!this.selectsStarVariables(operationInput, queryParseOutput.operation.variables)){
+      return failTest(`${this.name} requires the select clause to project all star variables`);
     }
       
-    if (!(parameters.size >= operationTemplate.length) || 
+    if (!(parameters.size >= operationInput.patterns.length) || 
       !this.allPredicatesParameters(operationInput.patterns, parameters) || 
       operationInput.patterns.length !== new Set(operationInput.patterns.map(p => p.predicate.value)).size
     ){
@@ -99,7 +100,7 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
       templateString,
       sideData.operation,
       sideData.parameters,
-      this.mediatorQuerySourceDereferenceLink,
+      this.mediatorDereference,
       this.dataFactory,
     );
 
@@ -199,6 +200,14 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
     return true;
   }
 
+  public selectsStarVariables(operation: Algebra.Bgp, variables: RDF.Variable[]): boolean {
+    const varSet = new Set(variables.map(v => v.value));
+    if (!varSet.has(operation.patterns[0].subject.value)) {
+      return false;
+    }
+    return operation.patterns.every(pattern => varSet.has(pattern.object.value));
+  }
+
   public allPredicatesParameters(patterns: Algebra.Pattern[], parameters: Set<string>){
     return patterns.every((pattern) => 
       parameters.has(pattern.predicate.value.replace('__param_', ''))
@@ -231,11 +240,12 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
 
 export interface IActorDerivedResourceIdentifyStarQueryArgs 
 extends IActorDerivedResourceIdentifyArgs<IStarQuerySideData> {
-  mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  mediatorDereference: MediatorDereference;
+  mediatorQuerySourceDereferenceLink?: MediatorQuerySourceDereferenceLink;
   mediatorQueryParse: MediatorQueryParse;
 }
 
 export interface IStarQuerySideData {
   parameters: Set<string>;
-  operation: Algebra.Construct;
+  operation: Algebra.Project;
 }

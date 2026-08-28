@@ -1,26 +1,30 @@
-import { IActorDereferenceOutput } from '@comunica/bus-dereference';
-import type { IActorQuerySourceDereferenceLinkOutput, MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
+import type { IActorDereferenceOutput, MediatorDereference } from '@comunica/bus-dereference';
 import type {
   IQuerySource,
   IActionContext,
   FragmentSelectorShape,
   ComunicaDataFactory,
   QuerySourceReference,
+  BindingsStream,
+  IQueryBindingsOptions,
 } from '@comunica/types';
 import { Algebra, AlgebraFactory, isKnownOperation } from '@comunica/utils-algebra';
+import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { canAnswerBgp, doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import toNT from '@rdfjs/to-ntriples';
 import * as RDF from '@rdfjs/types';
-import { AsyncIterator, TransformIterator } from 'asynciterator';
+import { AsyncIterator, TransformIterator, wrap } from 'asynciterator';
+import { SparqlJsonParser } from 'sparqljson-parse';
 
 export class QuerySourceParameterizedStarQuery implements IQuerySource {
   public readonly referenceValue: QuerySourceReference;
   
   protected readonly dataFactory: ComunicaDataFactory;
   protected readonly algebraFactory: AlgebraFactory;
+  protected readonly bindingsFactory: BindingsFactory;
 
   protected readonly parameterizedPatterns: IParameterizedPattern[];
-  protected readonly mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink;
+  protected readonly mediatorDereference: MediatorDereference;
 
   protected readonly template: string;
   protected readonly parameters: Set<string>;
@@ -28,9 +32,9 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
 
   public constructor(
     template: string,
-    operation: Algebra.Construct,
+    operation: Algebra.Project,
     parameters: Set<string>,
-    mediatorQuerySourceDereferenceLink: MediatorQuerySourceDereferenceLink,
+    mediatorDereference: MediatorDereference,
     dataFactory: ComunicaDataFactory,
   ) {
     if (!isKnownOperation(operation.input, Algebra.Types.BGP)) {
@@ -38,10 +42,11 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
     }
     this.referenceValue = template;
     this.template = template;
-    this.mediatorQuerySourceDereferenceLink = mediatorQuerySourceDereferenceLink;
+    this.mediatorDereference = mediatorDereference;
     this.parameters = parameters;
     this.dataFactory = dataFactory;
     this.algebraFactory = new AlgebraFactory(this.dataFactory);
+    this.bindingsFactory = new BindingsFactory(this.dataFactory);
 
     const cleanTerm = (term: RDF.Term): RDF.Term => {
       if (term.termType === 'Variable') {
@@ -136,7 +141,15 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
     return 0;
   }
 
-  public queryQuads(operation: Algebra.Operation, context: IActionContext): AsyncIterator<RDF.Quad> {
+  public queryQuads(_operation: Algebra.Operation, _context: IActionContext): AsyncIterator<RDF.Quad> {
+    throw new Error('queryQuads is not implemented in QuerySourceParameterizedStarQuery');
+  }
+
+  public queryBindings(
+    operation: Algebra.Operation,
+    context: IActionContext,
+    options?: IQueryBindingsOptions,
+  ): BindingsStream {
     if (!isKnownOperation(operation, Algebra.Types.BGP)) {
       throw new Error(`QuerySourceParameterizedStarQuery only accepts BGPs, got: ${operation.type}`);
     }
@@ -150,23 +163,19 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
         this.selectorShape.variablesRequired ?? [],
       )
     ) {
-      throw new Error(`Attempted queryQuads using operation not supported by QuerySourceStarQuery`);
+      throw new Error(`Attempted queryBindings using operation not supported by QuerySourceStarQuery`);
     }
 
-    const quadStreamProxy = new TransformIterator<RDF.Quad, RDF.Quad>();
-    
-    this.resolveAndExecuteQuads(operation, context)
-      .then(stream => { 
-        quadStreamProxy.source = stream; 
-      })
-      .catch(error => {
-        quadStreamProxy.destroy(error);
-      });
-
-    return quadStreamProxy;
+    return new TransformIterator(async () => {
+      return await this.resolveAndExecuteBindings(operation, context, options);
+    });
   }
 
-  private async resolveAndExecuteQuads(operation: Algebra.Bgp, context: IActionContext): Promise<AsyncIterator<RDF.Quad>> {
+  private async resolveAndExecuteBindings(
+    operation: Algebra.Bgp,
+    context: IActionContext,
+    options?: IQueryBindingsOptions,
+  ): Promise<BindingsStream> {
     // Keeps track of variable names mapped so far to avoid unintended collisions across disjoint positions
     const variableMapping: Record<string, string> = {};
     let varCounter = 1;
@@ -208,37 +217,34 @@ export class QuerySourceParameterizedStarQuery implements IQuerySource {
       );
     }
 
-    const dereferenceResult: IActorQuerySourceDereferenceLinkOutput = 
-      await this.mediatorQuerySourceDereferenceLink.mediate({
-        link: { url: filledTemplateUri },
+    const dereferenceResult: IActorDereferenceOutput = 
+      await this.mediatorDereference.mediate({
+        url: filledTemplateUri,
+        method: 'GET',
+        headers: new Headers({
+          Accept: 'application/sparql-results+json',
+        }),
         context,
       });
 
-    return dereferenceResult.source.queryQuads(
-      this.algebraFactory.createPattern(
-        this.dataFactory.variable('s'),
-        this.dataFactory.variable('p'),
-        this.dataFactory.variable('o'),
-        this.dataFactory.variable('g'),
-      ),
-      context,
-    );
-  }
+    const parser = new SparqlJsonParser({ dataFactory: this.dataFactory });
+    const rawBindingsStream = parser.parseJsonResultsStream(dereferenceResult.data);
+    const bindingsStream: BindingsStream = <any> wrap(rawBindingsStream)
+      .map(record => this.bindingsFactory.fromRecord(<any> record));
 
-  public queryBindings(_operation: Algebra.Operation, _context: IActionContext): any {
-    throw new Error('queryBindings is not implemented in QuerySourceParameterizedPattern');
+    return bindingsStream;
   }
 
   public queryBoolean(_operation: Algebra.Ask, _context: IActionContext): Promise<boolean> {
-    throw new Error('queryBoolean is not implemented in QuerySourceParameterizedPattern');
+    throw new Error('queryBoolean is not implemented in QuerySourceParameterizedStarQuery');
   }
 
   public queryVoid(_operation: Algebra.Operation, _context: IActionContext): Promise<void> {
-    throw new Error('queryVoid is not implemented in QuerySourceParameterizedPattern');
+    throw new Error('queryVoid is not implemented in QuerySourceParameterizedStarQuery');
   }
 
   public toString(): string {
-    return `QuerySourceParameterizedPattern(${this.template})`;
+    return `QuerySourceParameterizedStarQuery(${this.template})`;
   }
 }
 

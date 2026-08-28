@@ -306,6 +306,10 @@ export interface IDerivedResource {
    */
   iri: string;
   /**
+   * The base url where this derived resource is found
+   */
+  baseUrl: string;
+  /**
    * Derived resource template name
    */
   template: string;

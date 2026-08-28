@@ -2,7 +2,7 @@ import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
 import { TestResult, IActorTest, failTest, passTest, passTestWithSideData, ActionContext } from '@comunica/core';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
-import { ComunicaDataFactory } from '@comunica/types';
+import { Bindings, ComunicaDataFactory } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { canAnswerBgp } from '@comunica/utils-query-operation';
@@ -65,12 +65,26 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     
     await Promise.allSettled(
       Array.from(bgpsToResources.entries()).map(async ([patterns, resource]) => {
-        const rawQuads = resource.querySource.queryQuads(
+        const subjectTerm = patterns[0].subject;
+        // If the subject is set in the query and the derived resource is not authoritative,
+        // we skip it
+        if (subjectTerm.termType !== 'Variable' && !subjectTerm.value.startsWith(resource.baseUrl)) {
+          return; 
+        }
+
+        let bindingsStream = resource.querySource.queryBindings(
           this.algebraFactory.createBgp(patterns),
           context,
         );
 
-        // TODO: Filter raw quads using our assumption!
+        // In case of variable we filter out any subjects we don't have authority over
+        if (subjectTerm.termType === 'Variable') {
+          bindingsStream = bindingsStream.filter((binding: Bindings) => {
+            const term = binding.get(subjectTerm);
+            return term !== undefined && term.value.startsWith(resource.baseUrl);
+          });
+        }
+
 
         // TODO: Think about how reachability works when we aggregate over data.
         // When we aggregate over something that is not reachable, we will still include

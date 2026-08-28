@@ -13038,7 +13038,7 @@ sparqljs@^3.7.1:
   dependencies:
     rdf-data-factory "^1.1.2"
 
-sparqljson-parse@^2.0.0:
+sparqljson-parse@^2.0.0, sparqljson-parse@^2.2.0:
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/sparqljson-parse/-/sparqljson-parse-2.2.0.tgz#58c788e896f7d2c0d3079452d8812943049d4a7e"
   integrity sha512-2TfvNvUsaJyWfCrq3ExdDdbF9LBLzIUCricg+D1YCYbbmyTzscgCtRk4KcIyJF178DtfCt4BkKzbKl8IXMHp8w==

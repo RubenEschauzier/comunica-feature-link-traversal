@@ -10,6 +10,9 @@
     {
       "@id": "urn:comunica:default:derived-resource-identify/actors#star-query",
       "@type": "ActorDerivedResourceIdentifyStarQuery",
+      "mediatorDereference": { 
+        "@id": "urn:comunica:default:dereference/mediators#main" 
+      },
       "mediatorQuerySourceDereferenceLink": { 
         "@id": "urn:comunica:default:query-source-dereference-link/mediators#main" 
       },

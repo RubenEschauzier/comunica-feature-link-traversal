@@ -17,6 +17,8 @@
     "ccqs:config/rdf-join/routers/router-min-index.json",
     "ccqs:config/rdf-join/routers/router-lottery.json",
 
+    "ccqslt:config/context-preprocess/adaptive-join-component.json",
+
     "ccqslt:config/extract-links/actors/solid-derived-resources.json",
     "ccqslt:config/derived-resource-identify/mediators.json",
     "ccqslt:config/derived-resource-identify/actors/qpf.json",

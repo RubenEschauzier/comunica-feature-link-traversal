@@ -4,7 +4,7 @@ import type { MediatorMergeBindingsContext } from '@comunica/bus-merge-bindings-
 import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysInitQuery, KeysQuerySourceIdentify, KeysRdfJoin } from '@comunica/context-entries';
 import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import { ActionContext, Bus } from '@comunica/core';
 import type { IActionContext } from '@comunica/types';
@@ -216,6 +216,35 @@ describe('ActorOptimizeQueryOperationInitializeLinkTraversalManager', () => {
             [KeysQuerySourceIdentify.traverse.name]: true,
           }) },
         ]);
+      });
+
+      it('should register a stop listener on linkTraversalManager to finalize adaptiveJoinController if present', async() => {
+        const mockFinalize = jest.fn();
+        const mockAdaptiveJoinController: any = {
+          finalize: mockFinalize,
+        };
+        const contextIn = context
+          .set(KeysInitQuery.querySourcesUnidentified, [ 'a' ])
+          .set(KeysQuerySourceIdentify.traverse, true)
+          .set(KeysRdfJoin.adaptiveJoinController, mockAdaptiveJoinController);
+
+        const { context: contextOut } = await actor.run({
+          context: contextIn,
+          operation,
+        });
+
+        const mgr = (<any> contextOut.getSafe(KeysInitQuery.querySourcesUnidentified)[0]).context
+          .getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
+
+        mgr.aggregatedStore = <any> {
+          end: jest.fn(),
+          removeAllIteratorsClosedListener: jest.fn(),
+        };
+
+        expect(mockFinalize).not.toHaveBeenCalled();
+        mgr.stop();
+        await new Promise(resolve => setTimeout(resolve, 5));
+        expect(mockFinalize).toHaveBeenCalledTimes(1);
       });
     });
   });

@@ -9,7 +9,7 @@ import { ActorOptimizeQueryOperation } from '@comunica/bus-optimize-query-operat
 import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
-import { KeysInitQuery, KeysQuerySourceIdentify } from '@comunica/context-entries';
+import { KeysInitQuery, KeysQuerySourceIdentify, KeysRdfJoin } from '@comunica/context-entries';
 import { KeysDerivedResourceIdentify, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, ActionContext } from '@comunica/core';
@@ -117,6 +117,12 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         derivedResourcesContainer.traversalManager = linkTraversalManager
       }
 
+      const adaptiveJoinController = context.get(KeysRdfJoin.adaptiveJoinController);
+      if (adaptiveJoinController) {
+        linkTraversalManager.addStopListener(() => {
+          adaptiveJoinController.finalize();
+        });
+      }
     }
 
     return { context, operation: action.operation };

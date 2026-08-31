@@ -10,7 +10,7 @@ import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal } from 
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import type * as RDF from '@rdfjs/types';
 import { AsyncIterator } from 'asynciterator';
-import { KeysInitQuery } from '@comunica/context-entries';
+import { KeysInitQuery, KeysRdfJoin } from '@comunica/context-entries';
 
 /**
  * A comunica Star Query Derived Resource Select Actor.
@@ -60,6 +60,8 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     );
     manager.addDereferencingDerivedResource(controller);
 
+    const adaptiveJoinController = context.getSafe(KeysRdfJoin.adaptiveJoinController);
+
     const bgpsToResources = testResult.derivedResourceContext
       .getSafe(KeysDerivedResourceSelect.starPatternToDerivedResource);
     
@@ -85,7 +87,8 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
           });
         }
 
-
+        const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream, {});
+        console.log(`Using composite star source: ${added}`);
         // TODO: Think about how reachability works when we aggregate over data.
         // When we aggregate over something that is not reachable, we will still include
         // it in results so reachability becomes muddy. Some formalizations maybe,
@@ -95,7 +98,6 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
         // TODO: Now we have to integrate it into our query plan!
       }),
     );
-    
     manager.removeDereferencingDerivedResource(controller);
     return { links: [] };
   }

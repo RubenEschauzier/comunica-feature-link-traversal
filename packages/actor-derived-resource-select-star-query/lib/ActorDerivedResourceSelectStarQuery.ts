@@ -51,6 +51,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     action: IActionDerivedResourceSelect,
     testResult: IActorDerivedResourceSelectTestSideData,
   ): Promise<IActorDerivedResourceSelectOutput> {
+    // TODO Use signal to abort dereference operation (is this needed for experiments?)
     const controller = new AbortController();
     const signal = controller.signal;
     
@@ -89,13 +90,11 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
 
         const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream, {});
         console.log(`Using composite star source: ${added}`);
+
         // TODO: Think about how reachability works when we aggregate over data.
         // When we aggregate over something that is not reachable, we will still include
         // it in results so reachability becomes muddy. Some formalizations maybe,
         // maybe call it the hybrid cMatch - all criterion?
-        
-
-        // TODO: Now we have to integrate it into our query plan!
       }),
     );
     manager.removeDereferencingDerivedResource(controller);

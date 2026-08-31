@@ -1,0 +1,1 @@
+node engines/query-sparql-link-traversal-solid/bin/query.js -f "query-remote-d-1-1.txt" --idp void --lenient --annotateSources graph --unionDefaultGraph

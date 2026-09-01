@@ -1,15 +1,13 @@
 import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-extract-links-solid-derived-resources';
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
-import { TestResult, IActorTest, failTest, passTest, passTestWithSideData, ActionContext } from '@comunica/core';
-import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
+import { TestResult, IActorTest, failTest, passTestWithSideData, ActionContext } from '@comunica/core';
+import type { MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import { Bindings, ComunicaDataFactory } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { canAnswerBgp } from '@comunica/utils-query-operation';
 import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import type * as RDF from '@rdfjs/types';
-import { AsyncIterator } from 'asynciterator';
 import { KeysInitQuery, KeysRdfJoin } from '@comunica/context-entries';
 
 /**

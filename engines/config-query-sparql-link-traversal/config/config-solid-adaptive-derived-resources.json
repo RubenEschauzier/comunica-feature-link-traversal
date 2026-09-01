@@ -17,14 +17,17 @@
     "ccqs:config/rdf-join/routers/router-min-index.json",
     "ccqs:config/rdf-join/routers/router-lottery.json",
 
-    "ccqslt:config/context-preprocess/adaptive-join-component.json",
+    "ccqslt:config/context-preprocess/set-source-tracking.json",
+    "ccqslt:config/rdf-resolve-hypermedia-links/actors/traverse-annotate-source-graph.json",
+    "ccqs:config/merge-bindings-context/source-binding-union.json",
 
     "ccqslt:config/extract-links/actors/solid-derived-resources.json",
     "ccqslt:config/derived-resource-identify/mediators.json",
     "ccqslt:config/derived-resource-identify/actors/qpf.json",
     "ccqslt:config/derived-resource-identify/actors/parameterized-pattern.json",
     "ccqslt:config/derived-resource-identify/actors/parameterized-star-query.json",
-
+    
+    "ccqslt:config/context-preprocess/adaptive-join-component.json",
     "ccqslt:config/derived-resource-select/actors.json",
     "ccqslt:config/derived-resource-select/mediators.json",
 

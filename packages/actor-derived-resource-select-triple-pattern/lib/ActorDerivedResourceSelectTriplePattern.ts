@@ -111,6 +111,7 @@ export class ActorDerivedResourceSelectTriplePattern extends
         }
       }
     }
+    const shouldAnnotate = context.get(KeysRdfResolveHypermediaLinks.annotateSources) === 'graph';
 
     // Fast path: if the query contains a ?s ?p ?o 
     // (e.g. wildcard or NPS), all data is fetched in one request
@@ -120,9 +121,11 @@ export class ActorDerivedResourceSelectTriplePattern extends
       if (wildcardEntry) {
         const [wildcardPattern, bestResource] = wildcardEntry;
         const rawQuads = bestResource.resource.querySource.queryQuads(wildcardPattern, context);
+
         const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
           { context, url: bestResource.resource.iri, quads: rawQuads },
         );
+
         const extractedLinks = await this.mediatorExtractLinks.mediate({
           context,
           url: bestResource.resource.iri,
@@ -130,7 +133,13 @@ export class ActorDerivedResourceSelectTriplePattern extends
           requestTime: 0,
         });
 
-        const eventEmitter = manager.getAggregatedStore().import(rdfMetadataOutput.data);
+        let dataToImport = rdfMetadataOutput.data;
+        if (shouldAnnotate) {
+          dataToImport = this.annotateQuadsWithSource(dataToImport, bestResource.resource.baseUrl);
+        }
+
+        const eventEmitter = manager.getAggregatedStore().import(dataToImport);
+
         // TODO: Use signal here
         await new Promise((resolve, reject) => {
           eventEmitter.on('end', resolve);
@@ -160,7 +169,7 @@ export class ActorDerivedResourceSelectTriplePattern extends
           requestTime: 0,
         });
 
-        const dataToImport = this.filterDataToImport(
+        let dataToImport = this.filterDataToImport(
           pattern,
           rdfMetadataOutput.data,
           queryPatterns,
@@ -168,6 +177,9 @@ export class ActorDerivedResourceSelectTriplePattern extends
         );
 
         if (dataToImport) {
+          if (shouldAnnotate) {
+            dataToImport = this.annotateQuadsWithSource(dataToImport, bestResource.resource.baseUrl);
+          }
           const eventEmitter = manager.getAggregatedStore().import(dataToImport);
           await new Promise((resolve, reject) => {
             eventEmitter.on('end', resolve);
@@ -221,39 +233,21 @@ export class ActorDerivedResourceSelectTriplePattern extends
       : data;
   }
 
-  private toError(error: unknown): Error {
-    return error instanceof Error ? error : new Error(String(error));
-  }
-
-  private waitForImport(
-    eventEmitter: NodeJS.EventEmitter,
-    data: RDF.Stream,
-    signal: AbortSignal,
-  ): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      const onAbort = (): void => {
-        (<any>data).destroy(new Error('Traversal aborted'));
-      };
-      const onEnd = (): void => {
-        signal.removeEventListener('abort', onAbort);
-        resolve();
-      };
-      const onError = (error: Error): void => {
-        signal.removeEventListener('abort', onAbort);
-        if (signal.aborted) {
-          resolve();
-        } else {
-          reject(error);
-        }
-      };
-
-      eventEmitter.once('end', onEnd);
-      eventEmitter.once('error', onError);
-      signal.addEventListener('abort', onAbort, { once: true });
-
-      if (signal.aborted) {
-        onAbort();
+  protected annotateQuadsWithSource(
+    data: RDF.Stream<RDF.Quad>,
+    sourceIri: string,
+  ): RDF.Stream<RDF.Quad> {
+    const sourceNode = this.dataFactory.namedNode(sourceIri);
+    return wrap<RDF.Quad>(data).map(quad => {
+      if (quad.graph.termType === 'DefaultGraph') {
+        return this.dataFactory.quad(
+          quad.subject,
+          quad.predicate,
+          quad.object,
+          sourceNode,
+        );
       }
+      return quad;
     });
   }
 

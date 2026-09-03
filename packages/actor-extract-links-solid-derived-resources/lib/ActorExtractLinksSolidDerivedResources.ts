@@ -53,6 +53,11 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
     // TODO: Smart deduplication after using star-shaped resources!
     
+    
+    // TODO: How do we deal with potentially overlapping triples in composite resources
+    // how do we filter / execute plan etc
+
+    // TODO: How do we filter when doing linear sub-queries.
     let context = action.context;
     // Determine links to derived resources
     const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)];

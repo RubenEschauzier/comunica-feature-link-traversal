@@ -1,5 +1,7 @@
 import type { MediatorFactoryAggregatedStore } from '@comunica/bus-factory-aggregated-store';
 import type { MediatorMergeBindingsContext } from '@comunica/bus-merge-bindings-context';
+// eslint-disable-next-line import/no-nodejs-modules
+import type { Readable, TransformCallback } from 'node:stream';
 import type {
   IActionOptimizeQueryOperation,
   IActorOptimizeQueryOperationOutput,
@@ -10,12 +12,21 @@ import type { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-sou
 import type { MediatorRdfResolveHypermediaLinks } from '@comunica/bus-rdf-resolve-hypermedia-links';
 import type { MediatorRdfResolveHypermediaLinksQueue } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import { KeysInitQuery, KeysQuerySourceIdentify, KeysRdfJoin } from '@comunica/context-entries';
-import { KeysDerivedResourceIdentify, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
+import {
+  KeysDerivedResourceIdentify,
+  KeysQuerySourceIdentifyLinkTraversal,
+  KeysRdfResolveHypermediaLinks,
+} from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid, ActionContext } from '@comunica/core';
 import type { IActionContext, ILink, QuerySourceUnidentified } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
+import type * as RDF from '@rdfjs/types';
+import { DataFactory } from 'rdf-data-factory';
+import { Transform } from 'readable-stream';
 import { LinkTraversalManagerMediated } from './LinkTraversalManagerMediated';
+
+const DF = new DataFactory();
 
 /**
  * A comunica Initialize Link Traversal Manager Optimize Query Operation Actor.
@@ -51,22 +62,23 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
     const querySources: QuerySourceUnidentified[] = [];
     const traversalSeedLinks: ILink[] = [];
     const traversalContexts: IActionContext[] = [];
+    const annotateSourcesAsGraph = context.get(KeysRdfResolveHypermediaLinks.annotateSources) === 'graph';
     if (context.has(KeysInitQuery.querySourcesUnidentified)) {
       const querySourcesUnidentified: QuerySourceUnidentified[] = action.context
         .getSafe(KeysInitQuery.querySourcesUnidentified);
       for (const querySource of querySourcesUnidentified) {
         const traverseAll = context.get(KeysQuerySourceIdentify.traverse);
         if (traverseAll && typeof querySource === 'string') {
-          traversalSeedLinks.push({ url: querySource });
+          traversalSeedLinks.push(this.mapSeedLink({ url: querySource }, annotateSourcesAsGraph));
         } else if (!(typeof querySource === 'string') && !('match' in querySource) &&
           (traverseAll ?? ActionContext.ensureActionContext(querySource.context)
             .get(KeysQuerySourceIdentify.traverse)) &&
           typeof querySource.value === 'string') {
-          traversalSeedLinks.push({
+          traversalSeedLinks.push(this.mapSeedLink({
             url: querySource.value,
             forceSourceType: querySource.type,
             context: ActionContext.ensureActionContext(querySource.context),
-          });
+          }, annotateSourcesAsGraph));
           if (querySource.context) {
             traversalContexts.push(ActionContext.ensureActionContext(querySource.context));
           }
@@ -126,6 +138,40 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
     }
 
     return { context, operation: action.operation };
+  }
+
+  /**
+   * Annotates a link traversal seed link with a transformer that rewrites the graph of quads dereferenced from
+   * it to the link's URL, mirroring what actor-rdf-resolve-hypermedia-links-traverse-annotate-source-graph does
+   * for non-seed links. Seed links never pass through the hypermedia links resolve bus, so that actor never gets
+   * a chance to annotate them and this needs to happen here instead.
+   */
+  private mapSeedLink(link: ILink, annotateSourcesAsGraph: boolean): ILink {
+    if (!annotateSourcesAsGraph) {
+      return link;
+    }
+    return {
+      ...link,
+      async transform(input: RDF.Stream): Promise<RDF.Stream> {
+        if (link.transform) {
+          input = await link.transform(input);
+        }
+        return (<Readable> input).pipe(new Transform({
+          objectMode: true,
+          transform(quad: RDF.Quad, encoding: string, callback: TransformCallback) {
+            if (quad.graph.termType === 'DefaultGraph') {
+              return callback(undefined, DF.quad(
+                quad.subject,
+                quad.predicate,
+                quad.object,
+                DF.namedNode(link.url),
+              ));
+            }
+            return callback(undefined, quad);
+          },
+        }));
+      },
+    };
   }
 }
 

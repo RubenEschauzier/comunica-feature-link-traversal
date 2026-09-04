@@ -86,7 +86,12 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
           });
         }
 
-        const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream, {});
+        const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream, 
+          {
+            patternToExtractor: patterns.map(pattern => [ pattern.subject ]),
+            authoritativeDomain: resource.baseUrl,
+          }
+        );
         console.log(`Using composite star source: ${added}`);
 
         // TODO: Think about how reachability works when we aggregate over data.

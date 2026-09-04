@@ -47,17 +47,22 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     return passTestVoid();
   }
 
-  public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {
+  public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {    
     // TODO: Make sure each pod entry has a predicate pointing to a derived resource. 
     // So we prioritize that instead of dereferencing a ton of non-derived data
 
-    // TODO: Smart deduplication after using star-shaped resources!
-    
-    
+    // TODO: Fix SolidBench generator to use SELECT queries instead. Also add linear queries
+    // Make triple pattern level derived resources use SELECT queries? Or keep as construct? 
+
     // TODO: How do we deal with potentially overlapping triples in composite resources
+    // partitioning the query, estimating cost of triple patterns.
     // how do we filter / execute plan etc
 
-    // TODO: How do we filter when doing linear sub-queries.
+    // TODO: How do we filter when doing linear sub-queries. Is what we do sufficient?
+
+    // TODO: Integrate linear subqueries.
+
+
     let context = action.context;
     // Determine links to derived resources
     const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)];

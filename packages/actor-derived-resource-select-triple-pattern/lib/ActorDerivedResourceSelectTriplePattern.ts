@@ -2,7 +2,7 @@ import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-
 import { ActorDerivedResourceSelect, IActionDerivedResourceSelect, IActorDerivedResourceSelectOutput, IActorDerivedResourceSelectArgs, IActorDerivedResourceSelectTestSideData, IRequiredResources } from '@comunica/bus-derived-resource-select';
 import { TestResult, IActorTest, failTest, passTestWithSideData, ActionContext } from '@comunica/core';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
-import { ComunicaDataFactory, ILink } from '@comunica/types';
+import { Bindings, ComunicaDataFactory, ILink } from '@comunica/types';
 import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
@@ -177,10 +177,14 @@ export class ActorDerivedResourceSelectTriplePattern extends
         );
 
         if (dataToImport) {
+
           if (shouldAnnotate) {
             dataToImport = this.annotateQuadsWithSource(dataToImport, bestResource.resource.baseUrl);
           }
+
+
           const eventEmitter = manager.getAggregatedStore().import(dataToImport);
+
           await new Promise((resolve, reject) => {
             eventEmitter.on('end', resolve);
             eventEmitter.on('error', reject);

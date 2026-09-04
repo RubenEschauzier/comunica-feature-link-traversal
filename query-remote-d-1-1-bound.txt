@@ -1,0 +1,9 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX snvoc: <http://solidbench-server:3000/www.ldbc.eu/ldbc_socialnet/1.0/vocabulary/>
+SELECT ?messageId ?messageCreationDate ?messageContent WHERE {
+  <http://solidbench-server:3000/pods/00000000000000000094/posts/2010-02-23#137116> snvoc:hasCreator <http://solidbench-server:3000/pods/00000000000000000094/profile/card#me>;
+    rdf:type snvoc:Post;
+    snvoc:content ?messageContent;
+    snvoc:creationDate ?messageCreationDate;
+    snvoc:id ?messageId.
+}

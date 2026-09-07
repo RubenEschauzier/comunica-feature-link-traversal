@@ -51,15 +51,11 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // TODO: Make sure each pod entry has a predicate pointing to a derived resource. 
     // So we prioritize that instead of dereferencing a ton of non-derived data
 
-    // TODO: Fix SolidBench generator to use SELECT queries instead. Also add linear queries
-    // Make triple pattern level derived resources use SELECT queries? Or keep as construct? 
-
     // TODO: How do we deal with potentially overlapping triples in composite resources
     // partitioning the query, estimating cost of triple patterns.
     // how do we filter / execute plan etc
 
     // TODO: How do we filter when doing linear sub-queries. Is what we do sufficient?
-
     // TODO: Integrate linear subqueries.
 
 
@@ -126,9 +122,9 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
    * @param metadata A metadata quad stream.
    */
   public extractDerivedResourceLinks(metadata: RDF.Stream): Promise<Set<string>> {
-    // The metadata has more than 10 extract links actors operating on it, giving warnings
-    // so we slightly increase the limit
-    metadata.setMaxListeners(20);
+    // The metadata stream is shared by all extract links actors, which exceeds the default
+    // listener limit, so we raise it like the bus helpers do.
+    ActorExtractLinks.allowSharedMetadataListeners(metadata);
     return new Promise<Set<string>>((resolve, reject) => {
       const derivedResourcesInner: Set<string> = new Set();
 

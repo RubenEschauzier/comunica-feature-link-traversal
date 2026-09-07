@@ -25,6 +25,25 @@ export abstract class ActorExtractLinks<TS = undefined>
   }
 
   /**
+   * The maximum number of listeners a metadata stream may have per event.
+   * Every actor on the extract-links bus attaches its own listeners to the same metadata stream,
+   * so the Node default of 10 is exceeded as soon as more than 10 extractors are configured,
+   * which would emit a spurious MaxListenersExceededWarning.
+   */
+  public static readonly maxMetadataListeners = 64;
+
+  /**
+   * Raise the listener limit of a metadata stream that is shared by all actors on this bus,
+   * so that legitimate fan-out over the bus does not trigger a memory leak warning.
+   * @param metadata A metadata stream of quads.
+   */
+  public static allowSharedMetadataListeners(metadata: RDF.Stream): void {
+    if (metadata.getMaxListeners() < ActorExtractLinks.maxMetadataListeners) {
+      metadata.setMaxListeners(ActorExtractLinks.maxMetadataListeners);
+    }
+  }
+
+  /**
    * A helper function to append links based on incoming quads.
    * @param metadata A metadata stream of quads.
    * @param onQuad A callback that will be invoked for each quad in the metadata stream.
@@ -34,6 +53,7 @@ export abstract class ActorExtractLinks<TS = undefined>
     metadata: RDF.Stream,
     onQuad: (quad: RDF.Quad, links: ILink[]) => void,
   ): Promise<ILink[]> {
+    ActorExtractLinks.allowSharedMetadataListeners(metadata);
     return new Promise((resolve, reject) => {
       const links: ILink[] = [];
 

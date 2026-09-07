@@ -32,6 +32,9 @@
     "ccqslt:config/derived-resource-select/mediators.json",
 
     "ccqslt:config/context-preprocess/dynamic-links-filter.json",
-    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter-dynamic.json"
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter-dynamic-priority.json",
+
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-prioritize-derived-resources.json",
+    "ccqslt:config/extract-links/actors/predicates-derived-resources.json"
   ]
 }

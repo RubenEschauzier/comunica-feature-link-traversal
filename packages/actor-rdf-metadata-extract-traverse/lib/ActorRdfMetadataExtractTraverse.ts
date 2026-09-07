@@ -1,4 +1,5 @@
 import type { MediatorExtractLinks } from '@comunica/bus-extract-links';
+import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActionRdfMetadataExtract, IActorRdfMetadataExtractOutput } from '@comunica/bus-rdf-metadata-extract';
 import { ActorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
@@ -20,6 +21,9 @@ export class ActorRdfMetadataExtractTraverse extends ActorRdfMetadataExtract {
   }
 
   public async run(action: IActionRdfMetadataExtract): Promise<IActorRdfMetadataExtractOutput> {
+    // Every actor on the extract-links bus attaches listeners to this single metadata stream,
+    // so raise the listener limit before fanning out over the bus.
+    ActorExtractLinks.allowSharedMetadataListeners(action.metadata);
     const result = await this.mediatorExtractLinks.mediate(action);
     return {
       metadata: {

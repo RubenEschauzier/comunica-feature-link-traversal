@@ -1,4 +1,4 @@
-import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs } from '@comunica/bus-derived-resource-identify';
+import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs, extractTemplateParams, normalizeQuery } from '@comunica/bus-derived-resource-identify';
 import { TestResult, IActorTest, passTestVoidWithSideData, failTest } from '@comunica/core';
 import type * as RDF from '@rdfjs/types';
 import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
@@ -122,8 +122,7 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
   }
 
   public extractTemplateParams(templateStr: string) {
-    const matches = templateStr.matchAll(/\{([^}]+)\}/g);
-    return new Set(Array.from(matches, m => m[1]));
+    return extractTemplateParams(templateStr);
   }
 
   /**
@@ -221,19 +220,7 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
    * @returns 
    */
   public normalizeQuery(rawQuery: string, paramNames: Set<string>) {
-    let normalized = rawQuery;
-    
-    const newVariables = new Set();
-    for (const param of paramNames) {
-      // Escapes and replaces $param$ with a distinct valid variable
-      const regex = new RegExp(`\\$${param}\\$`, 'g');
-      normalized = normalized.replace(regex, `?__param_${param}`);
-      newVariables.add(`?__param_${param}`);
-    }
-    return {
-      normalized,
-      newVariables,
-    };
+    return normalizeQuery(rawQuery, paramNames);
   }
 }
 

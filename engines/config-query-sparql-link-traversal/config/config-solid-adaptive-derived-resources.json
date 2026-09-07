@@ -26,6 +26,7 @@
     "ccqslt:config/derived-resource-identify/actors/qpf.json",
     "ccqslt:config/derived-resource-identify/actors/parameterized-pattern.json",
     "ccqslt:config/derived-resource-identify/actors/parameterized-star-query.json",
+    "ccqslt:config/derived-resource-identify/actors/parameterized-linear-query.json",
     
     "ccqslt:config/context-preprocess/adaptive-join-component.json",
     "ccqslt:config/derived-resource-select/actors.json",

@@ -1,4 +1,4 @@
-import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs } from '@comunica/bus-derived-resource-identify';
+import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs, extractTemplateParams, normalizeQuery } from '@comunica/bus-derived-resource-identify';
 import { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorQueryParse } from '@comunica/bus-query-parse';
 import { TestResult, IActorTest, passTestVoid, failTest, ActionContext, passTestVoidWithSideData } from '@comunica/core';
@@ -130,8 +130,7 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
   }
 
   public extractTemplateParams(templateStr: string) {
-    const matches = templateStr.matchAll(/\{([^}]+)\}/g);
-    return new Set(Array.from(matches, m => m[1]));
+    return extractTemplateParams(templateStr);
   }
 
   /**
@@ -142,19 +141,7 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
    * @returns 
    */
   public normalizeQuery(rawQuery: string, paramNames: Set<string>) {
-    let normalized = rawQuery;
-    
-    const newVariables = new Set();
-    for (const param of paramNames) {
-      // Escapes and replaces $param$ with a distinct valid variable
-      const regex = new RegExp(`\\$${param}\\$`, 'g');
-      normalized = normalized.replace(regex, `?__param_${param}`);
-      newVariables.add(`?__param_${param}`);
-    }
-    return {
-      normalized,
-      newVariables,
-    };
+    return normalizeQuery(rawQuery, paramNames);
   }
 }
 

@@ -171,7 +171,7 @@ describe('QuerySourceParameterizedStarQuery', () => {
         AF.createPattern(VAR_S, DF.namedNode('http://example.org/p3'), DF.variable('o3')),
       ]);
       expect(() => querySource.queryBindings(unsupportedBgp, context)).toThrow(
-        'Attempted queryBindings using operation not supported by QuerySourceStarQuery',
+        'Attempted queryBindings using operation not supported by QuerySourceParameterizedStarQuery',
       );
     });
 

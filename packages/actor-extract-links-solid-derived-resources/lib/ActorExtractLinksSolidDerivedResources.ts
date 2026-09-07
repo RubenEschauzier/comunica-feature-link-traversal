@@ -48,8 +48,33 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   }
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {    
-    // TODO: Make sure each pod entry has a predicate pointing to a derived resource. 
-    // So we prioritize that instead of dereferencing a ton of non-derived data
+    // TODO BEFORE EXPERIMENT:
+    // 1). Deal with overlapping triples when domain also overlaps. 
+    // Needs to stateful: Track previous allocations of derived resources
+    // so when at later stage we find overlapping resource we know what we did so we dont 'forget' 
+    // that we already allocated a part of the sub-query
+    // Also when we have all identified derived-resources, we need to do a heuristic to
+    // determine the partitioning of queries. For now: prefer-star heuristic.
+    // 2). Implement select linear query actor
+    // TODO WHEN RUNNING:
+    // 1). Formalize some of the things we've implemented here. Think about the temporal aspect
+    // when doing overlap / deduplication etc
+    // 2). Implement a cost function for determining IF and WHICH derived resources to use.
+    // Think about what micro-benchmarks and abalations we need:
+    // 1. QPF only
+    // 2. Triple pattern only
+    // 3. Triple pattern / QPF + star
+    // 4. Triple pattern / QPF + linear
+    // 5. Triple pattern + star + linear (star-only)
+    // 6. Triple pattern + star + linear (cost fn)
+    // 7. Full system + multiple client scaling
+    // 8. Show query where using star is bad
+    // 9. Show query where data distribution shows star first is bad
+    // 10. Show query where we need deduplication 
+    // / where filtering is better / worse than not using / following existing partition
+    // TODO AFTER THIS:
+    // 1. After formalizing look at what we still need to implement based on formalizations
+
 
     // TODO: How do we deal with potentially overlapping triples in composite resources
     // partitioning the query, estimating cost of triple patterns.
@@ -57,7 +82,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
     // TODO: How do we filter when doing linear sub-queries. Is what we do sufficient?
     // TODO: Integrate linear subqueries.
-
 
     let context = action.context;
     // Determine links to derived resources

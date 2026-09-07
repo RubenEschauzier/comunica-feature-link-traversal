@@ -1,0 +1,19 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-derived-resource-identify-linear-query/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:derived-resource-identify/actors#linear-query",
+      "@type": "ActorDerivedResourceIdentifyLinearQuery",
+      "mediatorDereference": {
+        "@id": "urn:comunica:default:dereference/mediators#main"
+      },
+      "mediatorQueryParse": { "@id": "urn:comunica:default:query-parse/mediators#main" }
+    }
+  ]
+}

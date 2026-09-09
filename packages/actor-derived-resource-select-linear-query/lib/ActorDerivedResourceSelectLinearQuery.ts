@@ -77,8 +77,15 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     // without two composite sources ever covering the same join entry
     await Promise.allSettled(
       Array.from(bgpsToResources.entries()).map(async ([patterns, resource]) => {
-        // TODO: The resource should have a way of indicating its domain, this only
-        // works if the domain of the resource is at where it resides.
+        // TODO: Add flag that allows slicing linear chains with size N > 2 into smaller
+        // blocks of N = 2. Also determine how to slice them. For example for case of
+        // N = 3 we want the most selective slice. Once again a task for adaptive join operators
+        // But first: heuristic.
+        // With estimated selectivities we can actually easily greedly do it by just taking
+        // the two most selective and proceeding from there. Super easy!
+
+        // TODO: uture work: the resource should have a way of indicating its domain, 
+        // this only works if the domain of the resource is at where it resides.
         const domain = resource.baseUrl;
         // The domain is fixed for this resource, so the separator check it needs is hoisted
         // out of the per-binding filter below

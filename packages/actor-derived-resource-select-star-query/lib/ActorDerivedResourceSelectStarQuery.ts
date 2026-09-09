@@ -9,6 +9,7 @@ import { canAnswerBgp } from '@comunica/utils-query-operation';
 import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { KeysInitQuery, KeysRdfJoin } from '@comunica/context-entries';
+import { isDomainDelimited, isWithinDomain } from '@comunica/actor-rdf-join-inner-multi-stems';
 
 /**
  * A comunica Star Query Derived Resource Select Actor.
@@ -67,10 +68,18 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     await Promise.allSettled(
       Array.from(bgpsToResources.entries()).map(async ([patterns, resource]) => {
         const subjectTerm = patterns[0].subject;
+        // TODO: The resource should have a way of indicating its domain, this only
+        // works if the domain of the resource is at where it resides.
+        const domain = resource.baseUrl;
+        // The domain is fixed for this resource, so the separator check it needs is hoisted
+        // out of the per-binding filter below
+        const domainIsDelimited = isDomainDelimited(domain);
+
         // If the subject is set in the query and the derived resource is not authoritative,
         // we skip it
-        if (subjectTerm.termType !== 'Variable' && !subjectTerm.value.startsWith(resource.baseUrl)) {
-          return; 
+        if (subjectTerm.termType !== 'Variable' &&
+          !isWithinDomain(subjectTerm.value, domain, domainIsDelimited)) {
+          return;
         }
 
         let bindingsStream = resource.querySource.queryBindings(
@@ -82,14 +91,16 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
         if (subjectTerm.termType === 'Variable') {
           bindingsStream = bindingsStream.filter((binding: Bindings) => {
             const term = binding.get(subjectTerm);
-            return term !== undefined && term.value.startsWith(resource.baseUrl);
+            return term !== undefined &&
+              isWithinDomain(term.value, domain, domainIsDelimited);
           });
         }
 
         const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream, 
           {
-            patternToExtractor: patterns.map(pattern => [ pattern.subject ]),
-            authoritativeDomain: resource.baseUrl,
+            // TODO: This should be indicated by the resource with some vocabulary
+            authoritativeDomain: domain,
+            anchorTerms: [ subjectTerm ],
           }
         );
         console.log(`Using composite star source: ${added}`);

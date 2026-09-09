@@ -10,6 +10,7 @@ import { KeysDerivedResourceSelect, KeysQuerySourceIdentifyLinkTraversal } from 
 import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { KeysInitQuery, KeysRdfJoin } from '@comunica/context-entries';
 import type * as RDF from '@rdfjs/types';
+import { isDomainDelimited, isWithinDomain } from '@comunica/actor-rdf-join-inner-multi-stems';
 import { extractLinearSubqueries } from './LinearSubqueries';
 
 /**
@@ -76,17 +77,27 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     // without two composite sources ever covering the same join entry
     await Promise.allSettled(
       Array.from(bgpsToResources.entries()).map(async ([patterns, resource]) => {
+        // TODO: The resource should have a way of indicating its domain, this only
+        // works if the domain of the resource is at where it resides.
+        const domain = resource.baseUrl;
+        // The domain is fixed for this resource, so the separator check it needs is hoisted
+        // out of the per-binding filter below
+        const domainIsDelimited = isDomainDelimited(domain);
+
         // Any subject within the chain that isn't a variable must be within authoritativeness
         // of the source, otherwise discard
-        const subjectTerms: RDF.Variable[] = [];
+        const subjectVariables: RDF.Variable[] = [];
+        const subjectTerms: RDF.Term[] = [];
         for (let i = 0; i < patterns.length; i++) {
           const subjectTerm = patterns[i].subject;
-          if (subjectTerm.termType !== 'Variable' && !subjectTerm.value.startsWith(resource.baseUrl)) {
-            return; 
+          subjectTerms.push(subjectTerm);
+          if (subjectTerm.termType !== 'Variable' &&
+            !isWithinDomain(subjectTerm.value, domain, domainIsDelimited)) {
+            return;
           }
           // Any variable bindings within the linear query must be checked for authoritativeness
           if (subjectTerm.termType === 'Variable'){
-            subjectTerms.push(subjectTerm);
+            subjectVariables.push(subjectTerm);
           }
         }
 
@@ -98,26 +109,20 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
         // We filter any subject variable terms that are not within authority.
         // In chain ?s <p1> ?o1  ?o1 <p2> ?o2 we need to be authoritative over ?s and ?o1
         // not ?o2.
-        if (subjectTerms.length > 0) {
-          bindingsStream = bindingsStream.filter((binding: Bindings) => {
-            const bound =  subjectTerms.map((subjTerm) => binding.get(subjTerm));
-            return bound.every((term) => (term !== undefined && term.value.startsWith(resource.baseUrl)));
-          });
+        if (subjectVariables.length > 0) {
+          bindingsStream = bindingsStream.filter((binding: Bindings) => subjectVariables.every(
+            (subjVar) => {
+              const term = binding.get(subjVar);
+              return term !== undefined && isWithinDomain(term.value, domain, domainIsDelimited);
+            },
+          ));
         }
 
-        // Extractors for checking authoritativeness on base operators
-        // must be on both subject and object on inner triple patterns,
-        // only outer pattern can have object outside of authoritativeness
-        const patternFilterExtractors: RDF.Term[][] = [];
-        for (let j = 0; j < patterns.length - 1; j++){
-          patternFilterExtractors.push([ patterns[j].subject, patterns[j].object ]);
-        }
-        patternFilterExtractors.push([ patterns[patterns.length - 1].subject ])
-
-        const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream, 
+        const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream,
           {
-            patternToExtractor: patternFilterExtractors,
-            authoritativeDomain: resource.baseUrl,
+            // TODO: This should be indicated by the resource with some vocabulary
+            authoritativeDomain: domain,
+            anchorTerms: subjectTerms,
           }
         );
         console.log(`Using composite linear source: ${added}`);

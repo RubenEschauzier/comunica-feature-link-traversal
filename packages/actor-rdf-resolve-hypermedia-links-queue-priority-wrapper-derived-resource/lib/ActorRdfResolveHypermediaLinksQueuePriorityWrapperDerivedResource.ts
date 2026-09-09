@@ -29,11 +29,7 @@ export class ActorRdfResolveHypermediaLinksQueuePriorityWrapperDerivedResource e
 
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
 
-    if (!(linkQueue instanceof LinkQueuePriority)) {
-      throw new TypeError('Tried to wrap a non-priority queue with a link prioritisation wrapper.');
-    }
-
-    return { linkQueue: new LinkQueueDerivedResourcePrioritization(linkQueue, this.derivedResourcePredicate) };  }
+    return { linkQueue: new LinkQueueDerivedResourcePrioritization(<LinkQueuePriority>linkQueue, this.derivedResourcePredicate) };  }
 }
 
 

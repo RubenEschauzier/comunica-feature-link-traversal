@@ -84,11 +84,9 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
         // With estimated selectivities we can actually easily greedly do it by just taking
         // the two most selective and proceeding from there. Super easy!
 
-        // TODO: uture work: the resource should have a way of indicating its domain, 
+        // TODO: Future work: the resource should have a way of indicating its domain, 
         // this only works if the domain of the resource is at where it resides.
         const domain = resource.baseUrl;
-        // The domain is fixed for this resource, so the separator check it needs is hoisted
-        // out of the per-binding filter below
         const domainIsDelimited = isDomainDelimited(domain);
 
         // Any subject within the chain that isn't a variable must be within authoritativeness
@@ -127,7 +125,6 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
 
         const added = adaptiveJoinController.addCompositeSource(patterns, bindingsStream,
           {
-            // TODO: This should be indicated by the resource with some vocabulary
             authoritativeDomain: domain,
             anchorTerms: subjectTerms,
           }

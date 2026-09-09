@@ -1,0 +1,530 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{latexsym} % Required for \Join
+\usepackage{booktabs}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+\newtheorem{remark}{Remark}
+
+
+\title{TempPasteOutput}
+\author{Ruben Eschauzier}
+\date{September 2026}
+
+\begin{document}
+
+\maketitle
+% Lets look at it closely. Consider Pod A has CR with three triple patterns in linear shape:
+% $?s <p1> ?o1 $, $?o1 <p2> ?o2$, $?o2 <p3> ?o3$.
+% Then given the authoritativeness constraint, the results of this join form an exclusive group iff:
+% $?s \in CR, ?o1\in CR, ?o2 \in CR$
+
+% Here $\in$ is used to indicate authoritativeness of CR over the term binding to the variable, as its in its domain and term starts with the domain specification.
+
+% Now we have query execution
+
+Lets look at it closely. Consider Pod A has CR with three triple patterns in linear shape:
+$tp1 = ?s <p1> ?o1 $, $tp2 = ?o1 <p2> ?o2$.
+Then given the authoritativeness constraint, the results of this join form an exclusive group iff:
+$?s \in CR, ?o1\in CR$.
+
+Here $\in$ is used to indicate authoritativeness of CR over the term binding to the variable, as its in its domain and term starts with the domain specification.
+\\ \\
+Now we have query execution:
+$tp1 \Join tp2$, which now admits four subplans, where (A) indicates the authoritative subset of the plan claimed by the CR of Pod A:
+
+$(tp1(A) \Join tp2(A)) \cup ((tp1 \setminus tp1(A)) \Join tp2) \cup ((tp2 \setminus tp2(A)) \Join tp1) \cup (tp1\Join tp2$.
+
+Obviously, the first term is handled by the CR, while the rest is handled by the default operators of the query.
+
+Thus, the base operators should only filter solution mappings iff:
+$\mu(tp1) \in (tp1(A) \Join tp2(A))$ or viceversa for tp2.
+
+However, the claim is you can't know if this is true unless you know the full result. However, from construction of the delegated sub-query to CR we know its a strict linear query, no branches or other things. In this case if a CR is authoritative over an inner triple pattern (not the end one), then both subject and object of the triple pattern $\in CR$.
+In that case the subject of the next also $\in CR$, so this will always need to be filtered
+
+
+\subsection*{Authoritativeness of Delegated Joins}
+
+Let Pod $A$ expose a composite resource $CR$ whose query is the path
+\[
+tp_1 = {?s}\ \langle p_1\rangle\ {?o_1}, \qquad
+tp_2 = {?o_1}\ \langle p_2\rangle\ {?o_2}.
+\]
+
+A composite resource does not answer for the whole web, nor necessarily for the whole
+pod that publishes it. What it answers for is a parameter of the resource, and the entire
+development below is relative to it.
+
+\begin{definition}[Authority scope]
+A composite resource $CR$ declares an \emph{authority scope} $S$, a set of RDF terms. We
+write $t \in CR$ for $t \in S$.
+\end{definition}
+
+\begin{assumption}[Scope completeness]
+\label{as:scope}
+Every triple whose subject lies in $S$ belongs to the dataset over which $CR$ evaluates
+its query.
+\end{assumption}
+
+Nothing in what follows depends on how $S$ is expressed. For the resources we consider it
+is the namespace of the pod publishing the resource, and Assumption~\ref{as:scope} then
+coincides with the authoritativeness assumption already made of pods: a pod is the sole
+source of triples about the subjects it hosts. Stating the scope separately makes visible
+what that assumption fixes, namely a space, and lets the same development cover resources
+that claim less than a whole pod.
+
+A resource aggregating a strict sub-space of its pod satisfies
+Assumption~\ref{as:scope} only for that sub-space. Delegating to such a resource is still
+sound --- it answers what it answers --- but testing mappings against the wider space is
+not, since a mapping may be authoritative to the pod and yet outside what the resource
+aggregated. An engine that cannot establish the scope of a resource must therefore
+decline to prune rather than approximate it.
+
+Since a pod is authoritative exactly for the subjects it hosts, the \emph{anchor} of a
+triple pattern is its subject, and the anchors of a set of patterns $B$ are
+$\mathit{anchors}(B) = \{\, \mathit{subj}(tp) \mid tp \in B \,\}$. Pod $A$ can evaluate
+$B$ completely if and only if every anchor lies in $S$. For the path above,
+\[
+{?s} \in CR \quad\text{and}\quad {?o_1} \in CR ,
+\]
+with no condition on $?o_2$: it is the object of the last pattern and therefore not an
+anchor. Where these conditions hold, $A$ is the only possible source of the join, so
+the delegated evaluation is exclusive --- exclusive per solution mapping rather than per
+pattern, since other pods answer the same patterns for other bindings.
+
+\subsection*{Deciding Membership}
+
+Whether $t \in S$ holds is decided differently for the two kinds of term that can occupy
+an anchor position.
+
+For an IRI, the scope is a namespace and the test is syntactic: $t$ lies in $S$ when it
+falls under the namespace, compared on path segment boundaries so that a namespace does
+not capture a sibling that merely shares a prefix of its name. This costs nothing beyond
+a string comparison and requires no knowledge of where the triple was read.
+
+A blank node carries no namespace, so nothing about the term itself places it in a scope.
+What does place it is provenance: blank nodes are scoped to the document that introduces
+them, and no triple outside that document can refer to one. Hence if the document a blank
+node came from is one the resource aggregates, both the triples binding it and every
+triple that could extend them are in the resource's dataset, and the anchor condition
+holds. Membership for blank nodes is therefore decided by source attribution and cannot
+be decided any other way --- the syntactic test is not merely unavailable, it is
+meaningless. An engine that does not track which document a mapping was read from must
+decline to prune whenever an anchor is a blank node.
+
+\begin{remark}[Blank nodes shared beyond the block]
+\label{rem:bnode}
+Blank node identity is local to the document or result that carries it, so the blank node
+a resource returns in its answer is not the same term as the one a client reads from the
+underlying document. A blank-node anchor may therefore be pruned only when the anchor
+variable does not also occur outside $B$: if it does, the mappings the resource supplies
+in place of the pruned ones will not join with the rest of the query. Whether this applies
+is decided once, from the query, and not per mapping.
+\end{remark}
+
+\subsection*{Decomposition}
+
+Write $tp_i^{A}$ for the restriction of $tp_i$ to mappings satisfying its anchor
+condition, and $tp_i^{\lnot A}$ for its complement. Both are decidable locally, as each
+pattern binds its own anchor. The join then splits into four disjoint parts, one per
+combination of the two conditions:
+\[
+tp_1 \bowtie tp_2 \;=\;
+\underbrace{(tp_1^{A} \bowtie tp_2^{A})}_{\text{delegated to } CR}
+\;\uplus\; (tp_1^{A} \bowtie tp_2^{\lnot A})
+\;\uplus\; (tp_1^{\lnot A} \bowtie tp_2^{A})
+\;\uplus\; (tp_1^{\lnot A} \bowtie tp_2^{\lnot A}).
+\]
+The first part is answered by $CR$; the remaining three are answered by the engine's
+default operators. This is an identity rather than a plan: the engine evaluates the
+ordinary join and removes the delegated part, rather than evaluating three additional
+joins. For a path of $n$ patterns the decomposition has $2^n$ parts, of which exactly
+one is delegated.
+
+\subsection*{Detecting the Delegated Part}
+
+Deciding $\mu \in (tp_1^{A} \bowtie tp_2^{A})$ appears to require the delegated join
+itself, but it does not.
+
+\begin{lemma}[Membership]
+Let block $B$ be delegated to $A$. Then
+$\mu \in B(A) \iff \mu(t) \in CR$ for every $t \in \mathit{anchors}(B)$.
+\end{lemma}
+
+Membership is thus a conjunction of independent authority tests, decidable on any
+mapping that binds all anchors, with no materialisation of the delegated result. The
+lemma does not depend on the block being a path; it holds for any conjunctive block, and
+the anchor set is what varies between shapes. It does depend on
+Assumption~\ref{as:scope}: the forward direction is exclusivity, which the anchors give,
+and the converse is completeness of $CR$ over $S$, which the assumption gives.
+
+\begin{lemma}[Pruning]
+A default operator for $tp \in B$ may discard the mappings satisfying the anchor
+conditions of $B$ if and only if $\mathit{anchors}(B) \subseteq \mathit{vars}(tp)$.
+\end{lemma}
+
+The condition is necessary because a pattern that does not bind every anchor cannot
+distinguish the delegated part from the parts that share its tuples. In the path above,
+a $tp_1$ mapping binds both $?s$ and $?o_1$ and so decides both conditions: if it
+satisfies them it can occur only in the delegated part, and may be pruned. A $tp_2$
+mapping binds $?o_1$ but not $?s$; a $tp_2$ tuple with $?o_1 \in CR$ occurs both in the
+delegated part and in $tp_1^{\lnot A} \bowtie tp_2^{A}$, the case in which the path
+enters $A$ from outside. Pruning it would lose that part.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+block & anchors & prunable patterns \\
+\midrule
+star at $?x$        & $\{?x\}$                       & all \\
+path of length $2$  & $\{?s, ?o_1\}$                 & $tp_1$ only \\
+path of length $n \geq 3$ & $\{?s, ?o_1, \dots, ?o_{n-1}\}$ & none \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A star is the shape for which pruning is always available: its anchor set is a
+singleton, and that anchor occurs in every one of its patterns. For path with $N=2$, we can also delegate. Longer paths distribute
+their anchors across patterns, so the delegated part remains detectable but the inputs
+to the default operators cannot be reduced.
+
+Throughout, soundness rests on Assumption~\ref{as:scope} together with the requirement
+that the resource's query is exactly the delegated block: the decomposition prevents
+double counting, but only completeness over $S$ licenses removing the delegated part from
+the default plan.
+
+
+\subsection*{Operators, Coverage, and the Uniform Filter}
+
+The decomposition above is stated over patterns, but an engine prunes at operators, and
+an operator need not correspond to a single pattern. Let an operator $o$ of the default
+plan \emph{cover} a set $\mathit{cov}(o) \subseteq B$ of the block's patterns and emit
+mappings over $\mathit{vars}(\mathit{cov}(o))$. Its \emph{depth} is
+$|\mathit{cov}(o)|$: an operator scanning a single triple pattern has depth $1$, and an
+operator holding the connected sub-block it has joined so far has the depth of that
+sub-block. Depth counts patterns covered, not position along the path.
+
+Anchors need not be variables. If some constant anchor is not in $CR$ the block is not
+delegable at all and no filter is registered; otherwise every constant anchor is
+discharged once, at registration time, and only the \emph{residual} anchors
+\[
+\mathit{anchors}_V(B) \;=\; \mathit{anchors}(B) \cap \mathcal{V}
+\]
+remain to be tested per mapping.
+
+\begin{lemma}[Generalised Pruning]
+Let $B$ be delegated to $A$ and let $o$ be an operator of the default plan with
+$\mathit{cov}(o) \subseteq B$. Discarding from $o$ every mapping that satisfies all
+anchor conditions of $B$ is sound for every database if and only if
+\[
+\mathit{anchors}_V(B) \;\subseteq\; \mathit{vars}(\mathit{cov}(o)).
+\]
+\end{lemma}
+
+\begin{proof}
+($\Leftarrow$) The condition makes every anchor of $B$ bound in any mapping $\mu$ emitted
+by $o$, so the anchor conditions are decidable on $\mu$. Let $\mu$ satisfy them and let
+$\nu$ be any mapping over $B$ with $\nu \supseteq \mu$. The anchor conditions constrain
+only terms bound by $\mu$, so $\nu$ satisfies them as well, and $\nu \in B(A)$ by
+Membership. Every solution of the whole query factors through a mapping over $B$, so
+every solution reachable through $\mu$ is reachable through some $\nu \in B(A)$, and
+those are exactly what $CR$ supplies. Discarding $\mu$ therefore removes no solution
+from the union.
+
+($\Rightarrow$) Let $t \in \mathit{anchors}_V(B) \setminus
+\mathit{vars}(\mathit{cov}(o))$, so $o$ can test only the proper subset of the anchor
+conditions its mappings bind. Choose a database in which some $\nu \supseteq \mu$ has
+$\nu(t) \notin CR$. Then $\nu \notin B(A)$, so $CR$ does not return it, while $\mu$ has
+been discarded, so the default plan cannot produce it either. The mapping $\nu$ is lost.
+\end{proof}
+
+\begin{corollary}[The first pattern is not privileged]
+For a path of length $n$, the depth-$1$ operator of $tp_1$ satisfies the condition if
+and only if $n \leq 2$, and no other depth-$1$ operator of the path satisfies it for any
+$n$.
+\end{corollary}
+
+\begin{proof}
+Assume every anchor is a variable, so $\mathit{anchors}_V(B) = \{?s, ?o_1, \dots,
+?o_{n-1}\}$, of size $n$. Since $\mathit{vars}(tp_1) = \{?s, ?o_1\}$, the inclusion
+holds exactly when $n \leq 2$. For $i \geq 2$ we have $?s \notin \mathit{vars}(tp_i) =
+\{?o_{i-1}, ?o_i\}$, so the inclusion fails for every $n$.
+\end{proof}
+
+At $n = 2$ the single prunable operator is thus the one scanning $tp_1$, the pattern that
+enters the domain. The operator scanning $tp_2$ is not prunable, even though $tp_2$ is
+the pattern whose anchor condition is the last one to be decided: its mappings leave
+$?s$ free, so a $tp_2$ tuple with $?o_1 \in CR$ serves both the delegated part and the
+part in which a triple from outside $A$ connects into $?o_1$. Prunability follows the
+variables an operator binds, not the direction in which the path is read.
+
+Concretely, at $n = 3$ a $tp_1$ mapping with $?s \in CR$ and $?o_1 \in CR$ still occurs
+in $tp_1^{A} \bowtie tp_2^{A} \bowtie tp_3^{\lnot A}$: the path runs two hops inside $A$
+and then leaves it, because $A$ is authoritative for the subject $?o_1$ but says nothing
+about where its object $?o_2$ lives. That part is not delegated, $CR$ never emits it, and
+pruning $tp_1$ loses it.
+
+The corollary is about coverage, not about position in the path. If the entry point is a
+constant $\langle a \rangle \in CR$, then $\mathit{anchors}_V(B) = \{?o_1, ?o_2\}$ at
+$n = 3$, and the prunable depth-$1$ operator is the one scanning $tp_2$, whose variables
+are exactly those two, while $tp_1$, binding only $?o_1$, is not prunable. Binding the
+entry point buys back one level of pruning depth, and moves the prunable pattern along
+the path.
+
+\subsection*{Methodology}
+
+The lemma is awkward to apply per operator, since it asks each one to reason about the
+block it belongs to. It becomes self-applying if the test is stated once, over the whole
+block, and evaluated with the convention that an unbound anchor fails:
+\[
+\mathit{prune}_B(\mu) \;\equiv\; \bigwedge_{t \in \mathit{anchors}_V(B)}
+\bigl( t \in \mathrm{dom}(\mu) \wedge \mu(t) \in CR \bigr).
+\]
+Register this one predicate --- the full residual anchor set of $B$, not the anchors of
+the operator's own patterns --- on every operator covering a pattern of $B$. An operator
+whose mappings do not bind some anchor of $B$ can never satisfy the conjunction and so
+never prunes, which is the necessity direction of the lemma discharged automatically. An
+operator that does bind them all prunes exactly the delegated part, which is the
+sufficiency direction. No shape analysis is needed at registration time, and the same
+predicate stays correct as the operator's coverage grows during adaptive execution.
+
+The predicate must not fire on the mappings the resource itself supplies, which satisfy
+every anchor condition by construction and would otherwise be deleted as though the
+default plan had produced them. A mapping is exempt when any part of its derivation came
+from the resource owning the block, which is a property of the derivation rather than of
+its last step: in an adaptive plan the resource may equally have seeded a derivation or
+been probed by one, and only an accumulated record of the resources a mapping passed
+through distinguishes both cases.
+
+\subsection*{Pruning Depth}
+
+What the shape of $B$ decides is not \emph{whether} the test applies but \emph{how deep}
+in the plan it first applies. Define the \emph{cover number} $\gamma(B)$ as the size of
+the smallest $C \subseteq B$ with $\mathit{anchors}_V(B) \subseteq \mathit{vars}(C)$, and
+the \emph{connected cover number} $\gamma_c(B)$ as the same quantity restricted to
+connected $C$. An engine that does not form cartesian products materialises only
+connected sub-blocks, so $\gamma_c$ is the operative one: by the Generalised Pruning
+lemma it is exactly the least depth at which an operator of the default plan may prune.
+
+\begin{proposition}
+For a path of length $n$, $\gamma(B) = \lceil n/2 \rceil$ and $\gamma_c(B) = n - 1$. For
+a star of $k$ patterns, $\gamma(B) = \gamma_c(B) = 1$.
+\end{proposition}
+
+\begin{proof}
+Write $o_0 = {?s}$, so $\mathit{anchors}_V(B) = \{o_0, \dots, o_{n-1}\}$ and
+$\mathit{vars}(tp_i) = \{o_{i-1}, o_i\}$. Each pattern contains at most two anchors,
+giving $\gamma(B) \geq \lceil n/2 \rceil$, and $\{tp_1, tp_3, tp_5, \dots\}$ attains it.
+A connected $C$ is a contiguous run $tp_i, \dots, tp_j$ with $\mathit{vars}(C) =
+\{o_{i-1}, \dots, o_j\}$; covering $o_0$ forces $i = 1$ and covering $o_{n-1}$ forces
+$j \geq n-1$, so $C \supseteq \{tp_1, \dots, tp_{n-1}\}$, which is itself a cover. For a
+star the anchor set is a singleton contained in every pattern.
+\end{proof}
+
+\begin{corollary}[Work removed]
+\label{cor:work}
+Forming a smallest connected cover costs $\gamma_c(B) - 1$ joins, and evaluating $B$
+costs $|B| - 1$, so pruning removes at most $|B| - \gamma_c(B)$ joins per delegated
+mapping, attained when the plan forms a smallest connected cover. For a star this is
+$k - 1$, the whole block. For a path it is $1$, independent of $n$.
+\end{corollary}
+
+The bound is not always attained, because an adaptive plan chooses its own join order. Of
+the two connected sub-blocks of size $n-1$ in a path --- the prefix $tp_1 \dots tp_{n-1}$
+and the suffix $tp_2 \dots tp_n$ --- only the prefix contains $?s$ and hence covers the
+anchors. An order that builds the suffix first reaches the anchor cover only at the root,
+where no join is left to skip and pruning coincides with deduplication.
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+block & $\gamma_c$ & shallowest prunable operator & joins removed \\
+\midrule
+star at $?x$, $k$ patterns & $1$   & any single pattern               & $k - 1$ \\
+path, $n = 2$              & $1$   & $tp_1$ alone                     & $1$ (all) \\
+path, $n \geq 3$           & $n-1$ & the prefix $tp_1 \dots tp_{n-1}$ & $1$ of $n-1$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The two path cases differ in kind, not degree. At $n = 2$ the smallest cover has depth
+$1$, so the test runs on $tp_1$ before its tuples are indexed: the delegated part never
+enters the join state, and the reduction is a reduction of \emph{input}. At $n \geq 3$
+the smallest connected cover has $n - 1$ patterns, so the test can only run after the
+block has already been joined almost to completion: the delegated part is built and then
+dropped, and the reduction is a reduction of \emph{output}. The delegated mappings still
+consume hash-table space, still generate intermediate results, and still drive whatever
+link discovery those results imply. What is saved is the final join and everything
+downstream of it, a fraction $1/(n-1)$ of the block that vanishes as the path grows.
+
+Applying the test at maximal depth, where the covering operator is $B$ itself, is
+deduplication: pruning and deduplication are the same predicate evaluated at different
+depths. This is also why the test cannot simply be omitted for long paths. If no
+operator of $B$ ever evaluates it, the default plan reproduces the delegated part in
+full, the four-way decomposition stops being a partition of what the engine emits, and
+$CR$ contributes duplicates rather than results.
+
+\section{The Scope of Delegation}
+
+The pruning analysis gives a criterion for which blocks are worth delegating at all, and
+it is sharper than a restriction on shape. We state it, show that it excludes long paths,
+and show that long paths can nevertheless be delegated by decomposing them into blocks
+that satisfy it.
+
+\begin{definition}[Reducible block]
+A block $B$ is \emph{reducible} if $\gamma_c(B) = 1$, that is, if some single pattern of
+$B$ binds every residual anchor of $B$:
+\[
+\exists\, tp \in B \;:\; \mathit{anchors}_V(B) \subseteq \mathit{vars}(tp).
+\]
+\end{definition}
+
+Reducibility is a property of the block, not of a shape vocabulary. It admits stars of
+any size, whose anchor set is a singleton occurring in every pattern; paths of length
+two, whose anchors $\{?s, ?o_1\}$ are the variables of $tp_1$; and any block, of whatever
+shape, whose anchors happen to be collected in one pattern. It excludes paths of length
+three or more, whose anchors are distributed across patterns.
+
+\begin{theorem}[Characterisation]
+The delegated part $B(A)$ contributes nothing to the join state of the default plan if
+and only if $B$ is reducible.
+\end{theorem}
+
+\begin{proof}
+By the Generalised Pruning lemma an operator may prune exactly when its mappings bind
+every anchor of $B$, and by definition of $\gamma_c$ the shallowest such operator has
+depth $\gamma_c(B)$. If $\gamma_c(B) = 1$ that operator scans a single pattern, so the
+test is decided on each tuple as it is read, before it is indexed: no mapping of $B(A)$
+is ever inserted into the join state. If $\gamma_c(B) > 1$ no depth-$1$ operator can
+decide the test, so every tuple of $B(A)$ is indexed, and the mappings composing $B(A)$
+are built by at least $\gamma_c(B) - 1$ joins before any of them can be discarded.
+\end{proof}
+
+The two cases differ in what pruning removes. At depth $1$ a discarded tuple never enters
+the index, never probes, and never produces the intermediate results that would have
+descended from it, so the saving is the whole sub-derivation rooted at that tuple and
+scales with its fanout. At depth $\gamma_c(B) > 1$ the mapping has already been built,
+and discarding it removes one join and the routing that would have followed. The first
+saving is multiplicative in the data, the second is additive.
+
+\subsection{Longer Paths Do Not Pay}
+
+For a path, the excluded case can be quantified exactly. Write $D = B(A)$ for the
+delegated part and $P$ for the mappings over a smallest connected cover that satisfy the
+anchor conditions; each $p \in P$ extends to one or more members of $D$, so
+$|P| \leq |D|$. By Corollary~\ref{cor:work} at most one join per delegated mapping is
+removed, and only in the orders that form such a cover.
+
+\begin{proposition}[Cost of delegating a path of length $n \geq 3$]
+Let $c_{\mathit{req}}$ be the cost of a request, $c_{\mathit{parse}}$ the cost of
+admitting one mapping from the resource, $c_{\mathit{join}}$ one join probe and
+$c_{\mathit{mat}}$ one materialised mapping. Then
+\[
+W_{CR} - W_{\mathit{base}} \;=\;
+c_{\mathit{req}} + |D|\,c_{\mathit{parse}}
+\;-\; \bigl( |P|\,c_{\mathit{join}} + |D|\,c_{\mathit{mat}} \bigr),
+\]
+where the subtracted term is present only for the mappings whose join order forms a
+smallest connected cover, and is zero otherwise.
+\end{proposition}
+
+\begin{proof}
+Everything downstream of $B$ is unchanged: $|D|$ mappings enter the rest of the query
+whether the resource or the default plan produced them. Within $B$, the default plan
+performs the same joins as without the resource up to depth $\gamma_c(B) = n-1$, since no
+shallower operator can prune. For the mappings that reach a cover, the final join and the
+materialisation of their completions are skipped; for the others nothing is skipped. The
+resource adds one request and the admission of $|D|$ mappings.
+\end{proof}
+
+Since $c_{\mathit{parse}} \geq c_{\mathit{mat}}$ --- admitting a mapping off the wire is
+not cheaper than producing one from a hash probe --- the difference is non-negative in
+every join order. Delegating a path of length three or more therefore never reduces total
+work. What it reduces is latency: the default plan needs $n$ dependent round trips, since
+the document binding $?o_{i}$ cannot be fetched before $?o_{i-1}$ resolves, whereas the
+resource answers in one. The additional work is performed while the engine would
+otherwise be blocked, so it is free in wall-clock terms exactly while the engine is
+I/O-bound, and not otherwise.
+
+\subsection{Reducible Decompositions}
+
+Excluding long paths from delegation does not mean answering them without composite
+resources, because a path can be partitioned into reducible blocks.
+
+\begin{proposition}[Tiling]
+Every connected sub-block of a path $tp_1, \dots, tp_n$ is a contiguous run, and a run of
+$m$ patterns is reducible if and only if $m \leq 2$. Consequently every path admits a
+partition into reducible blocks, and the smallest such partition has $\lceil n/2 \rceil$
+blocks.
+\end{proposition}
+
+\begin{proof}
+A run $tp_i, \dots, tp_j$ of length $m = j - i + 1$ has anchors
+$\{o_{i-1}, \dots, o_{j-1}\}$ and $\gamma_c = m - 1$ for $m \geq 2$ by the earlier
+proposition, and $\gamma_c = 1$ for $m = 1$; so it is reducible exactly when $m \leq 2$.
+A partition into reducible blocks therefore uses blocks of at most two patterns and needs
+at least $\lceil n/2 \rceil$ of them, and the partition into consecutive pairs, with one
+singleton when $n$ is odd, attains that bound.
+\end{proof}
+
+The tiles are pattern-disjoint, so no two of them claim the same join entry, and each is
+delegated under its own anchor conditions --- possibly to different pods, when the path
+crosses pod boundaries. Their queries are parameterised rather than bound, so they do not
+depend on one another and are requested concurrently: latency remains one round trip, as
+it would be for a single resource covering the whole path, while every tile prunes at
+depth $1$ and so removes its part of the delegated data from the default plan's join
+state.
+
+The tiles are, however, less selective than the path they decompose. A resource answering
+$tp_1 \dots tp_4$ returns the mappings of the whole path, whereas two tiles return the
+mappings of $tp_1 tp_2$ and of $tp_3 tp_4$ separately and leave their join to the client.
+Decomposition therefore trades transferred volume and client-side join work for input
+pruning and lower per-request server compute. Which side wins depends on the selectivity
+of the path relative to its halves, and is an empirical question rather than one the
+analysis settles.
+
+\subsection{Guidance for Publishers}
+
+Because reducibility is a property of the published block rather than of the client, the
+criterion also says what a pod should expose. A resource answering a long path gives
+clients a latency improvement and no reduction in work, since its result is rebuilt by
+the client's default operators before being discarded. The same data published as
+reducible tiles gives both, at the cost of one request per tile and a less selective
+answer. A pod that publishes composite resources for its data is therefore better served
+by publishing blocks of unit cover number --- stars over its subjects, and two-hop paths
+--- than by publishing the longest paths it can compute.
+
+The same argument applies to scope. A resource whose authority scope is a whole
+namespace can be pruned against; one that aggregates a fragment of a namespace without
+saying so cannot, and its clients must fall back to delegating without pruning. Declaring
+the scope costs the publisher nothing and is what turns a resource from a latency
+optimisation into a work reduction.
+
+\subsection{What the Analysis Predicts}
+
+The account above is falsifiable on three counts, and an evaluation that delegates long
+paths as an ablation can check each directly:
+
+\begin{enumerate}
+\item time to first result improves for delegated paths of any length, in proportion to
+      the number of dependent round trips removed;
+\item total work increases for paths of length three or more, and decreases for stars and
+      two-hop paths;
+\item the distribution of pruning depth concentrates at depth $1$ for reducible blocks and
+      at or near the root for longer paths, with the fraction reaching depth $n-1$
+      governed by how often the adaptive order builds the prefix rather than the suffix.
+\end{enumerate}
+
+The third is the most informative, as it separates the two mechanisms: a long path whose
+prunes all land at the root is contributing nothing but a request and a parse, and the
+measurement says so without reference to the timings.
+
+
+\end{document}

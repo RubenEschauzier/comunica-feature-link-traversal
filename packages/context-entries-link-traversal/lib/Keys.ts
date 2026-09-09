@@ -85,6 +85,10 @@ export const KeysDerivedResourceSelect = {
     '@comunica/bus-derived-resource-select:patternToDerivedResource',
   ),
   starPatternToDerivedResource: new ActionContextKey<Map<Algebra.Pattern[], IDerivedResource>>(
-    '@comunica/bus-derived-resource-select:patternToDerivedResource',
+    '@comunica/bus-derived-resource-select:starPatternToDerivedResource',
   ),
+  linearPatternToDerivedResource: new ActionContextKey<Map<Algebra.Pattern[], IDerivedResource>>(
+    '@comunica/bus-derived-resource-select:linearPatternToDerivedResource',
+  ),
+
 }

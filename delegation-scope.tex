@@ -1,0 +1,172 @@
+% Continuation of the pruning-depth material. Requires: amsmath, amsthm, booktabs.
+% \newtheorem{theorem}{Theorem}
+% \newtheorem{lemma}{Lemma}
+% \newtheorem{proposition}{Proposition}
+% \newtheorem{corollary}{Corollary}
+% \newtheorem{definition}{Definition}
+%
+% Notation assumed from the earlier sections: a block $B$ delegated to a composite
+% resource $CR$ of pod $A$; $\mathit{anchors}_V(B)$ the residual (variable) anchors;
+% $B(A)$ the delegated part; $\gamma_c(B)$ the connected cover number, the least depth at
+% which an operator of the default plan may prune.
+
+\section{The Scope of Delegation}
+
+The pruning analysis gives a criterion for which blocks are worth delegating at all, and
+it is sharper than a restriction on shape. We state it, show that it excludes long paths,
+and show that long paths can nevertheless be delegated by decomposing them into blocks
+that satisfy it.
+
+\begin{definition}[Reducible block]
+A block $B$ is \emph{reducible} if $\gamma_c(B) = 1$, that is, if some single pattern of
+$B$ binds every residual anchor of $B$:
+\[
+\exists\, tp \in B \;:\; \mathit{anchors}_V(B) \subseteq \mathit{vars}(tp).
+\]
+\end{definition}
+
+Reducibility is a property of the block, not of a shape vocabulary. It admits stars of
+any size, whose anchor set is a singleton occurring in every pattern; paths of length
+two, whose anchors $\{?s, ?o_1\}$ are the variables of $tp_1$; and any block, of whatever
+shape, whose anchors happen to be collected in one pattern. It excludes paths of length
+three or more, whose anchors are distributed across patterns.
+
+\begin{theorem}[Characterisation]
+The delegated part $B(A)$ contributes nothing to the join state of the default plan if
+and only if $B$ is reducible.
+\end{theorem}
+
+\begin{proof}
+By the Generalised Pruning lemma an operator may prune exactly when its mappings bind
+every anchor of $B$, and by definition of $\gamma_c$ the shallowest such operator has
+depth $\gamma_c(B)$. If $\gamma_c(B) = 1$ that operator scans a single pattern, so the
+test is decided on each tuple as it is read, before it is indexed: no mapping of $B(A)$
+is ever inserted into the join state. If $\gamma_c(B) > 1$ no depth-$1$ operator can
+decide the test, so every tuple of $B(A)$ is indexed, and the mappings composing $B(A)$
+are built by at least $\gamma_c(B) - 1$ joins before any of them can be discarded.
+\end{proof}
+
+The two cases differ in what pruning removes. At depth $1$ a discarded tuple never enters
+the index, never probes, and never produces the intermediate results that would have
+descended from it, so the saving is the whole sub-derivation rooted at that tuple and
+scales with its fanout. At depth $\gamma_c(B) > 1$ the mapping has already been built,
+and discarding it removes one join and the routing that would have followed. The first
+saving is multiplicative in the data, the second is additive.
+
+\subsection{Longer Paths Do Not Pay}
+
+For a path, the excluded case can be quantified exactly. Write $D = B(A)$ for the
+delegated part and $P$ for the mappings over a smallest connected cover that satisfy the
+anchor conditions; each $p \in P$ extends to one or more members of $D$, so
+$|P| \leq |D|$.
+
+\begin{corollary}[Joins removed]
+Delegating a block removes at most $|B| - \gamma_c(B)$ joins per delegated mapping, and
+attains this only when the plan forms a smallest connected cover. For a star of $k$
+patterns the bound is $k - 1$, the whole block; for a path of length $n \geq 2$ it is $1$,
+independent of $n$.
+\end{corollary}
+
+The bound is not always attained, because an adaptive plan chooses its own join order. Of
+the two connected sub-blocks of size $n-1$ in a path --- the prefix $tp_1 \dots tp_{n-1}$
+and the suffix $tp_2 \dots tp_n$ --- only the prefix contains $?s$ and hence covers the
+anchors. An order that builds the suffix first reaches the anchor cover only at the root,
+where no join is left to skip and pruning coincides with deduplication.
+
+\begin{proposition}[Cost of delegating a path of length $n \geq 3$]
+Let $c_{\mathit{req}}$ be the cost of a request, $c_{\mathit{parse}}$ the cost of
+admitting one mapping from the resource, $c_{\mathit{join}}$ one join probe and
+$c_{\mathit{mat}}$ one materialised mapping. Then
+\[
+W_{CR} - W_{\mathit{base}} \;=\;
+c_{\mathit{req}} + |D|\,c_{\mathit{parse}}
+\;-\; \bigl( |P|\,c_{\mathit{join}} + |D|\,c_{\mathit{mat}} \bigr),
+\]
+where the subtracted term is present only for the mappings whose join order forms a
+smallest connected cover, and is zero otherwise.
+\end{proposition}
+
+\begin{proof}
+Everything downstream of $B$ is unchanged: $|D|$ mappings enter the rest of the query
+whether the resource or the default plan produced them. Within $B$, the default plan
+performs the same joins as without the resource up to depth $\gamma_c(B) = n-1$, since no
+shallower operator can prune. For the mappings that reach a cover, the final join and the
+materialisation of their completions are skipped; for the others nothing is skipped. The
+resource adds one request and the admission of $|D|$ mappings.
+\end{proof}
+
+Since $c_{\mathit{parse}} \geq c_{\mathit{mat}}$ --- admitting a mapping off the wire is
+not cheaper than producing one from a hash probe --- the difference is non-negative in
+every join order. Delegating a path of length three or more therefore never reduces total
+work. What it reduces is latency: the default plan needs $n$ dependent round trips, since
+the document binding $?o_{i}$ cannot be fetched before $?o_{i-1}$ resolves, whereas the
+resource answers in one. The additional work is performed while the engine would
+otherwise be blocked, so it is free in wall-clock terms exactly while the engine is
+I/O-bound, and not otherwise.
+
+\subsection{Reducible Decompositions}
+
+Excluding long paths from delegation does not mean answering them without composite
+resources, because a path can be partitioned into reducible blocks.
+
+\begin{proposition}[Tiling]
+Every connected sub-block of a path $tp_1, \dots, tp_n$ is a contiguous run, and a run of
+$m$ patterns is reducible if and only if $m \leq 2$. Consequently every path admits a
+partition into reducible blocks, and the smallest such partition has $\lceil n/2 \rceil$
+blocks.
+\end{proposition}
+
+\begin{proof}
+A run $tp_i, \dots, tp_j$ of length $m = j - i + 1$ has anchors
+$\{o_{i-1}, \dots, o_{j-1}\}$ and $\gamma_c = m - 1$ for $m \geq 2$ by the earlier
+proposition, and $\gamma_c = 1$ for $m = 1$; so it is reducible exactly when $m \leq 2$.
+A partition into reducible blocks therefore uses blocks of at most two patterns and needs
+at least $\lceil n/2 \rceil$ of them, and the partition into consecutive pairs, with one
+singleton when $n$ is odd, attains that bound.
+\end{proof}
+
+The tiles are pattern-disjoint, so no two of them claim the same join entry, and each is
+delegated under its own anchor conditions --- possibly to different pods, when the path
+crosses pod boundaries. Their queries are parameterised rather than bound, so they do not
+depend on one another and are requested concurrently: latency remains one round trip, as
+it would be for a single resource covering the whole path, while every tile prunes at
+depth $1$ and so removes its part of the delegated data from the default plan's join
+state.
+
+The tiles are, however, less selective than the path they decompose. A resource answering
+$tp_1 \dots tp_4$ returns the mappings of the whole path, whereas two tiles return the
+mappings of $tp_1 tp_2$ and of $tp_3 tp_4$ separately and leave their join to the client.
+Decomposition therefore trades transferred volume and client-side join work for input
+pruning and lower per-request server compute. Which side wins depends on the selectivity
+of the path relative to its halves, and is an empirical question rather than one the
+analysis settles.
+
+\subsection{Guidance for Publishers}
+
+Because reducibility is a property of the published block rather than of the client, the
+criterion also says what a pod should expose. A resource answering a long path gives
+clients a latency improvement and no reduction in work, since its result is rebuilt by
+the client's default operators before being discarded. The same data published as
+reducible tiles gives both, at the cost of one request per tile and a less selective
+answer. A pod that publishes composite resources for its data is therefore better served
+by publishing blocks of unit cover number --- stars over its subjects, and two-hop paths
+--- than by publishing the longest paths it can compute.
+
+\subsection{What the Analysis Predicts}
+
+The account above is falsifiable on three counts, and an evaluation that delegates long
+paths as an ablation can check each directly:
+
+\begin{enumerate}
+\item time to first result improves for delegated paths of any length, in proportion to
+      the number of dependent round trips removed;
+\item total work increases for paths of length three or more, and decreases for stars and
+      two-hop paths;
+\item the distribution of pruning depth concentrates at depth $1$ for reducible blocks and
+      at or near the root for longer paths, with the fraction reaching depth $n-1$
+      governed by how often the adaptive order builds the prefix rather than the suffix.
+\end{enumerate}
+
+The third is the most informative, as it separates the two mechanisms: a long path whose
+prunes all land at the root is contributing nothing but a request and a parse, and the
+measurement says so without reference to the timings.

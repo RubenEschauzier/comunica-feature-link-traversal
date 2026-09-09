@@ -116,7 +116,6 @@ export class ActorDerivedResourceIdentifyLinearQuery extends ActorDerivedResourc
         }
       }
     }
-    console.log(derivedResource);
     return derivedResource;
   }
 

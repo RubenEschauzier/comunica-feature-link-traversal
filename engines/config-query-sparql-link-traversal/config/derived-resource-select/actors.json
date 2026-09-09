@@ -6,7 +6,8 @@
     {
       "import": [
         "ccqslt:config/derived-resource-select/actors/actor-triple-pattern.json",
-        "ccqslt:config/derived-resource-select/actors/actor-star-query.json"
+        "ccqslt:config/derived-resource-select/actors/actor-star-query.json",
+        "ccqslt:config/derived-resource-select/actors/actor-linear-query.json"
       ]
     }
   ]

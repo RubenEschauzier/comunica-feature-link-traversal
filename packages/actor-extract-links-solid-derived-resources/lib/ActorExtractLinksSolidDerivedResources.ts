@@ -55,22 +55,26 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // that we already allocated a part of the sub-query
     // Also when we have all identified derived-resources, we need to do a heuristic to
     // determine the partitioning of queries. For now: prefer-star heuristic.
-    // 2). Implement select linear query actor
     // TODO WHEN RUNNING:
     // 1). Formalize some of the things we've implemented here. Think about the temporal aspect
     // when doing overlap / deduplication etc
     // 2). Implement a cost function for determining IF and WHICH derived resources to use.
     // Think about what micro-benchmarks and abalations we need:
+    // Abelations:
+    // 0. Adaptive only
     // 1. QPF only
     // 2. Triple pattern only
     // 3. Triple pattern / QPF + star
     // 4. Triple pattern / QPF + linear
     // 5. Triple pattern + star + linear (star-only)
     // 6. Triple pattern + star + linear (cost fn)
+    // Addition experiments
     // 7. Full system + multiple client scaling
+    // Micro-benchmark
     // 8. Show query where using star is bad
     // 9. Show query where data distribution shows star first is bad
     // 10. Show query where we need deduplication 
+    // 11. Show query where first choice is bad but adaptive learns later choice to make
     // / where filtering is better / worse than not using / following existing partition
     // TODO AFTER THIS:
     // 1. After formalizing look at what we still need to implement based on formalizations

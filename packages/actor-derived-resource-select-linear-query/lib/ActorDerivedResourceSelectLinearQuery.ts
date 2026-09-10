@@ -25,7 +25,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
   public readonly mediatorMetadataExtract: MediatorRdfMetadataExtract;
 
   protected derivedResourceCoefficients: IDerivedResourceCoefficients;
-  protected minChainLength: number;
+  protected splitChain: boolean;
   protected maxChainLength: number;
 
   public constructor(args: IActorDerivedResourceSelectLinearQueryArgs) {
@@ -33,7 +33,7 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     this.mediatorMetadata = args.mediatorMetadata;
     this.mediatorMetadataExtract = args.mediatorMetadataExtract;
     this.derivedResourceCoefficients = args.derivedResourceCoefficients;
-    this.minChainLength = args.minChainLength;
+    this.splitChain = args.splitChain;
     this.maxChainLength = args.maxChainLength;
   }
 
@@ -168,8 +168,14 @@ ActorDerivedResourceSelect<IActorDerivedResourceSelectTestSideData> {
     const patternsToResource = new Map<Algebra.Pattern[], IDerivedResource>();
     for (const bgp of bgps) {
       for (const chain of extractLinearSubqueries(bgp.patterns)) {
-        if (chain.length < this.minChainLength || chain.length > this.maxChainLength) {
+        // Chains of length 1 are triple patterns which are handled separately.
+        // If splitChain is not set and chain length is larger than max we also can't use
+        if (chain.length < 2 || (chain.length > this.maxChainLength && !this.splitChain)) {
           continue;
+        }
+
+        if (chain.length > this.maxChainLength && this.splitChain){
+          
         }
 
         // A resource answers a path of exactly its own length, so the chain is only pushed down
@@ -232,11 +238,14 @@ extends IActorDerivedResourceSelectArgs {
   */
   mediatorMetadataExtract: MediatorRdfMetadataExtract;
   /**
-   * The shortest path that is pushed down to a derived resource.
-   * @range {integer}
-   * @default {2}
+   * If we can split longer chain queries into multiple
+   * chain derived resources of max size. Split chain is primarily
+   * used to prevent chain sub-queries of size > 2. As these
+   * will save join work.
+   * @range {boolean}
+   * @default {true}
    */
-  minChainLength: number;
+  splitChain: boolean;
   /**
    * The maximal linear query length to be pushed down to derived resource.
    * Note that linear lengths > 2 will not gain throughput increases, but might

@@ -32,6 +32,12 @@
     "ccqslt:config/derived-resource-select/actors.json",
     "ccqslt:config/derived-resource-select/mediators.json",
 
+    "ccqslt:config/derived-resource-propose/mediators.json",
+    "ccqslt:config/derived-resource-propose/actors.json",
+    "ccqslt:config/derived-resource-partition/mediators.json",
+    "ccqslt:config/derived-resource-partition/actors/actor-star-first.json",
+
+
     "ccqslt:config/context-preprocess/dynamic-links-filter.json",
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter-dynamic-priority.json",
 

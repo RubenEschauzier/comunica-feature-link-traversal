@@ -1,5 +1,5 @@
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
-import { ActorDerivedResourcePropose, IActionDerivedResourcePropose, IActorDerivedResourceProposeOutput, IActorDerivedResourceProposeArgs } from '@comunica/bus-derived-resource-propose';
+import { ActorDerivedResourcePropose, IActionDerivedResourcePropose, IActorDerivedResourceProposeOutput, IActorDerivedResourceProposeArgs, ICandidateResource } from '@comunica/bus-derived-resource-propose';
 import { TestResult, IActorTest, passTestVoid } from '@comunica/core';
 import { FragmentSelectorShape } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
@@ -41,45 +41,86 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
     }))))
       .filter((shaped): shaped is IShapedResource => shaped.shape.type === 'operation');
 
-    const usableResources = new Set<IDerivedResource>();
-    const patternsToResource = new Map<Algebra.Pattern[], IDerivedResource>();
+    const proposedChainResources: ICandidateResource[] = [];
     for (const bgp of bgps) {
       for (const chain of this.extractLinearSubqueries(bgp.patterns)) {
 
-        // Chains of length 1 are triple patterns which are handled separately.
-        // If splitChain is not set and chain length is larger than max we also can't use
+        // Chains of length 1 are triple patterns which are handled separately
         if (chain.length < 2) {
           continue;
         }
 
-        if (chain.length > this.maxChainLength){
-          // TODO: Chain splitting done here, we give all options for split chains which
-          // are then selected by the partition actor
+        // A resource answers a path of exactly its own length, so a chain that is too long is
+        // only pushed down in parts. Every proposed chunk is offered on its own: any set of
+        // chunks that do not overlap is executable, and it is up to the partition actor to
+        // decide which combination of these (and of the other proposed resources) to take
+        for (const chunk of this.enumerateProposableChains(chain)) {
+          const chunkBgp = this.algebraFactory.createBgp(chunk);
+          const match = shapedResources.find(({ shape }) => canAnswerBgp(
+            shape,
+            chunkBgp,
+            shape.variablesOptional ?? [],
+            shape.variablesRequired ?? [],
+          ));
+          if (!match) {
+            continue;
+          }
 
- 
+          proposedChainResources.push(this.createCandidateResource(chunk, match.resource));
         }
-
-        // A resource answers a path of exactly its own length, so the chain is only pushed down
-        // when a resource matches it as a whole. We don't consider cutting up the chain if
-        // a derived resource cannot answer the full chain
-        const chainBgp = this.algebraFactory.createBgp(chain);
-        const match = shapedResources.find(({ shape }) => canAnswerBgp(
-          shape,
-          chainBgp,
-          shape.variablesOptional ?? [],
-          shape.variablesRequired ?? [],
-        ));
-        if (!match) {
-          continue;
-        }
-
-        usableResources.add(match.resource);
-        patternsToResource.set(chain, match.resource);
       }
     }
-    
+
     return {
-      candidateResources: []
+      candidateResources: proposedChainResources
+    };
+  }
+
+  /**
+   * The parts of the chain that are worth matching against a resource.
+   */
+  protected enumerateProposableChains(chain: Algebra.Pattern[]): Algebra.Pattern[][] {
+    if (chain.length <= this.maxChainLength) {
+      return [ chain ];
+    }
+
+    const proposable: Algebra.Pattern[][] = [];
+    const seen = new Set<string>();
+    for (const split of this.enumerateSubChains(chain, this.maxChainLength)) {
+      for (const part of [ ...split.chunks, ...split.leftOvers ]) {
+        const key = `${part[0]}:${part.length}`;
+        if (part.length < 2 || seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        proposable.push(part.map(index => chain[index]));
+      }
+    }
+    return proposable;
+  }
+
+  protected createCandidateResource(chunk: Algebra.Pattern[], resource: IDerivedResource): ICandidateResource {
+    const nodes = [ chunk[0].subject, ...chunk.map(pattern => pattern.object) ];
+    const constants = new Set(nodes
+      .filter(node => node.termType !== 'Variable')
+      .map(node => this.termKey(node)));
+
+    return {
+      operations: chunk,
+      resource,
+      kind: 'chain',
+      anchorTerms: chunk.map(pattern => pattern.subject),
+      prunable: true,
+      features: {
+        patternCount: chunk.length,
+        constantCount: constants.size,
+        // TODO: these are the placeholder values the star actor uses as well
+        coefficients: {
+          compute: 5,
+          requests: 1,
+          selectivity: 5
+        }
+      }
     };
   }
 
@@ -129,59 +170,56 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
     return chains;
   }
 
-  protected enumerateSubChains(chain: Algebra.Pattern[], maxChainLength: number){
+  protected enumerateSubChains(chain: Algebra.Pattern[], maxChainLength: number): ISubChainSplit[] {
     // We want to split the chain into parts of length maxChainlength
-    const leftOverSize = chain.length - 
-      Math.floor(chain.length / maxChainLength) * maxChainLength;
-    
-    const possibleSplits: number[][][] = [];
+    const leftOverSize = chain.length % maxChainLength;
+    const possibleSplits: ISubChainSplit[] = [];
 
     // Try to place leftovers in the chain
     function recurseLeftOver(leftOverTriples: number[]){
-      leftOverTriples = [ ... leftOverTriples ];
       // Last added is always last in array and largest index. Previous indexes
-      // have already been verified to be plausible
-      const lastAddedIndex = leftOverTriples[leftOverTriples.length - 1];
+      // have already been verified to be plausible. Without any leftovers yet the
+      // chain is still untouched, so the next candidate starts at 0
+      const lastAddedIndex = leftOverTriples.length > 0 ?
+        leftOverTriples[leftOverTriples.length - 1] :
+        -1;
 
       // Check if admits a complete solution
       if (leftOverTriples.length === leftOverSize){
         if ((chain.length - (lastAddedIndex+1)) % maxChainLength === 0){
-          const splitChain: number[][] = [];
+          const isLeftOver = new Set(leftOverTriples);
+          const chunks: number[][] = [];
           // Split chain while skipping leftOver indexes. Here all
           // chain parts are divisible by maxChainLength so this is safe
           let chainTile: number[] = [];
           for (let k = 0; k < chain.length; k++){
             // Is a leftover
-            if (leftOverTriples.includes(k)){
+            if (isLeftOver.has(k)){
               continue;
             }
             chainTile.push(k);
             if (chainTile.length === maxChainLength){
-              splitChain.push(chainTile)
+              chunks.push(chainTile);
               chainTile = [];
             }
           }
 
-          // Group leftOver indexes if sequential
+          // Group leftOver indexes if sequential, as adjacent leftovers still
+          // form a (too short) chain of their own
+          const leftOvers: number[][] = [];
           let previous = -2;
-          let sequentialLeftOver: number[] = [];
           for (const leftOverIndex of leftOverTriples){
-            if (leftOverIndex - previous === 1 || sequentialLeftOver.length === 0){
-              sequentialLeftOver.push(leftOverIndex)
+            if (leftOverIndex - previous === 1){
+              leftOvers[leftOvers.length - 1].push(leftOverIndex);
             }
             else {
-              splitChain.push(sequentialLeftOver);
-              sequentialLeftOver = [ leftOverIndex ];
+              leftOvers.push([ leftOverIndex ]);
             }
             previous = leftOverIndex;
           }
 
-          if (sequentialLeftOver.length > 0){
-            splitChain.push(sequentialLeftOver);
-          }
-
           // Here is where we add the split to the accumulating array
-          possibleSplits.push(splitChain)
+          possibleSplits.push({ chunks, leftOvers });
         }
         return;
       }
@@ -192,93 +230,13 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
         recurseLeftOver(currLeftOver);
       }
     }
-    for (let i = 0; i < chain.length; i++){
-      const leftOverTriples: number[] = [ i ];
-      recurseLeftOver(leftOverTriples);
+    // Starting without leftovers covers chains that need none at all, and the recursion
+    // itself only proposes first leftovers at multiples of maxChainLength, which are the
+    // only positions that leave a valid prefix
+    if (chain.length > 0){
+      recurseLeftOver([]);
     }
-    // for (let i = 0; i < chain.length; i++){
-    //   const leftOverTriples: number[] = [ i ];
-
-
-    //   while (true){
-    //     if (leftOverTriples.length === leftOverSize){
-    //       // If the rest of the chain is divisible by maxChainLength this is a
-    //       // valid configuration
-    //       let invalidLeftOver = false;
-    //       let previousIdx: number | undefined = undefined;
-    //       for (const leftOverIdx of leftOverTriples){
-    //         const cutOff = previousIdx ? (previousIdx + 1) : 0
-    //         // If the section from previousIdx to leftOverIdx is not divisible by 3
-    //         // invalid leftOverTriples
-    //         if ((leftOverIdx - cutOff) % maxChainLength !== 0){
-    //           invalidLeftOver = true;
-    //           break;
-    //         }
-    //         previousIdx = leftOverIdx;
-    //       }
-    //       if (invalidLeftOver){
-    //         // SKIP THIS LEFTOVER THIS SKIPS ENTIRE ITERATION
-    //         // break;
-    //       }
-    //       if ((chain.length - (previousIdx!+1)) % maxChainLength === 0){
-    //         // Valid! We cut up the chain
-    //       }
-          
-    //       // if ((chain.length - (i+1)) % maxChainLength === 0){
-    //       //   const splitChain: number[][] = [];
-    //       //   // Add chain by splitting into equal parts. This works
-    //       //   // due to the preceding check
-    //       //   let chainTile: number[] = [];
-    //       //   for (let k = 0; k < chain.length; k++){
-    //       //     if (k === i){
-    //       //       continue;
-    //       //     }
-    //       //     chainTile.push(k);
-    //       //     if (chainTile.length === maxChainLength){
-    //       //       splitChain.push(chainTile)
-    //       //       chainTile = [];
-    //       //     }
-    //       //   }
-    //       //   splitChain.push([ i ])
-    //       //   possibleSplits.push(splitChain)
-    //       // }
-    //       // break;
-    //     }
-    //     // Here we add to the leftOverTriples with indexes and check if they're valid
-
-    //   }
-    //   // Special case of size = 1
-    //   if (leftOverTriples.length === leftOverSize){
-    //     // If the rest of the chain is divisible by maxChainLength this is a
-    //     // valid configuration
-    //     if ((chain.length - (i+1)) % maxChainLength === 0){
-    //       const splitChain: number[][] = [];
-    //       // Add chain by splitting into equal parts. This works
-    //       // due to the preceding check
-    //       let chainTile: number[] = [];
-    //       for (let k = 0; k < chain.length; k++){
-    //         if (k === i){
-    //           continue;
-    //         }
-    //         chainTile.push(k);
-    //         if (chainTile.length === maxChainLength){
-    //           splitChain.push(chainTile)
-    //           chainTile = [];
-    //         }
-    //       }
-    //       splitChain.push([ i ])
-    //       possibleSplits.push(splitChain)
-    //     }
-    //   }
-    //   for (let j = i+1; j < chain.length; j++){
-    //     // Add to leftover triples
-    //     leftOverTriples.push(j);
-    //     // Check between the leftover triples if its in blocks of maxChainlength
-        
-    //   }
-    // }
-    console.log(possibleSplits)
-    return possibleSplits
+    return possibleSplits;
   }
 
   private termKey(term: RDF.Term): string {
@@ -300,6 +258,21 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
 interface IShapedResource {
   resource: IDerivedResource;
   shape: Extract<FragmentSelectorShape, { type: 'operation' }>;
+}
+
+/**
+ * One way of cutting a chain up, as indexes into the chain.
+ */
+export interface ISubChainSplit {
+  /**
+   * The parts of exactly maxChainLength, in chain order, that can be pushed down as a chain.
+   */
+  chunks: number[][];
+  /**
+   * The parts that are too short to be pushed down as a chain, in chain order.
+   * Leftovers that are adjacent in the chain are grouped into a single part.
+   */
+  leftOvers: number[][];
 }
 
 

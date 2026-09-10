@@ -1,0 +1,12 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/bus-derived-resource-partition/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/mediator-number/^5.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:derived-resource-partition/mediators#main",
+  "@type": "MediatorNumber",
+  "type": "max",
+  "field": "accuracy",
+  "ignoreFailures": true,
+  "bus": { "@id": "ActorDerivedResourcePartition:_default_bus" }
+}

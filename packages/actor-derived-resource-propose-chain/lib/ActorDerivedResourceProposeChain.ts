@@ -78,7 +78,9 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
       }
     }
     
-    return true;
+    return {
+      candidateResources: []
+    };
   }
 
   protected extractLinearSubqueries(patterns: Algebra.Pattern[]): Algebra.Pattern[][] {
@@ -127,17 +129,156 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
     return chains;
   }
 
-  protected enumerateChainSplits(chain: Algebra.Pattern[]){
-    const lengthChain = chain.length;
-    for (let i = 0; i < lengthChain; i++){
-      // If section of maxChainLength > length of chain 
-      // we do ...
-      if (i + this.maxChainLength > lengthChain - 1){
+  protected enumerateSubChains(chain: Algebra.Pattern[], maxChainLength: number){
+    // We want to split the chain into parts of length maxChainlength
+    const leftOverSize = chain.length - 
+      Math.floor(chain.length / maxChainLength) * maxChainLength;
+    
+    const possibleSplits: number[][][] = [];
 
+    // Try to place leftovers in the chain
+    function recurseLeftOver(leftOverTriples: number[]){
+      leftOverTriples = [ ... leftOverTriples ];
+      // Last added is always last in array and largest index. Previous indexes
+      // have already been verified to be plausible
+      const lastAddedIndex = leftOverTriples[leftOverTriples.length - 1];
+
+      // Check if admits a complete solution
+      if (leftOverTriples.length === leftOverSize){
+        if ((chain.length - (lastAddedIndex+1)) % maxChainLength === 0){
+          const splitChain: number[][] = [];
+          // Split chain while skipping leftOver indexes. Here all
+          // chain parts are divisible by maxChainLength so this is safe
+          let chainTile: number[] = [];
+          for (let k = 0; k < chain.length; k++){
+            // Is a leftover
+            if (leftOverTriples.includes(k)){
+              continue;
+            }
+            chainTile.push(k);
+            if (chainTile.length === maxChainLength){
+              splitChain.push(chainTile)
+              chainTile = [];
+            }
+          }
+
+          // Group leftOver indexes if sequential
+          let previous = -2;
+          let sequentialLeftOver: number[] = [];
+          for (const leftOverIndex of leftOverTriples){
+            if (leftOverIndex - previous === 1 || sequentialLeftOver.length === 0){
+              sequentialLeftOver.push(leftOverIndex)
+            }
+            else {
+              splitChain.push(sequentialLeftOver);
+              sequentialLeftOver = [ leftOverIndex ];
+            }
+            previous = leftOverIndex;
+          }
+
+          if (sequentialLeftOver.length > 0){
+            splitChain.push(sequentialLeftOver);
+          }
+
+          // Here is where we add the split to the accumulating array
+          possibleSplits.push(splitChain)
+        }
+        return;
       }
-      const chainSection = chain.slice(i, i + this.maxChainLength);
-      
+
+      for (let i = lastAddedIndex + 1; i < chain.length; i += maxChainLength) {
+        const currLeftOver = [ ...leftOverTriples ];
+        currLeftOver.push(i);
+        recurseLeftOver(currLeftOver);
+      }
     }
+    for (let i = 0; i < chain.length; i++){
+      const leftOverTriples: number[] = [ i ];
+      recurseLeftOver(leftOverTriples);
+    }
+    // for (let i = 0; i < chain.length; i++){
+    //   const leftOverTriples: number[] = [ i ];
+
+
+    //   while (true){
+    //     if (leftOverTriples.length === leftOverSize){
+    //       // If the rest of the chain is divisible by maxChainLength this is a
+    //       // valid configuration
+    //       let invalidLeftOver = false;
+    //       let previousIdx: number | undefined = undefined;
+    //       for (const leftOverIdx of leftOverTriples){
+    //         const cutOff = previousIdx ? (previousIdx + 1) : 0
+    //         // If the section from previousIdx to leftOverIdx is not divisible by 3
+    //         // invalid leftOverTriples
+    //         if ((leftOverIdx - cutOff) % maxChainLength !== 0){
+    //           invalidLeftOver = true;
+    //           break;
+    //         }
+    //         previousIdx = leftOverIdx;
+    //       }
+    //       if (invalidLeftOver){
+    //         // SKIP THIS LEFTOVER THIS SKIPS ENTIRE ITERATION
+    //         // break;
+    //       }
+    //       if ((chain.length - (previousIdx!+1)) % maxChainLength === 0){
+    //         // Valid! We cut up the chain
+    //       }
+          
+    //       // if ((chain.length - (i+1)) % maxChainLength === 0){
+    //       //   const splitChain: number[][] = [];
+    //       //   // Add chain by splitting into equal parts. This works
+    //       //   // due to the preceding check
+    //       //   let chainTile: number[] = [];
+    //       //   for (let k = 0; k < chain.length; k++){
+    //       //     if (k === i){
+    //       //       continue;
+    //       //     }
+    //       //     chainTile.push(k);
+    //       //     if (chainTile.length === maxChainLength){
+    //       //       splitChain.push(chainTile)
+    //       //       chainTile = [];
+    //       //     }
+    //       //   }
+    //       //   splitChain.push([ i ])
+    //       //   possibleSplits.push(splitChain)
+    //       // }
+    //       // break;
+    //     }
+    //     // Here we add to the leftOverTriples with indexes and check if they're valid
+
+    //   }
+    //   // Special case of size = 1
+    //   if (leftOverTriples.length === leftOverSize){
+    //     // If the rest of the chain is divisible by maxChainLength this is a
+    //     // valid configuration
+    //     if ((chain.length - (i+1)) % maxChainLength === 0){
+    //       const splitChain: number[][] = [];
+    //       // Add chain by splitting into equal parts. This works
+    //       // due to the preceding check
+    //       let chainTile: number[] = [];
+    //       for (let k = 0; k < chain.length; k++){
+    //         if (k === i){
+    //           continue;
+    //         }
+    //         chainTile.push(k);
+    //         if (chainTile.length === maxChainLength){
+    //           splitChain.push(chainTile)
+    //           chainTile = [];
+    //         }
+    //       }
+    //       splitChain.push([ i ])
+    //       possibleSplits.push(splitChain)
+    //     }
+    //   }
+    //   for (let j = i+1; j < chain.length; j++){
+    //     // Add to leftover triples
+    //     leftOverTriples.push(j);
+    //     // Check between the leftover triples if its in blocks of maxChainlength
+        
+    //   }
+    // }
+    console.log(possibleSplits)
+    return possibleSplits
   }
 
   private termKey(term: RDF.Term): string {

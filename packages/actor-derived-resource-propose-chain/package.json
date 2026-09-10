@@ -1,6 +1,6 @@
 {
   "name": "@comunica/actor-derived-resource-propose-chain",
-  "version": "1.0.0",
+  "version": "0.8.0",
   "description": "A chain derived-resource-propose actor",
   "lsd:module": true,
   "main": "lib/index.js",

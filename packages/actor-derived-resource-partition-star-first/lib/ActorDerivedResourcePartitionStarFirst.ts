@@ -15,7 +15,9 @@ export class ActorDerivedResourcePartitionStarFirst extends ActorDerivedResource
 
   public async run(action: IActionDerivedResourcePartition): Promise<IActorDerivedResourcePartitionOutput> {
     const proposedResources = await this.mediatorDerivedResourcePropose.mediate(action);
-    return true; 
+    return {
+      resourceExecutionBlocks: []
+    }; 
   }
 }
 

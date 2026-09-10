@@ -9,7 +9,7 @@ import { canAnswerBgp } from '@comunica/utils-query-operation';
  * star-shape and returns them
  */
 export class ActorDerivedResourceProposeStars extends ActorDerivedResourcePropose {
-  protected readonly algebraFactory = new AlgebraFactory;
+  protected readonly algebraFactory = new AlgebraFactory();
 
   public constructor(args: IActorDerivedResourceProposeArgs) {
     super(args);

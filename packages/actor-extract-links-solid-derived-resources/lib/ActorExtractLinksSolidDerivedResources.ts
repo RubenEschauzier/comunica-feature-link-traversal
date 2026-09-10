@@ -11,6 +11,7 @@ import { storeStream } from 'rdf-store-stream';
 import { FragmentSelectorShape } from '@comunica/types';
 import { MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
 import { MediatorDerivedResourceSelect } from '@comunica/bus-derived-resource-select';
+import { MediatorDerivedResourcePartition } from '@comunica/bus-derived-resource-partition';
 import { Algebra } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
 
@@ -23,6 +24,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public readonly mediatorDereference: MediatorDereference;
   public readonly mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
   public readonly mediatorDerivedResourceSelect: MediatorDerivedResourceSelect;
+  public readonly mediatorDerivedResourcePartition: MediatorDerivedResourcePartition;
   public readonly queryEngine: QueryEngineBase;
 
   public constructor(args: IActorExtractLinksSolidDerivedResourcesArgs) {
@@ -33,6 +35,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     this.mediatorDereference = args.mediatorDereference
     this.mediatorDerivedResourceIdentify = args.mediatorDerivedResourceIdentify;
     this.mediatorDerivedResourceSelect = args.mediatorDerivedResourceSelect;
+    this.mediatorDerivedResourcePartition = args.mediatorDerivedResourcePartition;
 
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
   }
@@ -291,6 +294,10 @@ export interface IActorExtractLinksSolidDerivedResourcesArgs
    * The select mediator that uses the identified derived resources in the query plan
    */
   mediatorDerivedResourceSelect: MediatorDerivedResourceSelect;
+  /**
+   * The partition mediator that divides the query over the identified derived resources
+   */
+  mediatorDerivedResourcePartition: MediatorDerivedResourcePartition;
 }
 
 export interface IDerivedResourceRaw {

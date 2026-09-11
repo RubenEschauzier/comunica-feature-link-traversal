@@ -1,0 +1,13 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
+  ],
+  "@graph": [
+    {
+      "import": [
+        "ccqslt:config/derived-resource-execute/actors/actor-triple-pattern.json",
+        "ccqslt:config/derived-resource-execute/actors/actor-composite-source.json"
+      ]
+    }
+  ]
+}

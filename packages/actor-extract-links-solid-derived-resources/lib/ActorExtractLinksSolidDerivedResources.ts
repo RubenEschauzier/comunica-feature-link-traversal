@@ -10,10 +10,11 @@ import type * as RDF from '@rdfjs/types';
 import { storeStream } from 'rdf-store-stream';
 import { FragmentSelectorShape } from '@comunica/types';
 import { MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
-import { MediatorDerivedResourceSelect } from '@comunica/bus-derived-resource-select';
+import { MediatorDerivedResourceExecute } from '@comunica/bus-derived-resource-execute';
 import { MediatorDerivedResourcePartition } from '@comunica/bus-derived-resource-partition';
 import { Algebra } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
+import { link } from 'fs';
 
 /**
  * A comunica Solid Derived Resources Extract Links Actor.
@@ -23,7 +24,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
   public readonly mediatorDereference: MediatorDereference;
   public readonly mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
-  public readonly mediatorDerivedResourceSelect: MediatorDerivedResourceSelect;
+  public readonly mediatorDerivedResourceExecute: MediatorDerivedResourceExecute;
   public readonly mediatorDerivedResourcePartition: MediatorDerivedResourcePartition;
   public readonly queryEngine: QueryEngineBase;
 
@@ -34,7 +35,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
     this.mediatorDereference = args.mediatorDereference
     this.mediatorDerivedResourceIdentify = args.mediatorDerivedResourceIdentify;
-    this.mediatorDerivedResourceSelect = args.mediatorDerivedResourceSelect;
+    this.mediatorDerivedResourceExecute = args.mediatorDerivedResourceExecute;
     this.mediatorDerivedResourcePartition = args.mediatorDerivedResourcePartition;
 
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
@@ -144,18 +145,20 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       }
     });
 
-    const paritionedResources = await this.mediatorDerivedResourcePartition.mediate(
+    const { resourceExecutionBlocks } = await this.mediatorDerivedResourcePartition.mediate(
       {
         operation: action.context.getSafe(KeysInitQuery.query),
         resources: derivedResourcesIdentified,
         context
       }
     );
-    console.log(paritionedResources);
-    const { links } = await this.mediatorDerivedResourceSelect.mediate({
-      derivedResourcesIdentified,
+
+    const { links } = await this.mediatorDerivedResourceExecute.mediate({
+      executionBlocks: resourceExecutionBlocks,
       context,
-    })
+    });
+    console.log("Derived resource links");
+    console.log(links)
 
     return { links };
   }
@@ -303,9 +306,9 @@ export interface IActorExtractLinksSolidDerivedResourcesArgs
    */
   mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
   /**
-   * The select mediator that uses the identified derived resources in the query plan
+   * The execute mediator that runs the work the partition assigned to the derived resources
    */
-  mediatorDerivedResourceSelect: MediatorDerivedResourceSelect;
+  mediatorDerivedResourceExecute: MediatorDerivedResourceExecute;
   /**
    * The partition mediator that divides the query over the identified derived resources
    */

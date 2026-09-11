@@ -1,14 +1,14 @@
 {
-  "name": "@comunica/actor-extract-links-solid-derived-resources",
+  "name": "@comunica/bus-derived-resource-execute",
   "version": "0.8.0",
-  "description": "A solid-derived-resources extract-links actor",
+  "description": "A comunica bus for derived-resource-execute events.",
   "lsd:module": true,
   "main": "lib/index.js",
   "typings": "lib/index",
   "repository": {
     "type": "git",
     "url": "https://github.com/comunica/comunica.git",
-    "directory": "packages/actor-extract-links-solid-derived-resources"
+    "directory": "packages/bus-derived-resource-execute"
   },
   "publishConfig": {
     "access": "public"
@@ -16,9 +16,8 @@
   "sideEffects": false,
   "keywords": [
     "comunica",
-    "actor",
-    "extract-links",
-    "solid-derived-resources"
+    "bus",
+    "derived-resource-execute"
   ],
   "license": "MIT",
   "funding": {
@@ -36,9 +35,9 @@
     "lib/**/*.js.map"
   ],
   "dependencies": {
-    "@comunica/bus-derived-resource-execute": "^0.8.0",
-    "@comunica/bus-extract-links": "^0.8.0",
-    "@comunica/core": "^5.1.3"
+    "@comunica/bus-derived-resource-partition": "^0.8.0",
+    "@comunica/core": "^5.1.3",
+    "@comunica/types": "^5.1.3"
   },
   "scripts": {
     "build": "yarn run build:ts && yarn run build:components",

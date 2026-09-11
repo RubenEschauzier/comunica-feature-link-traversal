@@ -47,11 +47,32 @@ export interface IActorDerivedResourcePartitionOutput extends IActorOutput {
   resourceExecutionBlocks: IResourceExecutionBlock[];
 }
 
-export interface IResourceExecutionBlock {
-  operation: Algebra.Operation[];
+export type IResourceExecutionBlock = ICompositeExecutionBlock | ITriplePatternExecutionBlock;
+
+/**
+ * A conjunctive set of join entries that one resource answers as a whole, to be handed to the
+ * adaptive join as a composite source.
+ */
+export interface ICompositeExecutionBlock {
+  type: 'composite';
+  /**
+   * The join entries this resource answers, matched against a component one by one
+   */
+  operations: Algebra.Operation[];
   resource: IDerivedResource;
-  anchors: RDF.Term[];
-  prunable: boolean;
+  /**
+   * The terms that have to be in the authoritative domain of the resource
+   */
+  anchorTerms: RDF.Term[];
+}
+
+/**
+ * Triple pattern-level delegation to a derived resource
+ */
+export interface ITriplePatternExecutionBlock {
+  type: 'triple-pattern';
+  pattern: Algebra.Pattern;
+  resources: IDerivedResource[];
 }
 
 export interface IActorDerivedResourcePartitionTest extends IActorTest{

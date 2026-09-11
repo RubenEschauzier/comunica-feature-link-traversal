@@ -1,0 +1,11 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/bus-derived-resource-execute/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/mediator-combine-array/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:derived-resource-execute/mediators#main",
+  "@type": "MediatorCombineArray",
+  "bus": { "@id": "ActorDerivedResourceExecute:_default_bus" },
+  "fields": ["links"],
+  "filterErrors": true
+}

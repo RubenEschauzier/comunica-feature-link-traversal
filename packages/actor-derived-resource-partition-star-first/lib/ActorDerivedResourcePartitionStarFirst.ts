@@ -1,4 +1,4 @@
-import { ActorDerivedResourcePartition, IActionDerivedResourcePartition, IActorDerivedResourcePartitionOutput, IActorDerivedResourcePartitionArgs, IActorDerivedResourcePartitionTest, IResourceExecutionBlock } from '@comunica/bus-derived-resource-partition';
+import { ActorDerivedResourcePartition, IActionDerivedResourcePartition, IActorDerivedResourcePartitionOutput, IActorDerivedResourcePartitionArgs, IActorDerivedResourcePartitionTest, ICompositeExecutionBlock, ITriplePatternExecutionBlock } from '@comunica/bus-derived-resource-partition';
 import { ICandidateResource } from '@comunica/bus-derived-resource-propose';
 import { TestResult, passTest } from '@comunica/core';
 import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
@@ -20,13 +20,34 @@ export class ActorDerivedResourcePartitionStarFirst extends ActorDerivedResource
   public async run(action: IActionDerivedResourcePartition): Promise<IActorDerivedResourcePartitionOutput> {
     const proposedResources = await this.mediatorDerivedResourcePropose.mediate(action);
 
-    const ranked = [ ...proposedResources.candidateResources ].sort((left, right) =>
+    const composite: ICandidateResource[] = [];
+    const triplePattern: ICandidateResource[] = [];
+    for (const candidate of proposedResources.candidateResources) {
+      (candidate.kind === 'triple-pattern' ? triplePattern : composite).push(candidate);
+    }
+
+    return {
+      resourceExecutionBlocks: [
+        ...await this.partitionComposite(action, composite),
+        ...this.groupTriplePatterns(triplePattern),
+      ],
+    };
+  }
+
+  /**
+   * The composite blocks, which have to come out disjoint over their operations.
+   */
+  protected async partitionComposite(
+    action: IActionDerivedResourcePartition,
+    candidates: ICandidateResource[],
+  ): Promise<ICompositeExecutionBlock[]> {
+    const ranked = [ ...candidates ].sort((left, right) =>
       this.tier(left) - this.tier(right) || this.compare(left, right));
 
     // The proposers can produce overlapping candidates, so the partition is built by walking
     // them best-first and handing every operation to the first candidate that claims it
     const claimed = new Set<Algebra.Operation>();
-    const resourceExecutionBlocks: IResourceExecutionBlock[] = [];
+    const blocks: ICompositeExecutionBlock[] = [];
     for (const candidate of ranked) {
       const unclaimed = candidate.operations.filter(operation => !claimed.has(operation));
 
@@ -44,15 +65,36 @@ export class ActorDerivedResourcePartitionStarFirst extends ActorDerivedResource
       for (const operation of block.operations) {
         claimed.add(operation);
       }
-      resourceExecutionBlocks.push({
-        operation: block.operations,
+      blocks.push({
+        type: 'composite',
+        operations: block.operations,
         resource: block.resource,
-        anchors: block.anchorTerms,
-        prunable: block.prunable,
+        anchorTerms: block.anchorTerms,
       });
     }
+    return blocks;
+  }
 
-    return { resourceExecutionBlocks };
+  /**
+   * The traversal patterns, with every resource that offered to serve each of them. These are left
+   * overlapping: the aggregated store de-duplicates, so which resource to spend a request on stays
+   * a decision for the actor that runs the block.
+   */
+  protected groupTriplePatterns(candidates: ICandidateResource[]): ITriplePatternExecutionBlock[] {
+    const blocks = new Map<string, ITriplePatternExecutionBlock>();
+    for (const candidate of candidates) {
+      const pattern = <Algebra.Pattern> candidate.operations[0];
+      const key = [ pattern.subject, pattern.predicate, pattern.object, pattern.graph ]
+        .map(term => `${term.termType}:${term.value}`).join('|');
+
+      const block = blocks.get(key);
+      if (block) {
+        block.resources.push(candidate.resource);
+      } else {
+        blocks.set(key, { type: 'triple-pattern', pattern, resources: [ candidate.resource ]});
+      }
+    }
+    return [ ...blocks.values() ];
   }
 
   /**

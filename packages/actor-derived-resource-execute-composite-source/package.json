@@ -1,14 +1,14 @@
 {
-  "name": "@comunica/actor-extract-links-solid-derived-resources",
+  "name": "@comunica/actor-derived-resource-execute-composite-source",
   "version": "0.8.0",
-  "description": "A solid-derived-resources extract-links actor",
+  "description": "A composite-source derived-resource-execute actor",
   "lsd:module": true,
   "main": "lib/index.js",
   "typings": "lib/index",
   "repository": {
     "type": "git",
     "url": "https://github.com/comunica/comunica.git",
-    "directory": "packages/actor-extract-links-solid-derived-resources"
+    "directory": "packages/actor-derived-resource-execute-composite-source"
   },
   "publishConfig": {
     "access": "public"
@@ -17,8 +17,8 @@
   "keywords": [
     "comunica",
     "actor",
-    "extract-links",
-    "solid-derived-resources"
+    "derived-resource-execute",
+    "composite-source"
   ],
   "license": "MIT",
   "funding": {
@@ -36,9 +36,14 @@
     "lib/**/*.js.map"
   ],
   "dependencies": {
+    "@comunica/actor-rdf-join-inner-multi-stems": "^5.1.3",
     "@comunica/bus-derived-resource-execute": "^0.8.0",
-    "@comunica/bus-extract-links": "^0.8.0",
-    "@comunica/core": "^5.1.3"
+    "@comunica/bus-derived-resource-partition": "^0.8.0",
+    "@comunica/context-entries": "^5.1.3",
+    "@comunica/context-entries-link-traversal": "^0.8.0",
+    "@comunica/core": "^5.1.3",
+    "@comunica/types": "^5.1.3",
+    "@comunica/utils-algebra": "^5.1.3"
   },
   "scripts": {
     "build": "yarn run build:ts && yarn run build:components",

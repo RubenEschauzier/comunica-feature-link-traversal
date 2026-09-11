@@ -1,6 +1,6 @@
 import { ActorInitQueryBase, QueryEngineBase } from '@comunica/actor-init-query';
 import { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
-import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActorExtractLinksArgs } from '@comunica/bus-extract-links';
+import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActorExtractLinksArgs, IExtractPattern } from '@comunica/bus-extract-links';
 import { IActorDereferenceOutput, MediatorDereference } from "@comunica/bus-dereference";
 import { KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
 import { KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
@@ -157,8 +157,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       executionBlocks: resourceExecutionBlocks,
       context,
     });
-    console.log("Derived resource links");
-    console.log(links)
 
     return { links };
   }

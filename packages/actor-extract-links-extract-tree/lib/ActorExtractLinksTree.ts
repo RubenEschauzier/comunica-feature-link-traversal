@@ -2,6 +2,7 @@ import type {
   IActionExtractLinks,
   IActorExtractLinksOutput,
   IActorExtractLinksArgs,
+  IExtractPattern,
 } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysExtractLinksTree } from '@comunica/context-entries-link-traversal';

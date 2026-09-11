@@ -20,6 +20,21 @@ const VAR_OBJ = DF.variable('__comunica:pp_var_obj');
 export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResourcePropose {
   protected readonly algebraFactory = new AlgebraFactory();
 
+  /**
+   * The url extensions that stand for an rdf document, used to read how much of a pod a selector
+   * covers. Only these are ever queried, so a selector limited to them still reaches everything.
+   */
+  protected readonly rdfFileExtensions = [
+    'ttl',
+    'nt',
+    'nq',
+    'trig',
+    'n3',
+    'jsonld',
+    'rdf',
+    'trix',
+  ];
+
   public readonly mediatorExtractLinks: MediatorExtractLinks;
 
   public constructor(args: IActorDerivedResourceProposeTriplePatternArgs) {
@@ -42,7 +57,6 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
       if (serving.length === 0) {
         return { candidateResources: []};
       }
-
       for (const resource of serving) {
         // A resource serving a whole pod is not proposed for a pattern whose links stay inside that
         // pod: it already carries the documents those links lead to, so the request buys nothing.
@@ -88,17 +102,49 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
 
   /**
    * Whether the resource serves the whole pod it lives on.
-   *
-   * Heuristic, pending a way for a resource to state its own scope: a selector that is nothing but
-   * a wildcard below the base url covers everything under it.
+   * Currently a simple heuristic, should be replaced by a principled way
+   * of indicating what it covers / if it covers everything
    */
   protected coversWholePod(resource: IDerivedResource): boolean {
+    const baseUrl = resource.baseUrl.replace(/\/+$/u, '');
     return resource.selectors.some((selector) => {
-      const belowBase = selector.startsWith(resource.baseUrl) ?
-        selector.slice(resource.baseUrl.length) :
-        selector;
-      return [ '*', '**', '/*', '/**' ].includes(belowBase);
+      // A selector outside the pod says nothing about what the pod holds
+      if (!selector.startsWith(`${baseUrl}/`)) {
+        return false;
+      }
+      const segments = selector.slice(baseUrl.length + 1)
+        .split('/')
+        .filter(segment => segment.length > 0);
+
+      // Without a `**` the selector is pinned to a fixed depth, so documents deeper down are missed
+      if (!segments.includes('**')) {
+        return false;
+      }
+      // A `*` demands a segment of its own, which shallower documents do not have, unless it is the
+      // last one: there a preceding `**` can collapse to nothing and leave it the single segment
+      return segments.every((segment, index) =>
+        segment === '**' || (index === segments.length - 1 && this.matchesEveryDocument(segment)));
     });
+  }
+
+  /**
+   * Whether a final path segment matches every document worth dereferencing.
+   *
+   * Beside a bare `*`, this holds for a wildcard narrowed to rdf serializations (`*.ttl`,
+   * `*.{ttl,nq}`): only rdf is queried, so what it leaves out is never crawled either. This does
+   * assume documents carry their serialization in the url, which pods serving extensionless
+   * resources (`/profile/card`) do not.
+   */
+  protected matchesEveryDocument(segment: string): boolean {
+    if (segment === '*') {
+      return true;
+    }
+    const extensions = /^\*\.(?:\{([^{}]+)\}|([^{}*]+))$/u.exec(segment);
+    if (!extensions) {
+      return false;
+    }
+    return (extensions[1] ?? extensions[2]).split(',')
+      .every(extension => this.rdfFileExtensions.includes(extension.trim().toLowerCase()));
   }
 
   /**

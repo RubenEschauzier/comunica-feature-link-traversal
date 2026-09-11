@@ -1,7 +1,7 @@
 import { QueryEngineBase } from '@comunica/actor-init-query';
 import type { ActorInitQueryBase } from '@comunica/actor-init-query';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
-import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
+import type { IActionExtractLinks, IActorExtractLinksOutput, IExtractPattern } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import { KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
 import { KeysRdfJoin } from '@comunica/context-entries-link-traversal';

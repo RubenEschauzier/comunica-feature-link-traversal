@@ -72,9 +72,9 @@ export class ActorExtractLinksQuadPattern extends ActorExtractLinks {
    * @param context 
    * @returns 
    */
-  public getExtractPatternRepresentation(context: IActionContext): Pattern[] {
+  public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[] {
     const quadPattern = ActorExtractLinksQuadPattern.getCurrentQuadPattern(context);
-    return quadPattern ? [quadPattern] : [];
+    return quadPattern ? [{ pattern: quadPattern, podInternal: false }] : [];
   }
 }
 

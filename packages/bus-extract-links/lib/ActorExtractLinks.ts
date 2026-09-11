@@ -73,7 +73,22 @@ export abstract class ActorExtractLinks<TS = undefined>
    * Abstract getter that should return the quad patterns required
    * to get full coverage of quads containing extracted links.
    */
-  public abstract getExtractPatternRepresentation(context: IActionContext): Pattern[];
+  public abstract getExtractPatternRepresentation(context: IActionContext): IExtractPattern[];
+}
+
+/**
+ * A quad pattern an actor needs to see in order to extract its links.
+ */
+export interface IExtractPattern {
+  pattern: Pattern;
+  /**
+   * Whether the links found through this pattern can only ever point within the pod that served it.
+   *
+   * A source that already covers a whole pod has no reason to be asked for such a pattern: the
+   * documents it would lead to are already covered, so the request buys nothing. Patterns that can
+   * reach another pod, such as one over `rdfs:seeAlso`, must still be asked for.
+   */
+  podInternal: boolean;
 }
 
 export interface IActionExtractLinks extends IAction {

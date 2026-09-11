@@ -131,17 +131,18 @@ export class ActorExtractLinksTree extends ActorExtractLinks {
     }
   }
 
-  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
+  public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[]{
     const dataFactory = new DataFactory();
     const algebraFactory = new AlgebraFactory(dataFactory);
 
-    return ActorExtractLinksTree.allPredicates.map((pred) => 
-      algebraFactory.createPattern(
+    return ActorExtractLinksTree.allPredicates.map(pred => ({
+      pattern: algebraFactory.createPattern(
         dataFactory.variable('s'),
         pred,
         dataFactory.variable('o'),
         dataFactory.variable('g'),
-      )
-    )
+      ),
+      podInternal: false,
+    }))
   }
 }

@@ -170,12 +170,12 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
    * @param context 
    * @returns 
    */
-  public getExtractPatternRepresentation(context: IActionContext): Algebra.Pattern[] {
+  public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[] {
     const query = ActorExtractLinksQuadPatternQuery.getCurrentQuery(context);
     if (!query){
       return [];
     }
-    return this.extractPatternsQuery(query);
+    return this.extractPatternsQuery(query).map(pattern => ({ pattern, podInternal: false }));
   }
 }
 

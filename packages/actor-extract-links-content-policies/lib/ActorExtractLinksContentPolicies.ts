@@ -147,17 +147,20 @@ export class ActorExtractLinksContentPolicies extends ActorExtractLinks
     return this.traverseConditional ? { linksConditional: links, links: []} : { links };
   }
   
-  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
+  public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[]{
     const dataFactory = new DataFactory();
     const algebraFactory = new AlgebraFactory(dataFactory);
 
-    return [ 
-      algebraFactory.createPattern(
-        dataFactory.variable('s'),
-        dataFactory.variable('p'),
-        dataFactory.variable('o'),
-        dataFactory.variable('g'),
-      )
+    return [
+      {
+        pattern: algebraFactory.createPattern(
+          dataFactory.variable('s'),
+          dataFactory.variable('p'),
+          dataFactory.variable('o'),
+          dataFactory.variable('g'),
+        ),
+        podInternal: false,
+      },
     ]
   }
 

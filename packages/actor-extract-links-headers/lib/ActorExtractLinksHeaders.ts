@@ -48,7 +48,7 @@ export class ActorExtractLinksHeaders extends ActorExtractLinks {
    * @param context 
    * @returns 
    */
-  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
+  public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[]{
     return [];
   }
 

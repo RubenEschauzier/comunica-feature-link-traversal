@@ -11,6 +11,7 @@
       "@id": "urn:comunica:default:extract-links/actors#predicates-ldp",
       "@type": "ActorExtractLinksPredicates",
       "checkSubject": true,
+      "podInternalLinks": true,
       "predicateRegexes": [
         "http://www.w3.org/ns/ldp#contains"
       ]

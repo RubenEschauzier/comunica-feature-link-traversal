@@ -301,7 +301,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
    * @param context 
    * @returns 
    */
-  public getExtractPatternRepresentation(context: IActionContext): Algebra.Pattern[] {
+  public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[] {
     return []
   }
 

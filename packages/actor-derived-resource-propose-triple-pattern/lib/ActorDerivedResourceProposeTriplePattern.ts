@@ -1,6 +1,6 @@
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
 import { ActorDerivedResourcePropose, IActionDerivedResourcePropose, IActorDerivedResourceProposeOutput, IActorDerivedResourceProposeArgs, ICandidateResource } from '@comunica/bus-derived-resource-propose';
-import { ActorExtractLinks, MediatorExtractLinks } from '@comunica/bus-extract-links';
+import { ActorExtractLinks, IExtractPattern, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import { TestResult, IActorTest, passTestVoid } from '@comunica/core';
 import { IActionContext } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
@@ -33,7 +33,7 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
 
   public async run(action: IActionDerivedResourcePropose): Promise<IActorDerivedResourceProposeOutput> {
     const candidateResources: ICandidateResource[] = [];
-    for (const pattern of this.patternsToServe(action)) {
+    for (const { pattern, podInternal } of this.patternsToServe(action)) {
       const serving = action.resources.filter(resource =>
         doesShapeAcceptOperation(resource.derivedResourceSelectorShape, pattern));
 
@@ -44,6 +44,12 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
       }
 
       for (const resource of serving) {
+        // A resource serving a whole pod is not proposed for a pattern whose links stay inside that
+        // pod: it already carries the documents those links lead to, so the request buys nothing.
+        // The pattern still counts as covered above, this only declines to spend a request on it
+        if (podInternal && this.coversWholePod(resource)) {
+          continue;
+        }
         candidateResources.push(this.createCandidateResource(pattern, resource));
       }
     }
@@ -53,10 +59,15 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
   /**
    * Gets all triple patterns we need from a derived resource answering a single triple pattern.
    */
-  protected patternsToServe(action: IActionDerivedResourcePropose): Algebra.Pattern[] {
+  protected patternsToServe(action: IActionDerivedResourcePropose): IExtractPattern[] {
+    // The query's own patterns go first, so that one also reported as a pod-internal traversal
+    // pattern keeps the query's reading of it: an answer is needed whatever the links do
+    const queryPatterns: IExtractPattern[] = this.extractQueryPatterns(action.operation)
+      .map(pattern => ({ pattern, podInternal: false }));
+
     const seen = new Set<string>();
-    return [ ...this.extractQueryPatterns(action.operation), ...this.extractTraversalPatterns(action.context) ]
-      .filter((pattern) => {
+    return [ ...queryPatterns, ...this.extractTraversalPatterns(action.context) ]
+      .filter(({ pattern }) => {
         const key = this.patternKey(pattern);
         if (seen.has(key)) {
           return false;
@@ -67,11 +78,27 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
   }
 
   /**
-   * The patterns the link extractors would otherwise crawl for.
+   * The patterns the link extractors would otherwise crawl for, each saying whether its links can
+   * leave the pod that served them.
    */
-  protected extractTraversalPatterns(context: IActionContext): Algebra.Pattern[] {
+  protected extractTraversalPatterns(context: IActionContext): IExtractPattern[] {
     const actors = <ActorExtractLinks[]> (<any> this.mediatorExtractLinks.bus).actors;
     return actors.flatMap(actor => actor.getExtractPatternRepresentation(context));
+  }
+
+  /**
+   * Whether the resource serves the whole pod it lives on.
+   *
+   * Heuristic, pending a way for a resource to state its own scope: a selector that is nothing but
+   * a wildcard below the base url covers everything under it.
+   */
+  protected coversWholePod(resource: IDerivedResource): boolean {
+    return resource.selectors.some((selector) => {
+      const belowBase = selector.startsWith(resource.baseUrl) ?
+        selector.slice(resource.baseUrl.length) :
+        selector;
+      return [ '*', '**', '/*', '/**' ].includes(belowBase);
+    });
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { IActionExtractLinks, IActorExtractLinksOutput } from '@comunica/bus-extract-links';
+import type { IActionExtractLinks, IActorExtractLinksOutput, IExtractPattern } from '@comunica/bus-extract-links';
 import { ActorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorArgs, IActorTest, TestResult } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
@@ -14,6 +14,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
   private readonly checkSubject: boolean;
   private readonly predicates: RegExp[];
   private readonly stringPredicates: string[];
+  private readonly podInternalLinks: boolean;
 
   public constructor(args: IActorExtractLinksTraversePredicatesArgs) {
     super(args);
@@ -21,6 +22,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
     this.checkSubject = args.checkSubject;
     this.stringPredicates = args.predicateRegexes;
     this.predicates = args.predicateRegexes.map(stringRegex => new RegExp(stringRegex, 'u'));
+    this.podInternalLinks = args.podInternalLinks ?? false;
   }
 
   public async test(_action: IActionExtractLinks): Promise<TestResult<IActorTest>> {
@@ -103,8 +105,8 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
    * @param context 
    * @returns 
    */
-  public getExtractPatternRepresentation(context: IActionContext): Pattern[]{
-    return this.evaluatePatterns();
+  public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[]{
+    return this.evaluatePatterns().map(pattern => ({ pattern, podInternal: this.podInternalLinks }));
   }
 
   private isValidUrl(value: string): boolean {
@@ -127,4 +129,12 @@ export interface IActorExtractLinksTraversePredicatesArgs
    * A list of regular expressions that will be tested against predicates of quads.
    */
   predicateRegexes: string[];
+  /**
+   * If the links found through these predicates can only point within the pod that served them,
+   * as `ldp:contains` and `pim:space#storage` do. A source covering a whole pod is not asked for
+   * these, since the documents they lead to are already covered.
+   * @range {boolean}
+   * @default {false}
+   */
+  podInternalLinks?: boolean;
 }

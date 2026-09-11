@@ -80,15 +80,18 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // 11. Show query where first choice is bad but adaptive learns later choice to make
     // / where filtering is better / worse than not using / following existing partition
     // TODO AFTER THIS:
-    // 1. After formalizing look at what we still need to implement based on formalizations
-
+    // 1. Possibly make adaptive partitioning strategy that if we find next derived resource
+    // we can change our approach
+    // 2. Deal with overlapping triples when domain also overlaps. 
+    // Needs to stateful: Track previous allocations of derived resources
+    // so when at later stage we find overlapping resource we know what we did so we dont 'forget' 
+    // that we already allocated a part of the sub-query
+    // Also when we have all identified derived-resources, cost-based selection as with 1.
+    // 3. After formalizing look at what we still need to implement based on formalizations
 
     // TODO: How do we deal with potentially overlapping triples in composite resources
     // partitioning the query, estimating cost of triple patterns.
     // how do we filter / execute plan etc
-
-    // TODO: How do we filter when doing linear sub-queries. Is what we do sufficient?
-    // TODO: Integrate linear subqueries.
 
     let context = action.context;
     // Determine links to derived resources
@@ -140,6 +143,15 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         );
       }
     });
+
+    const paritionedResources = await this.mediatorDerivedResourcePartition.mediate(
+      {
+        operation: action.context.getSafe(KeysInitQuery.query),
+        resources: derivedResourcesIdentified,
+        context
+      }
+    );
+    console.log(paritionedResources);
     const { links } = await this.mediatorDerivedResourceSelect.mediate({
       derivedResourcesIdentified,
       context,

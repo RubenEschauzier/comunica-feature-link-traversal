@@ -68,7 +68,10 @@ export class ActorDerivedResourceProposeStars extends ActorDerivedResourcePropos
                 prunable: true,
                 features: {
                   patternCount: starPatterns.length,
-                  constantCount: starPatterns[0].subject.termType !== "Variable" ? 1 : 0,
+                  constantCount: starPatterns[0].subject.termType !== "Variable" ? 1 : 0 + 
+                    starPatterns.reduce(
+                      (acc: number, pattern) => acc + pattern.object.termType !== 'Variable' ? 1 : 0, 0
+                    ),
                   coefficients: {
                     compute: 5,
                     requests: 1,

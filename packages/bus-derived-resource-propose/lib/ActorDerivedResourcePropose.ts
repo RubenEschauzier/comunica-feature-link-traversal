@@ -46,7 +46,7 @@ export interface ICandidateResource {
   /**
    * The type of sub-query executed
    */
-  kind: string;
+  kind: "star"| "chain" | string;
   /**
    * The terms needed to be in authoritative domain of tihs resource
    */

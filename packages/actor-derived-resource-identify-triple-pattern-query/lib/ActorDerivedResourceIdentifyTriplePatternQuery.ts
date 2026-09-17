@@ -1,4 +1,4 @@
-import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs, extractTemplateParams, normalizeQuery } from '@comunica/bus-derived-resource-identify';
+import {ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs, extractTemplateParams, normalizeQuery, FilterParseCache } from '@comunica/bus-derived-resource-identify';
 import { MediatorQuerySourceDereferenceLink } from '@comunica/bus-query-source-dereference-link';
 import type { MediatorQueryParse } from '@comunica/bus-query-parse';
 import { TestResult, IActorTest, passTestVoid, failTest, ActionContext, passTestVoidWithSideData } from '@comunica/core';
@@ -13,6 +13,11 @@ import { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
  * A comunica Triple Pattern Query Derived Resource Identify Actor.
  */
 export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerivedResourceIdentify<ITriplePatternSideData> {
+  /**
+   * Filters are identical on every pod, so parsing them once covers every pod after the first.
+   */
+  protected readonly filterParseCache = new FilterParseCache();
+
   protected readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
   protected readonly mediatorQueryParse: MediatorQueryParse;
   protected readonly dataFactory: DataFactory = new DataFactory();
@@ -41,13 +46,9 @@ export class ActorDerivedResourceIdentifyTriplePatternQuery extends ActorDerived
     try {
       const baseIRI: string | undefined = context.get(KeysInitQuery.baseIRI);
       const queryFormat: RDF.QueryFormat = context.get(KeysInitQuery.queryFormat)!;
-      queryParseOutput = await this.mediatorQueryParse.mediate(
-        { 
-          context, 
-          query: normalized,
-          queryFormat, 
-          baseIRI 
-        }
+      queryParseOutput = await this.filterParseCache.parse(
+        FilterParseCache.key(normalized, queryFormat, baseIRI),
+        async() => this.mediatorQueryParse.mediate({ context, query: normalized, queryFormat, baseIRI }),
       );
     }
     catch (err: any) {

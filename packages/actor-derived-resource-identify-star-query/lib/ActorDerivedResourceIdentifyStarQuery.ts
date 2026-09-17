@@ -1,4 +1,4 @@
-import { ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs, extractTemplateParams, normalizeQuery } from '@comunica/bus-derived-resource-identify';
+import {ActorDerivedResourceIdentify, IActionDerivedResourceIdentify, IActorDerivedResourceIdentifyOutput, IActorDerivedResourceIdentifyArgs, extractTemplateParams, normalizeQuery, FilterParseCache } from '@comunica/bus-derived-resource-identify';
 import { TestResult, IActorTest, passTestVoidWithSideData, failTest } from '@comunica/core';
 import type * as RDF from '@rdfjs/types';
 import { Algebra, isKnownOperation } from '@comunica/utils-algebra';
@@ -14,6 +14,11 @@ import { QuerySourceParameterizedStarQuery } from './QuerySourceParameterizedSta
  * A comunica Star Query Derived Resource Identify Actor.
  */
 export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceIdentify<IStarQuerySideData> {
+  /**
+   * Filters are identical on every pod, so parsing them once covers every pod after the first.
+   */
+  protected readonly filterParseCache = new FilterParseCache();
+
   protected readonly mediatorDereference: MediatorDereference;
   protected readonly mediatorQuerySourceDereferenceLink?: MediatorQuerySourceDereferenceLink;
   protected readonly mediatorQueryParse: MediatorQueryParse;
@@ -43,13 +48,9 @@ export class ActorDerivedResourceIdentifyStarQuery extends ActorDerivedResourceI
     try {
       const baseIRI: string | undefined = context.get(KeysInitQuery.baseIRI);
       const queryFormat: RDF.QueryFormat = context.get(KeysInitQuery.queryFormat)!;
-      queryParseOutput = await this.mediatorQueryParse.mediate(
-        { 
-          context, 
-          query: normalized,
-          queryFormat, 
-          baseIRI 
-        }
+      queryParseOutput = await this.filterParseCache.parse(
+        FilterParseCache.key(normalized, queryFormat, baseIRI),
+        async() => this.mediatorQueryParse.mediate({ context, query: normalized, queryFormat, baseIRI }),
       );
     }
     catch (err: any) {

@@ -61,16 +61,26 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
     const hasWildcardQueryPattern = queryPatterns.some(pattern => this.isWildcardPattern(pattern));
 
     // A block carries every resource that offered to serve its pattern, so the cheapest one is the
-    // one to spend a request on
-    const bestResources = new Map(this.triplePatternBlocks(action).map(block => <const> [
-      block.pattern,
-      block.resources.reduce((min, curr) => this.cost(curr) < this.cost(min) ? curr : min),
-    ]));
+    // one to spend a request on. Deduplicates identical requests
+    
+    const bestResources: (readonly [Algebra.Pattern, IDerivedResource])[] = [];
+    const seenRequests = new Set<string>();
+    for (const block of this.triplePatternBlocks(action)) {
+      const best = block.resources.reduce((min, curr) => this.cost(curr) < this.cost(min) ? curr : min);
+      const requestUrl = this.requestUrl(block.pattern, best);
+      if (requestUrl !== undefined) {
+        if (seenRequests.has(requestUrl)) {
+          continue;
+        }
+        seenRequests.add(requestUrl);
+      }
+      bestResources.push(<const> [ block.pattern, best ]);
+    }
 
     // Tell link traversal not to crawl what these resources already cover. This is only sound
     // because the proposer refuses to offer anything unless every pattern is covered
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-    for (const resource of bestResources.values()) {
+    for (const [ , resource ] of bestResources) {
       for (const selector of resource.selectors) {
         if (this.isGlob(selector)) {
           dynamicLinkFilter.addGlob(selector);
@@ -85,7 +95,7 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
     // Fast path: if the query contains a ?s ?p ?o
     // (e.g. wildcard or NPS), all data is fetched in one request
     if (hasWildcardQueryPattern) {
-      const wildcardEntry = [ ...bestResources.entries() ].find(([ pattern ]) => this.isWildcardPattern(pattern));
+      const wildcardEntry = bestResources.find(([ pattern ]) => this.isWildcardPattern(pattern));
 
       if (wildcardEntry) {
         const [ wildcardPattern, resource ] = wildcardEntry;
@@ -117,7 +127,7 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
     const answeredQueryPatterns = new Set<Algebra.Pattern>();
 
     const extractLinksOutput = await Promise.all(
-      [ ...bestResources.entries() ].map(async([ pattern, resource ]) => {
+      bestResources.map(async([ pattern, resource ]) => {
         const rawQuads = resource.querySource.queryQuads(pattern, context);
 
         // We always need to extract links of each of the patterns
@@ -167,6 +177,17 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       }
     }
     return [ ...byUrl.values() ];
+  }
+
+  /**
+   * The URL a resource would request for this pattern, or undefined if it cannot say.
+   */
+  protected requestUrl(pattern: Algebra.Pattern, resource: IDerivedResource): string | undefined {
+    const source = <{ getFilledTemplateUri?: (operation: Algebra.Pattern) => string }> resource.querySource;
+    if (typeof source.getFilledTemplateUri !== 'function') {
+      return undefined;
+    }
+    return `${resource.iri.length}:${resource.iri}${source.getFilledTemplateUri(pattern)}`;
   }
 
   /**

@@ -112,7 +112,10 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     return wrap(this.resolveAndExecuteQuads(operation, context));
   }
 
-  private async resolveAndExecuteQuads(operation: Algebra.Pattern, context: IActionContext): Promise<RDF.Stream<RDF.Quad>> {
+  /**
+   * The URL this source dereferences for the given pattern.
+   */
+  public getFilledTemplateUri(operation: Algebra.Pattern): string {
     // Fill in the parameter values of the template
     const replaceParam = (url: string, param: string, value: RDF.Term, variableName: string) => {
       const regex = new RegExp(`(?:\\{|%7b)${param}(?:\\}|%7d)`, 'gi');
@@ -138,7 +141,12 @@ export class QuerySourceParameterizedPattern implements IQuerySource {
     if (this.parameterizedPattern.graph) {
       filledTemplateUri = replaceParam(filledTemplateUri, this.parameterizedPattern.graph, operation.graph, 'g');
     }
-    
+    return filledTemplateUri;
+  }
+
+  private async resolveAndExecuteQuads(operation: Algebra.Pattern, context: IActionContext): Promise<RDF.Stream<RDF.Quad>> {
+    const filledTemplateUri = this.getFilledTemplateUri(operation);
+
     const dereferenceRdfOutput: IActorDereferenceRdfOutput = await this.mediatorDereferenceRdf.mediate({
       context,
       url: filledTemplateUri,

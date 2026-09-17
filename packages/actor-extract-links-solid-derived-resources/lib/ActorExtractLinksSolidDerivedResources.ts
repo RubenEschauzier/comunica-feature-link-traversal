@@ -4,7 +4,7 @@ import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActo
 import { IActorDereferenceOutput, MediatorDereference } from "@comunica/bus-dereference";
 import { KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
 import { KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
-import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs, ActionContext } from '@comunica/core';
+import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs } from '@comunica/core';
 import { IActionContext, ILink, IQuerySource } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 import { storeStream } from 'rdf-store-stream';
@@ -112,7 +112,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
       derivedResourcesRaw.flat().map(resource => {
         dynamicLinkFilter.addExact(resource.filterUri.url);
-        return this.dereferenceFilter(resource);
+        return this.dereferenceFilter(resource, context);
       }
       ));
 
@@ -227,7 +227,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     return [...Object.values(derivedResourcesRaw)];
   }
 
-  public async dereferenceFilter(derivedResourcesUnidentified: IDerivedResourceRaw):
+  public async dereferenceFilter(derivedResourcesUnidentified: IDerivedResourceRaw, context: IActionContext):
     Promise<IDerivedResourceUnidentified> {
 
     const response: IActorDereferenceOutput = await this.mediatorDereference.mediate(
@@ -251,7 +251,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
           // Fallback (TODO: Should we even have this?)
           "*/*": 0.1
         }),
-        context: new ActionContext(),
+        context,
       }
     );
     const rawText = await this.streamToString(response.data);

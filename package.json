@@ -40,8 +40,8 @@
     "version": "manual-git-changelog onversion"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.0",
-    "@babel/preset-env": "^7.26.0",
+    "@babel/core": "^8.0.0",
+    "@babel/preset-env": "^8.0.0",
     "@comunica/packager": "^5.0.0",
     "@comunica/statistic-link-discovery": "^5.0.2",
     "@comunica/utils-jest": "^5.0.2",
@@ -72,16 +72,16 @@
     "karma-jasmine-html-reporter": "^2.1.0",
     "karma-sourcemap-loader": "^0.4.0",
     "karma-webpack": "^5.0.1",
-    "lerna": "^9.0.0",
+    "lerna": "^10.0.0",
     "manual-git-changelog": "^1.0.2",
     "node-polyfill-webpack-plugin": "^4.1.0",
-    "npm-check-updates": "^19.0.0",
+    "npm-check-updates": "^23.0.0",
     "raw-loader": "^4.0.2",
     "rdf-data-factory": "^2.0.2",
     "rdf-quad": "^2.0.0",
     "setup-polly-jest": "^0.11.0",
     "stream-to-string": "^1.2.1",
-    "streamify-array": "^1.0.1",
+    "streamify-array": "^2.0.0",
     "streamify-string": "^1.0.1",
     "ts-jest": "^29.4.4",
     "ts-loader": "^9.5.1",
@@ -89,6 +89,6 @@
     "typedoc": "^0.28.0",
     "typescript": "^5.9.3",
     "webpack": "^5.97.1",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^7.0.0"
   }
 }

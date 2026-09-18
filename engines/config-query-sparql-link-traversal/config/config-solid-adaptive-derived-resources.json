@@ -41,6 +41,8 @@
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter-dynamic-priority.json",
 
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-prioritize-derived-resources.json",
-    "ccqslt:config/extract-links/actors/predicates-derived-resources.json"
+    "ccqslt:config/extract-links/actors/predicates-derived-resources.json",
+
+    "ccqs:config/http/actors-delay.json"
   ]
 }

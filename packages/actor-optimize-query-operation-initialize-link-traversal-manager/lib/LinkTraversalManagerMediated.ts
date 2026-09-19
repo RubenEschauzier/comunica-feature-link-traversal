@@ -193,7 +193,6 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
         for (const link of await this.getSourceLinks(metadata, nextLink)) {
           this.linkQueue.push(link);
         }
-
         // If the source is a document, add to aggregate store.
         // Otherwise, append to non-document sources.
         if (await source.getFilterFactor(this.context) === 0) {

@@ -1,0 +1,43 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
+  ],
+  "import": [
+    "ccqslt:config/config-solid-base-adaptive-stems-no-limit.json",
+    "ccqslt:config/extract-links/actors/predicates-common.json",
+    "ccqslt:config/extract-links/actors/predicates-ldp.json",
+    "ccqslt:config/extract-links/actors/links-describedby.json",
+    "ccqslt:config/extract-links/actors/predicates-solidstorage.json",
+    "ccqslt:config/extract-links/actors/quad-pattern-query.json",
+    "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
+
+    "ccqslt:config/rdf-join/actors-inner-multi-adaptive-stems-lottery.json",
+    "ccqs:config/rdf-join/routers/router-lottery-selectivity.json",
+    "ccqs:config/rdf-join/routers/router-min-index.json",
+    "ccqs:config/rdf-join/routers/router-lottery.json",
+
+    "ccqslt:config/extract-links/actors/solid-derived-resources.json",
+    "ccqslt:config/derived-resource-identify/mediators.json",
+    "ccqslt:config/derived-resource-identify/actors/qpf.json",
+    "ccqslt:config/derived-resource-identify/actors/parameterized-pattern.json",
+    
+    "ccqslt:config/context-preprocess/adaptive-join-component.json",
+    
+    "ccqslt:config/derived-resource-propose/mediators.json",
+    "ccqslt:config/derived-resource-propose/actors.json",
+    "ccqslt:config/derived-resource-partition/mediators.json",
+    "ccqslt:config/derived-resource-partition/actors/actor-star-first.json",
+    "ccqslt:config/derived-resource-execute/mediators.json",
+    "ccqslt:config/derived-resource-execute/actors.json",
+
+
+    "ccqslt:config/context-preprocess/dynamic-links-filter.json",
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter-dynamic-priority.json",
+
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-prioritize-derived-resources.json",
+    "ccqslt:config/extract-links/actors/predicates-derived-resources.json",
+
+    "ccqs:config/http/actors-delay.json"
+  ]
+}

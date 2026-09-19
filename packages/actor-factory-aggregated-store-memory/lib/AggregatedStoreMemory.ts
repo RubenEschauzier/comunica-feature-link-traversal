@@ -24,6 +24,12 @@ import { StreamingStore } from 'rdf-streaming-store';
 const OBJECT_KEY_SEPARATOR = String.fromCodePoint(1);
 
 /**
+ * The value the N3 entity index counter is advanced to before any quad is stored.
+ * This is to prevent arrays being allocated for single value, inflating memory size
+ */
+const ENTITY_ID_OFFSET = 1_000_000;
+
+/**
  * A quad carrying the documents that asserted it, as attached by `match`.
  */
 export interface IQuadWithSources extends RDF.Quad {
@@ -78,10 +84,22 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
     trackSources = false,
   ) {
     super(store);
+    AggregatedStoreMemory.offsetEntityIds(this.getStore());
     this.metadataAccumulator = metadataAccumulator;
     this.emitPartialCardinalities = emitPartialCardinalities;
     this.dataFactory = dataFactory;
     this.trackSources = trackSources;
+  }
+
+  /**
+   * Advances the entity id counter of an empty N3 store past V8's dense-elements threshold.
+   * Reaches into N3 internals, so it checks what it finds and leaves the store alone otherwise.
+   */
+  protected static offsetEntityIds(store: RDF.Store): void {
+    const entityIndex = (<{ _entityIndex?: { _id?: number } }> <unknown> store)._entityIndex;
+    if (entityIndex && typeof entityIndex._id === 'number' && entityIndex._id < ENTITY_ID_OFFSET) {
+      entityIndex._id = ENTITY_ID_OFFSET;
+    }
   }
 
   public async importSource(url: string, source: IQuerySource, context: IActionContext): Promise<void> {

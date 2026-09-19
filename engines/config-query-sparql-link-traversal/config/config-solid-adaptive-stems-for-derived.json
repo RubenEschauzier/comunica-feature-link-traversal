@@ -4,7 +4,7 @@
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
   ],
   "import": [
-    "ccqslt:config/config-solid-base-adaptive-stems-no-limit.json",
+    "ccqslt:config/config-solid-base-adaptive-stems-no-limit-fifo.json",
     "ccqslt:config/extract-links/actors/predicates-common.json",
     "ccqslt:config/extract-links/actors/predicates-ldp.json",
     "ccqslt:config/extract-links/actors/links-describedby.json",
@@ -12,9 +12,12 @@
     "ccqslt:config/extract-links/actors/quad-pattern-query.json",
     "ccqslt:config/extract-links/actors/solid-type-index-noinference.json",
 
-    "ccqslt:config/rdf-join/actors-inner-multi-adaptive-stems-fixed.json",
+    "ccqslt:config/rdf-join/actors-inner-multi-adaptive-stems-lottery.json",
     "ccqs:config/rdf-join/routers/router-lottery-selectivity.json",
     "ccqs:config/rdf-join/routers/router-min-index.json",
-    "ccqs:config/rdf-join/routers/router-lottery.json"
+    "ccqs:config/rdf-join/routers/router-lottery.json",
+
+    "ccqslt:config/context-preprocess/links-filter.json",
+    "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter.json"
   ]
 }

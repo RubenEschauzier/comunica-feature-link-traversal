@@ -63,6 +63,7 @@ export class ActorExtractLinksSolidTypeIndex extends ActorExtractLinks {
     if (Object.keys(typeLinks).length === 0) {
       return { links: []};
     }
+    console.log("Found typeindexes")
 
     // Different behaviour depending on whether or not we match type index entries with the current query.
     if (this.onlyMatchingTypes) {

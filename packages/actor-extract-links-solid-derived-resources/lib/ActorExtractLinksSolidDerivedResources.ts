@@ -100,6 +100,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     if (derivedResources.length === 0) {
       return { links: [] }
     }
+    console.log("Found derived resources")
 
     // Set filter immediately to prevent race conditions
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);

@@ -11,6 +11,7 @@ export class CliArgsHandlerAnnotateSources implements ICliArgsHandler {
           describe: 'Annotate data with their sources',
           choices: [
             'graph',
+            'index',
           ],
         },
       });

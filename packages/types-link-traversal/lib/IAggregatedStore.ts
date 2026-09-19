@@ -80,6 +80,21 @@ export interface IAggregatedStore<Q extends RDF.BaseQuad = RDF.Quad>
    */
   removeAllIteratorsClosedListener: (listener: () => void) => void;
 
+  /**
+   * Import the given stream into the store, recording `source` as a document that asserted each
+   * of its quads. Without a source the quads are imported without provenance.
+   * @param stream The quads to import.
+   * @param source The URL of the document the quads were read from.
+   */
+  import: (stream: RDF.Stream<Q>, source?: string) => EventEmitter;
+
+  /**
+   * The documents that asserted the given quad, if any were recorded.
+   * A lone document is returned as a string, which is what nearly every triple has.
+   * @param quad A quad.
+   */
+  getSources: (quad: RDF.BaseQuad) => string | string[] | undefined;
+
   match: (
     subject?: RDF.Term | null,
     predicate?: RDF.Term | null,

@@ -13,7 +13,22 @@ import { ClosableTransformIterator } from '@comunica/utils-iterator';
 import { MetadataValidationState } from '@comunica/utils-metadata';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
+import { wrap } from 'asynciterator';
 import { StreamingStore } from 'rdf-streaming-store';
+
+/**
+ * Separates the parts of an object key. An object is keyed by its value, so a literal has to be
+ * told apart from an IRI reading the same, and two literals differing only in type or language
+ * have to be told apart from each other.
+ */
+const OBJECT_KEY_SEPARATOR = String.fromCodePoint(1);
+
+/**
+ * A quad carrying the documents that asserted it, as attached by `match`.
+ */
+export interface IQuadWithSources extends RDF.Quad {
+  sources?: string | string[];
+}
 
 /**
  * An aggregated store that returns AsyncIterators with a valid MetadataQuads property.
@@ -28,6 +43,18 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
   (accumulatedMetadata: MetadataBindings, appendingMetadata: MetadataBindings) => Promise<MetadataBindings>;
 
   protected readonly dataFactory: ComunicaDataFactory;
+
+  /**
+   * The documents that asserted each triple, nested subject / predicate / object.
+   * For triples with different sources (base source + derived resource) this would cause 
+   * duplications if stored in graph term.
+   */
+  protected readonly sourceIndex = new Map<string, Map<string, Map<string, string | string[]>>>();
+
+  /**
+   * Whether to record the document each quad was read from.
+   */
+  protected readonly trackSources: boolean;
 
   /**
    * Whether the AggregatedStoreMemory should emit updated partial cardinalities
@@ -48,11 +75,13 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
     (accumulatedMetadata: MetadataBindings, appendingMetadata: MetadataBindings) => Promise<MetadataBindings>,
     emitPartialCardinalities: boolean,
     dataFactory: ComunicaDataFactory,
+    trackSources = false,
   ) {
     super(store);
     this.metadataAccumulator = metadataAccumulator;
     this.emitPartialCardinalities = emitPartialCardinalities;
     this.dataFactory = dataFactory;
+    this.trackSources = trackSources;
   }
 
   public async importSource(url: string, source: IQuerySource, context: IActionContext): Promise<void> {
@@ -64,7 +93,7 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
         this.dataFactory.variable('p'),
         this.dataFactory.variable('o'),
         this.dataFactory.variable('g'),
-      ), context));
+      ), context), url);
       await new Promise((resolve, reject) => {
         eventEmitter.on('end', resolve);
         eventEmitter.on('error', reject);
@@ -72,11 +101,112 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
     }
   }
 
-  public override import(stream: RDF.Stream): EventEmitter {
-    if (!this.ended) {
-      super.import(stream);
+  public override import(stream: RDF.Stream, source?: string): EventEmitter {
+    if (this.ended) {
+      return stream;
     }
-    return stream;
+    if (source === undefined || !this.trackSources) {
+      super.import(stream);
+      return stream;
+    }
+    // The recorded stream is what the store consumes and what is handed back, so a caller waiting
+    // on `end` waits for the sources to be recorded as well as for the quads to be inserted
+    const recorded = wrap<RDF.Quad>(stream).map((quad) => {
+      this.recordSource(quad, source);
+      return quad;
+    });
+    super.import(recorded);
+    return recorded;
+  }
+
+  /**
+   * Records `source` as a document that asserted the given quad.
+   */
+  protected recordSource(quad: RDF.Quad, source: string): void {
+    let byPredicate = this.sourceIndex.get(quad.subject.value);
+    if (byPredicate === undefined) {
+      byPredicate = new Map();
+      this.sourceIndex.set(quad.subject.value, byPredicate);
+    }
+    let byObject = byPredicate.get(quad.predicate.value);
+    if (byObject === undefined) {
+      byObject = new Map();
+      byPredicate.set(quad.predicate.value, byObject);
+    }
+
+    const key = AggregatedStoreMemory.objectKey(quad.object);
+    const known = byObject.get(key);
+    if (known === undefined) {
+      byObject.set(key, source);
+      return;
+    }
+    if (typeof known === 'string') {
+      const kept = AggregatedStoreMemory.moreSpecific(known, source);
+      byObject.set(key, kept ?? [ known, source ]);
+      return;
+    }
+    for (const [ index, existing ] of known.entries()) {
+      const kept = AggregatedStoreMemory.moreSpecific(existing, source);
+      if (kept !== undefined) {
+        known[index] = kept;
+        return;
+      }
+    }
+    known.push(source);
+  }
+
+  /**
+   * The documents that asserted the given quad, if any were recorded.
+   */
+  public getSources(quad: RDF.BaseQuad): string | string[] | undefined {
+    return this.sourceIndex
+      .get(quad.subject.value)
+      ?.get(quad.predicate.value)
+      ?.get(AggregatedStoreMemory.objectKey(quad.object));
+  }
+
+  /**
+   * The narrower of two document URLs when one names a subtree the other lies in, and undefined
+   * when neither contains the other and they are therefore two separate documents.
+   */
+  protected static moreSpecific(left: string, right: string): string | undefined {
+    if (left === right) {
+      return left;
+    }
+    if (AggregatedStoreMemory.contains(left, right)) {
+      return right;
+    }
+    if (AggregatedStoreMemory.contains(right, left)) {
+      return left;
+    }
+    return undefined;
+  }
+
+  /**
+   * Whether `inner` lies under `outer`. The boundary character is what stops a document from
+   * being taken for one whose name merely extends it, such as `/pods/15` for `/pods/150`.
+   */
+  protected static contains(outer: string, inner: string): boolean {
+    if (!inner.startsWith(outer)) {
+      return false;
+    }
+    const last = outer.codePointAt(outer.length - 1);
+    if (last === 47 || last === 35) {
+      return true;
+    }
+    const boundary = inner.codePointAt(outer.length);
+    return boundary === 47 || boundary === 35 || boundary === 63;
+  }
+
+  /**
+   * The key an object is held under in the source index.
+   */
+  protected static objectKey(object: RDF.Term): string {
+    if (object.termType !== 'Literal') {
+      return object.value;
+    }
+    return `"${object.value}${OBJECT_KEY_SEPARATOR}${object.datatype.value}${
+      OBJECT_KEY_SEPARATOR}${object.language}`;
   }
 
   public hasRunningIterators(): boolean {
@@ -91,8 +221,21 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
   ): AsyncIterator<RDF.Quad> {
     // Wrap the raw stream in an AsyncIterator
     const rawStream = super.match(subject, predicate, object, graph);
+
+    // The documents a quad came from travel on the quad itself, so that the step turning quads
+    // into bindings can put them in the binding context without reaching back here
+    const sourcedStream = this.trackSources ?
+      wrap<RDF.Quad>(<any> rawStream).map((quad) => {
+        const sources = this.getSources(quad);
+        if (sources !== undefined) {
+          (<IQuadWithSources> quad).sources = sources;
+        }
+        return quad;
+      }) :
+      rawStream;
+
     const iterator = new ClosableTransformIterator<RDF.Quad, RDF.Quad>(
-      <any> rawStream,
+      <any> sourcedStream,
       {
         autoStart: false,
         onClose: () => {
@@ -199,6 +342,7 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
       this.metadataAccumulator,
       this.emitPartialCardinalities,
       this.dataFactory,
+      this.trackSources,
     );
   }
 }

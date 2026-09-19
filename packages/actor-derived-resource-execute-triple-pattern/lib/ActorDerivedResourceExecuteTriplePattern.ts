@@ -1,18 +1,20 @@
-import { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-extract-links-solid-derived-resources';
-import { ActorDerivedResourceExecute, IActionDerivedResourceExecute, IActorDerivedResourceExecuteOutput, IActorDerivedResourceExecuteArgs } from '@comunica/bus-derived-resource-execute';
-import { MediatorExtractLinks } from '@comunica/bus-extract-links';
+import type { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-extract-links-solid-derived-resources';
+import type { IActionDerivedResourceExecute, IActorDerivedResourceExecuteOutput, IActorDerivedResourceExecuteArgs } from '@comunica/bus-derived-resource-execute';
+import { ActorDerivedResourceExecute } from '@comunica/bus-derived-resource-execute';
+import type { MediatorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
-import { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
+import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { KeysInitQuery } from '@comunica/context-entries';
 import { KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
-import { TestResult, IActorTest, failTest, passTestVoid } from '@comunica/core';
-import { ComunicaDataFactory, ILink } from '@comunica/types';
+import type { TestResult, IActorTest } from '@comunica/core';
+import { failTest, passTestVoid } from '@comunica/core';
+import type { ComunicaDataFactory, ILink } from '@comunica/types';
 import type { ILinkTraversalManager } from '@comunica/types-link-traversal';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
+import type * as RDF from '@rdfjs/types';
 import { wrap } from 'asynciterator';
 import { DataFactory } from 'rdf-data-factory';
 import { filterQuadTermNames, matchPatternComplete, matchPatternMappings } from 'rdf-terms';
-import type * as RDF from '@rdfjs/types';
 
 const DF = new DataFactory<RDF.BaseQuad>();
 const VAR_SUBJ = DF.variable('__comunica:pp_var_subj');
@@ -62,7 +64,7 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
 
     // A block carries every resource that offered to serve its pattern, so the cheapest one is the
     // one to spend a request on. Deduplicates identical requests
-    
+
     const bestResources: (readonly [Algebra.Pattern, IDerivedResource])[] = [];
     const seenRequests = new Set<string>();
     for (const block of this.triplePatternBlocks(action)) {
@@ -117,7 +119,7 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
           dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
         }
 
-        await this.importIntoStore(manager, dataToImport);
+        await this.importIntoStore(manager, dataToImport, resource.baseUrl);
 
         manager.removeDereferencingDerivedResource(controller);
         return { links: this.dedupeLinks(extractedLinks.links) };
@@ -154,7 +156,7 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
           if (shouldAnnotate) {
             dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
           }
-          await this.importIntoStore(manager, dataToImport);
+          await this.importIntoStore(manager, dataToImport, resource.baseUrl);
         }
 
         return extractedLinks;
@@ -207,8 +209,22 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
     return varNames.length === 4 || (varNames.length === 3 && pattern.graph.termType !== 'Variable');
   }
 
-  protected async importIntoStore(manager: ILinkTraversalManager, data: RDF.Stream<RDF.Quad>): Promise<void> {
-    const eventEmitter = manager.getAggregatedStore().import(data);
+  /**
+   * Imports the given quads into the aggregated store.
+   *
+   * A derived resource aggregates documents of the pod it lives on, so the URL it was requested
+   * under names a subtree rather than a document. The store keeps whichever of the two names is
+   * narrower where traversal also reaches one of those documents itself.
+   * @param manager The link traversal manager holding the store.
+   * @param data The quads to import.
+   * @param source The URL the data was requested under.
+   */
+  protected async importIntoStore(
+    manager: ILinkTraversalManager,
+    data: RDF.Stream<RDF.Quad>,
+    source?: string,
+  ): Promise<void> {
+    const eventEmitter = manager.getAggregatedStore().import(data, source);
     await new Promise((resolve, reject) => {
       eventEmitter.on('end', resolve);
       eventEmitter.on('error', reject);

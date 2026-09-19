@@ -6,6 +6,7 @@ import type {
 import { ActorFactoryAggregatedStore } from '@comunica/bus-factory-aggregated-store';
 import type { MediatorRdfMetadataAccumulate } from '@comunica/bus-rdf-metadata-accumulate';
 import { KeysInitQuery } from '@comunica/context-entries';
+import { KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
 import type { MetadataBindings } from '@comunica/types';
@@ -41,6 +42,7 @@ export class ActorFactoryAggregatedStoreMemory extends ActorFactoryAggregatedSto
           })).metadata,
         this.emitPartialCardinalities,
         action.context.getSafe(KeysInitQuery.dataFactory),
+        action.context.get(KeysRdfResolveHypermediaLinks.annotateSources) === 'index',
       ),
     };
   }

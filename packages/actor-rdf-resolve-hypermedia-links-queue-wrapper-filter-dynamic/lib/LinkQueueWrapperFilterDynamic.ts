@@ -1,7 +1,6 @@
 import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-queue';
 import type { ILinkQueue, ILink } from '@comunica/types';
 import { IDynamicFilter } from '@comunica/types-link-traversal';
-import { minimatch } from 'minimatch';
 
 /**
  * A link queue wrapper that dynamically filters links using a live object 

@@ -84,7 +84,6 @@ export class ActorDerivedResourceProposeStars extends ActorDerivedResourcePropos
         }
       }
     }
-
     return {
       candidateResources: proposedStarResources
     }

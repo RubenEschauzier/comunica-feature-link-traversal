@@ -49,6 +49,7 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
       // whole block out of reach, so it is dropped rather than filtered
       const outOfDomain = block.anchorTerms.some(term => term.termType !== 'Variable' &&
         !isWithinDomain(term.value, domain, domainIsDelimited));
+
       if (outOfDomain) {
         return;
       }
@@ -69,6 +70,8 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
         }));
       }
 
+      console.log("Adding block")
+      console.log(block)
       adaptiveJoinController.addCompositeSource(block.operations, bindingsStream, {
         authoritativeDomain: domain,
         anchorTerms: block.anchorTerms,

@@ -1,7 +1,9 @@
 import type { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/actor-extract-links-solid-derived-resources';
 import type { IActionDerivedResourceExecute, IActorDerivedResourceExecuteOutput, IActorDerivedResourceExecuteArgs } from '@comunica/bus-derived-resource-execute';
 import { ActorDerivedResourceExecute } from '@comunica/bus-derived-resource-execute';
-import type { MediatorExtractLinks } from '@comunica/bus-extract-links';
+import type { IBatchQuerySource } from '@comunica/bus-derived-resource-identify';
+import { isBatchQuerySource } from '@comunica/bus-derived-resource-identify';
+import type { IActorExtractLinksOutput, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
 import { KeysInitQuery } from '@comunica/context-entries';
@@ -161,6 +163,55 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       return extractedLinks;
     };
 
+    // Patterns served by the same resource that can batch go out in one request: link extraction then
+    // sees all of their data at once, and only what answers a query pattern is imported
+    const runBatch = async(resource: IDerivedResource, patterns: Algebra.Pattern[]): Promise<IActorExtractLinksOutput> => {
+      const source = <IBatchQuerySource> resource.querySource;
+      const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+        { context, url: resource.iri, quads: source.queryQuadsBatch(patterns, context) },
+      );
+      const extractedLinks = this.mediatorExtractLinks.mediate({
+        context,
+        url: resource.iri,
+        metadata: rdfMetadataOutput.metadata,
+        requestTime: 0,
+      });
+
+      let dataToImport = this.filterBatchDataToImport(
+        patterns,
+        rdfMetadataOutput.data,
+        queryPatterns,
+        answeredQueryPatterns,
+      );
+      if (dataToImport) {
+        if (shouldAnnotate) {
+          dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
+        }
+        await this.importIntoStore(manager, dataToImport, resource.baseUrl);
+      }
+      return extractedLinks;
+    };
+
+    const runGroup = (entries: (readonly [Algebra.Pattern, IDerivedResource])[]): Promise<IActorExtractLinksOutput>[] => {
+      const batches = new Map<IDerivedResource, Algebra.Pattern[]>();
+      const single: (readonly [Algebra.Pattern, IDerivedResource])[] = [];
+      for (const entry of entries) {
+        if (isBatchQuerySource(entry[1].querySource)) {
+          batches.set(entry[1], [ ...batches.get(entry[1]) ?? [], entry[0] ]);
+        } else {
+          single.push(entry);
+        }
+      }
+      const runs = single.map(runEntry);
+      for (const [ resource, patterns ] of batches) {
+        const { maxBatchSize } = <IBatchQuerySource> resource.querySource;
+        for (let start = 0; start < patterns.length; start += maxBatchSize) {
+          runs.push(runBatch(resource, patterns.slice(start, start + maxBatchSize)));
+        }
+      }
+      return runs;
+    };
+
     // A request that answers a query pattern no composite answers is what the query waits on, so it
     // goes now. The rest, completing patterns a composite already answers or only there to find
     // links, waits until the composites are answered: the server evaluates everything sent to it at
@@ -174,10 +225,10 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
 
     const deferred = bestResources.filter(entry => !neededNow(entry));
     const extractLinksOutput = await Promise.all([
-      ...bestResources.filter(entry => neededNow(entry)).map(runEntry),
+      ...runGroup(bestResources.filter(entry => neededNow(entry))),
       ...deferred.length === 0 ? [] : [
         (action.compositeResponses?.wait() ?? Promise.resolve())
-          .then(() => Promise.all(deferred.map(runEntry)))
+          .then(() => Promise.all(runGroup(deferred)))
           .then(outputs => ({ links: outputs.flatMap(output => output.links) })),
       ],
     ]);
@@ -283,6 +334,39 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       wrap<RDF.Quad>(data).filter(quad =>
         matchingQueryPatterns.some(queryPattern => matchPatternComplete(quad, queryPattern))) :
       data;
+  }
+
+  /**
+   * The data of a batch worth importing: the quads answering a query pattern that one of the batch's
+   * patterns answers and that is not answered yet. A batch mixes the data of all of its patterns, some
+   * of which are there only to find links, so the data is always filtered by those query patterns.
+   * A quad matching several of the patterns is in the data once for each of them; the store it is
+   * imported into keeps it once.
+   */
+  public filterBatchDataToImport(
+    patterns: Algebra.Pattern[],
+    data: RDF.Stream<RDF.Quad>,
+    queryPatterns: Algebra.Pattern[],
+    answeredQueryPatterns: Set<Algebra.Pattern>,
+  ): RDF.Stream<RDF.Quad> | undefined {
+    const matchingQueryPatterns = new Set<Algebra.Pattern>();
+    for (const pattern of patterns) {
+      for (const queryPattern of queryPatterns) {
+        if (!answeredQueryPatterns.has(queryPattern) &&
+          matchPatternMappings(queryPattern, pattern, { skipVarMapping: true })) {
+          matchingQueryPatterns.add(queryPattern);
+        }
+      }
+    }
+    for (const queryPattern of matchingQueryPatterns) {
+      answeredQueryPatterns.add(queryPattern);
+    }
+    if (matchingQueryPatterns.size === 0) {
+      return undefined;
+    }
+
+    const answering = [ ...matchingQueryPatterns ];
+    return wrap<RDF.Quad>(data).filter(quad => answering.some(queryPattern => matchPatternComplete(quad, queryPattern)));
   }
 
   protected annotateQuadsWithSource(

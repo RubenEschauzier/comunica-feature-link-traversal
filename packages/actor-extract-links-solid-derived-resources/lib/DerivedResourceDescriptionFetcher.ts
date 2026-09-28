@@ -34,7 +34,11 @@ export class DerivedResourceDescriptionFetcher {
 
   public async fetch(url: string, context: IActionContext): Promise<IDerivedResourceUnidentified[]> {
     const resources = await this.dereferenceDescription(url, context);
-    return Promise.all(resources.map(resource => this.dereferenceFilter(resource, context)));
+    // A description holding its filters needs no further request to be identified
+    return Promise.all(resources.map(async(resource): Promise<IDerivedResourceUnidentified> =>
+      resource.filter === undefined ?
+        this.dereferenceFilter(resource, context) :
+        { ...resource, filter: resource.filter.trim() }));
   }
 
   /**
@@ -75,7 +79,8 @@ export class DerivedResourceDescriptionFetcher {
         baseUrl,
         template: template.value,
         selectors: selectors.map(selector => selector.value),
-        filterUri: { url: filter.value },
+        // The filter is either a literal holding it or the resource it can be read from
+        ...filter.termType === 'Literal' ? { filter: filter.value } : { filterUri: { url: filter.value }},
       });
     }
     return resources;
@@ -85,6 +90,9 @@ export class DerivedResourceDescriptionFetcher {
     derivedResourcesUnidentified: IDerivedResourceRaw,
     context: IActionContext,
   ): Promise<IDerivedResourceUnidentified> {
+    if (!derivedResourcesUnidentified.filterUri) {
+      throw new Error(`Derived resource ${derivedResourcesUnidentified.template} has no filter to dereference`);
+    }
     const response: IActorDereferenceOutput = await this.mediatorDereference.mediate({
       url: derivedResourcesUnidentified.filterUri.url,
       acceptErrors: true,

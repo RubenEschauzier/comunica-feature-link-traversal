@@ -313,8 +313,13 @@ export interface IDerivedResourceRaw {
   selectors: string[]
   /**
    * URI pointing to the file containing the filter, which produced the data.
+   * Absent when the description holds the filter itself.
    */
-  filterUri: ILink
+  filterUri?: ILink
+  /**
+   * The filter itself, when the description holds it rather than pointing to it.
+   */
+  filter?: string
 }
 
 export interface IDerivedResourceUnidentified {

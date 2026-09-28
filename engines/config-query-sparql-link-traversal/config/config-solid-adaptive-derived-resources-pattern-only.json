@@ -18,6 +18,7 @@
     "ccqs:config/rdf-join/routers/router-lottery.json",
 
     "ccqslt:config/extract-links/actors/solid-derived-resources.json",
+    "ccqslt:config/optimize-query-operation/prefetch-derived-resources.json",
     "ccqslt:config/derived-resource-identify/mediators.json",
     "ccqslt:config/derived-resource-identify/actors/qpf.json",
     "ccqslt:config/derived-resource-identify/actors/parameterized-pattern.json",

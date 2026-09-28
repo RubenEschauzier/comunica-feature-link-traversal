@@ -1,19 +1,19 @@
 import { ActorInitQueryBase, QueryEngineBase } from '@comunica/actor-init-query';
 import { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActorExtractLinksArgs, IExtractPattern } from '@comunica/bus-extract-links';
-import { IActorDereferenceOutput, MediatorDereference } from "@comunica/bus-dereference";
+import { MediatorDereference } from "@comunica/bus-dereference";
 import { KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
-import { KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
+import { KeysQuerySourceIdentifyLinkTraversal, KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs } from '@comunica/core';
 import { IActionContext, ILink, IQuerySource } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
-import { storeStream } from 'rdf-store-stream';
 import { FragmentSelectorShape } from '@comunica/types';
 import { MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
 import { MediatorDerivedResourceExecute } from '@comunica/bus-derived-resource-execute';
 import { MediatorDerivedResourcePartition } from '@comunica/bus-derived-resource-partition';
 import { Algebra } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
+import { DerivedResourceDescriptionFetcher } from './DerivedResourceDescriptionFetcher';
 import { link } from 'fs';
 
 /**
@@ -27,6 +27,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public readonly mediatorDerivedResourceExecute: MediatorDerivedResourceExecute;
   public readonly mediatorDerivedResourcePartition: MediatorDerivedResourcePartition;
   public readonly queryEngine: QueryEngineBase;
+  protected readonly descriptionFetcher: DerivedResourceDescriptionFetcher;
 
   public constructor(args: IActorExtractLinksSolidDerivedResourcesArgs) {
     super(args);
@@ -39,6 +40,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     this.mediatorDerivedResourcePartition = args.mediatorDerivedResourcePartition;
 
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
+    this.descriptionFetcher = new DerivedResourceDescriptionFetcher(this.mediatorDereferenceRdf, this.mediatorDereference);
   }
 
   public async test(action: IActionExtractLinks): Promise<TestResult<IActorTest>> {
@@ -95,25 +97,74 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // how do we filter / execute plan etc
 
     let context = action.context;
-    // Determine links to derived resources
-    const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)];
+    const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+    // Determine links to derived resources. Every document of a pod can point at the same
+    // description, and once the pod is crawled rather than covered those documents are read too; a
+    // description the filter already holds was handled for an earlier one, and handling it again
+    // would hand the join a second copy of every composite answer
+    const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)]
+      .filter(url => !dynamicLinkFilter.matchesFilter(url));
     if (derivedResources.length === 0) {
       return { links: [] }
     }
     // Set filter immediately to prevent race conditions
-    const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
     derivedResources.forEach(url => {
       dynamicLinkFilter.addExact(url);
     });
 
-    const derivedResourcesRaw: IDerivedResourceRaw[][] = (await Promise.all(derivedResources
-      .map(derivedResource => this.dereferenceDerivedResources(derivedResource, action.context))));
-    const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = await Promise.all(
-      derivedResourcesRaw.flat().map(resource => {
+    // The rest is left to run in the background. Traversal only imports a document once its links
+    // are known, so waiting here would keep the document the derived resources were found in, often
+    // the seed, out of the store until every derived resource is identified and executed. The
+    // manager is told the work is pending, so traversal does not end before its links are pushed.
+    const manager = context.get(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
+    if (!manager) {
+      return { links: await this.executeDerivedResources(action, derivedResources, () => {}) };
+    }
+
+    // The links just returned can lead into the pods these resources cover, but which documents they
+    // cover is only known once the resources are executed. Until then those links are held back
+    // rather than crawled, as a crawled document would be answered a second time by its resource
+    const releases = derivedResources.map(url => dynamicLinkFilter.hold(this.podBaseUrl(url)));
+    const release = (): void => releases.forEach(releaseHold => releaseHold());
+
+    const controller = new AbortController();
+    manager.addDereferencingDerivedResource(controller);
+    this.executeDerivedResources(action, derivedResources, release)
+      .then(async(links) => {
+        if (!controller.signal.aborted) {
+          await manager.addLinks({ url: action.url }, links);
+        }
+      })
+      // A failing derived resource did not fail the query while the mediator filtered its errors,
+      // and must not now that it runs outside of it
+      .catch(() => {})
+      .finally(() => {
+        release();
+        manager.completeDereferencingDerivedResource(controller);
+      });
+
+    return { links: [] };
+  }
+
+  /**
+   * Identifies, partitions and executes the derived resources, returning the links they lead to.
+   */
+  protected async executeDerivedResources(
+    action: IActionExtractLinks,
+    derivedResources: string[],
+    releaseHeldLinks: () => void,
+  ): Promise<ILink[]> {
+    const context = action.context;
+    const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+
+    // Often already underway, as the descriptions of the seeds are fetched before the seeds are
+    const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = (await Promise.all(derivedResources
+      .map(derivedResource => this.descriptionFetcher.get(derivedResource, context)))).flat();
+    for (const resource of derivedResourcesUnidentified) {
+      if (resource.filterUri) {
         dynamicLinkFilter.addExact(resource.filterUri.url);
-        return this.dereferenceFilter(resource, context);
       }
-      ));
+    }
 
     const derivedResourcesIdentifyOutputs = await Promise.all(
       derivedResourcesUnidentified.map(resource =>
@@ -135,19 +186,16 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       output => output!.derivedResourceIdentified
     );
 
-    // Ensure selected files in derived resource will not be dereferenced again
-    derivedResourcesIdentified.forEach((resource) => {
-      for (const selector of resource.selectors) {
-        dynamicLinkFilter.addGlob(
-          selector.replace(/\.[^./*]+$/, '')
-        );
-      }
-    });
+    // Which documents no longer have to be crawled is left to the execute actors: only one that
+    // answers every pattern over a resource's documents, as the triple pattern actor does, may take
+    // them off the crawl. A composite answers just its own sub-query, so the rest of the query still
+    // needs those documents
 
     const { resourceExecutionBlocks } = await this.mediatorDerivedResourcePartition.mediate(
       {
         operation: action.context.getSafe(KeysInitQuery.query),
         resources: derivedResourcesIdentified,
+        documentUrl: action.url,
         context
       }
     );
@@ -156,8 +204,18 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       executionBlocks: resourceExecutionBlocks,
       context,
     });
+    // The execute actors have now told the filter what they cover, so links into these pods can be
+    // decided on
+    releaseHeldLinks();
 
-    return { links };
+    return links;
+  }
+
+  /**
+   * The url of the pod a derived resource description belongs to.
+   */
+  protected podBaseUrl(derivedResource: string): string {
+    return derivedResource.split('.meta')[0];
   }
 
   /**
@@ -185,85 +243,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
         resolve(derivedResourcesInner);
       });
 
-    });
-  }
-
-  public async dereferenceDerivedResources(derivedResource: string, context: IActionContext): Promise<IDerivedResourceRaw[]> {
-    // Parse the type index document
-    const response = await this.mediatorDereferenceRdf.mediate({ url: derivedResource, context });
-    const store = await storeStream(response.data);
-    // Query the document to extract all type registrations
-    const bindingsArray = await (await this.queryEngine
-      .queryBindings(`
-        SELECT ?resource ?template ?selector ?filter WHERE {
-          ?pod <urn:npm:solid:derived-resources:derivedResource> ?resource .
-          ?resource <urn:npm:solid:derived-resources:template> ?template ;
-            <urn:npm:solid:derived-resources:selector> ?selector ;
-            <urn:npm:solid:derived-resources:filter> ?filter .
-        }`, {
-        sources: [store],
-        [KeysQuerySourceIdentify.traverse.name]: false,
-        [KeysRdfJoin.skipAdaptiveJoin.name]: true,
-        [KeysStatistics.skipStatisticTracking.name]: true,
-        lenient: true,
-      })).toArray();
-
-    // Collect derived resources, aggregate selectors belonging to same resource
-    const derivedResourcesRaw: Record<string, IDerivedResourceRaw> = {};
-
-    for (const bindings of bindingsArray) {
-      const resourceIdentifier = bindings.get('resource')!.value;
-      if (!derivedResourcesRaw[resourceIdentifier]) {
-        derivedResourcesRaw[resourceIdentifier] = {
-          baseUrl: derivedResource.split(".meta")[0],
-          template: bindings.get('template')!.value,
-          selectors: [],
-          filterUri: { url: bindings.get('filter')!.value }
-        }
-      }
-      derivedResourcesRaw[resourceIdentifier].selectors.push(bindings.get('selector')!.value);
-    }
-    return [...Object.values(derivedResourcesRaw)];
-  }
-
-  public async dereferenceFilter(derivedResourcesUnidentified: IDerivedResourceRaw, context: IActionContext):
-    Promise<IDerivedResourceUnidentified> {
-
-    const response: IActorDereferenceOutput = await this.mediatorDereference.mediate(
-      {
-        url: derivedResourcesUnidentified.filterUri.url,
-        acceptErrors: true,
-        method: "GET",
-        // We use the headers to ensure the server knows we are looking for RDF
-        headers: new Headers({
-          "Accept": "text/turtle,application/n-quads,application/trig,application/ld+json,application/sparql-query"
-        }),
-        mediaTypes: async () => ({
-          // SHACL-based filters use turtle
-          "text/turtle": 1.0,
-          // Quad pattern indexes are represented as json
-          "application/json": 0.4,
-          // SPARQL-based filters
-          "application/sparql-query": 0.7,
-          // QPF uses plain text filter files
-          "text/plain": .4,
-          // Fallback (TODO: Should we even have this?)
-          "*/*": 0.1
-        }),
-        context,
-      }
-    );
-    const rawText = await this.streamToString(response.data);
-    const cleanText = rawText.trim();
-    return { ...derivedResourcesUnidentified, filter: cleanText }
-  }
-
-  private streamToString(stream: NodeJS.ReadableStream): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const chunks: Buffer[] = [];
-      stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
-      stream.on('error', (err) => reject(err));
-      stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     });
   }
 
@@ -351,6 +330,10 @@ export interface IDerivedResourceUnidentified {
    * the selector shape of the resource and the appropriate actor to use this derived resource.
    */
   filter: string
+  /**
+   * URI of the file the filter was read from.
+   */
+  filterUri?: ILink
 }
 
 export interface IDerivedResource {

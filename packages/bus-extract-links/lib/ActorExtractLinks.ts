@@ -89,6 +89,12 @@ export interface IExtractPattern {
    * reach another pod, such as one over `rdfs:seeAlso`, must still be asked for.
    */
   podInternal: boolean;
+  /**
+   * Whether links are only followed from quads whose subject is the document being read, fragment
+   * aside. Over a source that aggregates many documents the pattern alone would follow the links of
+   * every subject in it, so such a source must fill in the subject with the document instead.
+   */
+  subjectIsDocument?: boolean;
 }
 
 export interface IActionExtractLinks extends IAction {

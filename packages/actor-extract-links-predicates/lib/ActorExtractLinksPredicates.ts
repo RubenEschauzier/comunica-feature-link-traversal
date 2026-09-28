@@ -106,7 +106,11 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
    * @returns 
    */
   public getExtractPatternRepresentation(context: IActionContext): IExtractPattern[]{
-    return this.evaluatePatterns().map(pattern => ({ pattern, podInternal: this.podInternalLinks }));
+    return this.evaluatePatterns().map(pattern => ({
+      pattern,
+      podInternal: this.podInternalLinks,
+      subjectIsDocument: this.checkSubject,
+    }));
   }
 
   private isValidUrl(value: string): boolean {

@@ -74,6 +74,14 @@ export const KeysDerivedResourceIdentify = {
   derivedResourcesUnidentified: new ActionContextKey<IDerivedResourceUnidentified[]>(
     '@comunica/bus-derived-resource-identify:derivedResourcesUnidentified',
   ),
+  /**
+   * The derived resources each description document declares, with their filters, by the url of the
+   * description. Filled once per query, so a description is fetched once however many documents
+   * point at it, and can be fetched ahead of the document that points at it.
+   */
+  derivedResourceDescriptions: new ActionContextKey<Map<string, Promise<IDerivedResourceUnidentified[]>>>(
+    '@comunica/bus-derived-resource-identify:derivedResourceDescriptions',
+  ),
   //TODO: Rename this properly when things work
   derivedResourcesContainer: new ActionContextKey<IDerivedResourcesContainer>(
     '@comunica/bus-derived-resource-identify:derivedResourcesContainer',

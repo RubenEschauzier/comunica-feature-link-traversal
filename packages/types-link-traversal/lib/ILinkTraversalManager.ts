@@ -74,6 +74,13 @@ export interface ILinkTraversalManager {
    */
   completeDereferencingDerivedResource: (controller: AbortController, error?: Error) => void;
   /**
+   * Queue links found outside of the traversal of a document, such as by a derived resource that
+   * completed after that document was imported. They are filtered as any document's links are.
+   * @param parent The link of the document that led to these links.
+   * @param links  The links to queue.
+   */
+  addLinks: (parent: ILink, links: ILink[]) => Promise<void>;
+  /**
    * Get the underlying aggregatedStore
    */
   getAggregatedStore: () => IAggregatedStore;

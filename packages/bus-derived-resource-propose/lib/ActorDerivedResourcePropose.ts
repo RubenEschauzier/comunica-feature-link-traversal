@@ -28,6 +28,10 @@ export abstract class ActorDerivedResourcePropose<TS = undefined> extends Actor<
 export interface IActionDerivedResourcePropose extends IAction {
   operation: Algebra.Operation;
   resources: IDerivedResource[];
+  /**
+   * The document the derived resources were found in, if any
+   */
+  documentUrl?: string;
 }
 
 export interface IActorDerivedResourceProposeOutput extends IActorOutput {

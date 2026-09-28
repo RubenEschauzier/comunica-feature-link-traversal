@@ -80,7 +80,7 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
       .map(pattern => ({ pattern, podInternal: false }));
 
     const seen = new Set<string>();
-    return [ ...queryPatterns, ...this.extractTraversalPatterns(action.context) ]
+    return [ ...queryPatterns, ...this.traversalPatternsForDocument(action) ]
       .filter(({ pattern }) => {
         const key = this.patternKey(pattern);
         if (seen.has(key)) {
@@ -89,6 +89,33 @@ export class ActorDerivedResourceProposeTriplePattern extends ActorDerivedResour
         seen.add(key);
         return true;
       });
+  }
+
+  /**
+   * The traversal patterns to request for the document the resources were found in. A pattern that
+   * only follows links from the document itself is bound to that document, as asking for it over
+   * the whole resource would follow the links of every subject in it; without a document it is left
+   * out.
+   */
+  protected traversalPatternsForDocument(action: IActionDerivedResourcePropose): IExtractPattern[] {
+    return this.extractTraversalPatterns(action.context).flatMap((extractPattern) => {
+      if (!extractPattern.subjectIsDocument) {
+        return [ extractPattern ];
+      }
+      if (!action.documentUrl) {
+        return [];
+      }
+      const { pattern } = extractPattern;
+      return [{
+        ...extractPattern,
+        pattern: this.algebraFactory.createPattern(
+          DF.namedNode(action.documentUrl),
+          pattern.predicate,
+          pattern.object,
+          pattern.graph,
+        ),
+      }];
+    });
   }
 
   /**

@@ -29,6 +29,12 @@ export class DynamicFilter implements IDynamicFilter {
    * The globs that cover less than a subtree, compiled once and kept by their source text.
    */
   private readonly patterns = new Map<string, Minimatch>();
+  /**
+   * The prefixes held back, with how many holds each has. Only pods whose derived resources are
+   * still being identified are held, so this stays small.
+   */
+  private readonly held = new Map<string, number>();
+  private readonly releaseListeners: (() => void)[] = [];
 
   public addExact(exactMatch: string): void {
     this.exact.add(exactMatch);
@@ -52,6 +58,39 @@ export class DynamicFilter implements IDynamicFilter {
       // Dot-prefixed documents are covered like any other, see matchesFilter
       this.patterns.set(glob, new Minimatch(glob, { dot: true }));
     }
+  }
+
+  public hold(prefix: string): () => void {
+    this.held.set(prefix, (this.held.get(prefix) ?? 0) + 1);
+    let released = false;
+    return () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      const remaining = this.held.get(prefix)! - 1;
+      if (remaining === 0) {
+        this.held.delete(prefix);
+      } else {
+        this.held.set(prefix, remaining);
+      }
+      for (const listener of this.releaseListeners) {
+        listener();
+      }
+    };
+  }
+
+  public isHeld(url: string): boolean {
+    for (const prefix of this.held.keys()) {
+      if (url.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public addReleaseListener(listener: () => void): void {
+    this.releaseListeners.push(listener);
   }
 
   /**

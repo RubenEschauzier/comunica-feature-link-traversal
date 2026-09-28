@@ -70,8 +70,6 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
         }));
       }
 
-      console.log("Adding block")
-      console.log(block)
       adaptiveJoinController.addCompositeSource(block.operations, bindingsStream, {
         authoritativeDomain: domain,
         anchorTerms: block.anchorTerms,

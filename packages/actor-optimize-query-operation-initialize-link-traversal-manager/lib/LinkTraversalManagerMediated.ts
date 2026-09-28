@@ -231,6 +231,16 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     }
   }
 
+  public async addLinks(parent: ILink, links: ILink[]): Promise<void> {
+    if (!this.running) {
+      return;
+    }
+    for (const link of await this.getSourceLinks({ traverse: links }, parent)) {
+      this.linkQueue.push(link);
+    }
+    setTimeout(() => this.tryTraversingNextLinks());
+  }
+
   public getAggregatedStore(): IAggregatedStore {
     return this.aggregatedStore;
   }

@@ -41,6 +41,10 @@ export interface IActionDerivedResourcePartition extends IAction {
    * The available resources for this run
    */
   resources: IDerivedResource[];
+  /**
+   * The document the derived resources were found in, if any
+   */
+  documentUrl?: string;
 }
 
 export interface IActorDerivedResourcePartitionOutput extends IActorOutput {

@@ -9,7 +9,7 @@ import { IActionContext, ILink, IQuerySource } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 import { FragmentSelectorShape } from '@comunica/types';
 import { MediatorDerivedResourceIdentify } from '@comunica/bus-derived-resource-identify';
-import { MediatorDerivedResourceExecute } from '@comunica/bus-derived-resource-execute';
+import { CompositeResponseGate, MediatorDerivedResourceExecute } from '@comunica/bus-derived-resource-execute';
 import { MediatorDerivedResourcePartition } from '@comunica/bus-derived-resource-partition';
 import { Algebra } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
@@ -200,8 +200,14 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       }
     );
 
+    // Without composite blocks there are no composite answers to wait for
+    const compositeResponses = new CompositeResponseGate();
+    if (!resourceExecutionBlocks.some(block => block.type === 'composite')) {
+      compositeResponses.close();
+    }
     const { links } = await this.mediatorDerivedResourceExecute.mediate({
       executionBlocks: resourceExecutionBlocks,
+      compositeResponses,
       context,
     });
     // The execute actors have now told the filter what they cover, so links into these pods can be

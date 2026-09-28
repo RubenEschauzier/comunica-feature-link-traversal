@@ -128,40 +128,59 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
 
     const answeredQueryPatterns = new Set<Algebra.Pattern>();
 
-    const extractLinksOutput = await Promise.all(
-      bestResources.map(async([ pattern, resource ]) => {
-        const rawQuads = resource.querySource.queryQuads(pattern, context);
+    const runEntry = async([ pattern, resource ]: readonly [Algebra.Pattern, IDerivedResource]) => {
+      const rawQuads = resource.querySource.queryQuads(pattern, context);
 
-        // We always need to extract links of each of the patterns
-        const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-          { context, url: resource.iri, quads: rawQuads },
-        );
+      // We always need to extract links of each of the patterns
+      const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
+        { context, url: resource.iri, quads: rawQuads },
+      );
 
-        // Left unawaited so link extraction runs alongside the import below
-        const extractedLinks = this.mediatorExtractLinks.mediate({
-          context,
-          url: resource.iri,
-          metadata: rdfMetadataOutput.metadata,
-          requestTime: 0,
-        });
+      // Left unawaited so link extraction runs alongside the import below
+      const extractedLinks = this.mediatorExtractLinks.mediate({
+        context,
+        url: resource.iri,
+        metadata: rdfMetadataOutput.metadata,
+        requestTime: 0,
+      });
 
-        let dataToImport = this.filterDataToImport(
-          pattern,
-          rdfMetadataOutput.data,
-          queryPatterns,
-          answeredQueryPatterns,
-        );
+      let dataToImport = this.filterDataToImport(
+        pattern,
+        rdfMetadataOutput.data,
+        queryPatterns,
+        answeredQueryPatterns,
+      );
 
-        if (dataToImport) {
-          if (shouldAnnotate) {
-            dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
-          }
-          await this.importIntoStore(manager, dataToImport, resource.baseUrl);
+      if (dataToImport) {
+        if (shouldAnnotate) {
+          dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
         }
+        await this.importIntoStore(manager, dataToImport, resource.baseUrl);
+      }
 
-        return extractedLinks;
-      }),
-    );
+      return extractedLinks;
+    };
+
+    // A request that answers a query pattern no composite answers is what the query waits on, so it
+    // goes now. The rest, completing patterns a composite already answers or only there to find
+    // links, waits until the composites are answered: the server evaluates everything sent to it at
+    // once, and next to these pod-wide requests a composite is answered many times slower
+    const answeredByComposite = new Set(this.compositeBlocks(action)
+      .flatMap(block => block.operations.flatMap(operation => this.extractPatternsQuery(operation)))
+      .map(pattern => this.termsKey(pattern)));
+    const openQueryPatterns = queryPatterns.filter(pattern => !answeredByComposite.has(this.termsKey(pattern)));
+    const neededNow = ([ pattern ]: readonly [Algebra.Pattern, IDerivedResource]): boolean =>
+      openQueryPatterns.some(queryPattern => matchPatternMappings(queryPattern, pattern, { skipVarMapping: true }));
+
+    const deferred = bestResources.filter(entry => !neededNow(entry));
+    const extractLinksOutput = await Promise.all([
+      ...bestResources.filter(entry => neededNow(entry)).map(runEntry),
+      ...deferred.length === 0 ? [] : [
+        (action.compositeResponses?.wait() ?? Promise.resolve())
+          .then(() => Promise.all(deferred.map(runEntry)))
+          .then(outputs => ({ links: outputs.flatMap(output => output.links) })),
+      ],
+    ]);
 
     manager.removeDereferencingDerivedResource(controller);
     return { links: this.dedupeLinks(extractLinksOutput.flatMap(output => output.links)) };
@@ -277,6 +296,15 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       }
       return quad;
     });
+  }
+
+  /**
+   * Identifies a pattern by its terms, variable names included.
+   */
+  protected termsKey(pattern: Algebra.Pattern): string {
+    return [ pattern.subject, pattern.predicate, pattern.object, pattern.graph ]
+      .map(term => `${term.termType}:${term.value}`)
+      .join('|');
   }
 
   /**

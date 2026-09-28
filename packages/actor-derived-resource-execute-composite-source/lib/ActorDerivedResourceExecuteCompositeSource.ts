@@ -28,6 +28,15 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
   }
 
   public async run(action: IActionDerivedResourceExecute): Promise<IActorDerivedResourceExecuteOutput> {
+    try {
+      return await this.runBlocks(action);
+    } finally {
+      // Every composite request has been sent, or none will be, so waiting on them can begin
+      action.compositeResponses?.close();
+    }
+  }
+
+  protected async runBlocks(action: IActionDerivedResourceExecute): Promise<IActorDerivedResourceExecuteOutput> {
     // TODO Use signal to abort dereference operation (is this needed for experiments?)
     const controller = new AbortController();
 
@@ -58,6 +67,10 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
         this.asSingleOperation(block.operations),
         context,
       );
+      const responded = bindingsStream.getProperty<Promise<void>>('responded');
+      if (responded) {
+        action.compositeResponses?.add(responded);
+      }
 
       // The anchors that are still variables are only known once bound, so those are checked per
       // binding. In chain ?s <p1> ?o1 . ?o1 <p2> ?o2 we need authority over ?s and ?o1, not ?o2

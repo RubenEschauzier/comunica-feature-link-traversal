@@ -1,6 +1,7 @@
 import { ICompositeExecutionBlock, IResourceExecutionBlock, ITriplePatternExecutionBlock } from '@comunica/bus-derived-resource-partition';
 import { Actor, IAction, IActorArgs, IActorOutput, IActorTest, Mediate } from '@comunica/core';
 import { ILink } from '@comunica/types';
+import type { CompositeResponseGate } from './CompositeResponseGate';
 
 /**
  * A comunica actor for derived-resource-execute events. This runs the work that the partition actor
@@ -61,6 +62,11 @@ export interface IActionDerivedResourceExecute extends IAction {
    * coordinating with the others.
    */
   executionBlocks: IResourceExecutionBlock[];
+  /**
+   * Opens once the composite requests of this execution have been answered, for work that can
+   * wait until the answers that matter most are in.
+   */
+  compositeResponses?: CompositeResponseGate;
 }
 
 export interface IActorDerivedResourceExecuteOutput extends IActorOutput {

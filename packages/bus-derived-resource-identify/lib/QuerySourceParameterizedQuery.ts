@@ -191,9 +191,20 @@ export class QuerySourceParameterizedQuery implements IQuerySource {
       throw new Error(`Attempted queryBindings using operation not supported by ${this.constructor.name}`);
     }
 
-    return new TransformIterator(async () => {
-      return await this.resolveAndExecuteBindings(operation, context, options);
+    // The moment the response arrives is exposed as the 'responded' property, so that requests
+    // which can wait for it are not sent alongside it; see CompositeResponseGate
+    let responded!: () => void;
+    const iterator = new TransformIterator(async () => {
+      try {
+        return await this.resolveAndExecuteBindings(operation, context, options);
+      } finally {
+        responded();
+      }
     });
+    iterator.setProperty('responded', new Promise<void>((resolve) => {
+      responded = resolve;
+    }));
+    return iterator;
   }
 
   private async resolveAndExecuteBindings(

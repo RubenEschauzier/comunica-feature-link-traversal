@@ -11,6 +11,7 @@ import { DerivedResourceDescriptionFetcher } from './DerivedResourceDescriptionF
 
 /**
  * A comunica Prefetch Derived Resources Optimize Query Operation Actor.
+ * Prefetches the .meta files of the seed documents to quickly start the derived resource process
  *
  * A pod's derived resources are only found once a document of it has been fetched and read, after
  * which their description and its filters take two more requests before anything can be asked of

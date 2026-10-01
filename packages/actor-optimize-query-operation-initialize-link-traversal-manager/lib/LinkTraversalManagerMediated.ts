@@ -81,6 +81,8 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
     this.running = true;
     for (const link of this.seeds) {
       this.linkQueue.push(link);
+      // TODO: This is a universal fix to link traversal
+      this.setHandled(link);
     }
 
     // Stop link queue iteration when all iterators from the aggregated store are closed.
@@ -173,7 +175,7 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
       if (this.handledUrls[link.url]) {
         return false;
       }
-      this.handledUrls[link.url] = true;
+      this.setHandled(link);
       return true;
     });
   }

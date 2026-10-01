@@ -87,7 +87,7 @@ export class ActorOptimizeQueryOperationInitializeLinkTraversalManager extends A
         }
       }
     }
-
+    
     // Initialize link traversal manager if we have link traversal links
     if (traversalSeedLinks.length > 0) {
       let linkTraversalContext: IActionContext = new ActionContext().merge(...traversalContexts);

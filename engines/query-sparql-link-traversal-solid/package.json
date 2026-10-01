@@ -80,6 +80,7 @@
     "@comunica/actor-derived-resource-execute-composite-source": "^0.8.0",
     "@comunica/actor-derived-resource-execute-triple-pattern": "^0.8.0",
     "@comunica/actor-derived-resource-identify-linear-query": "^0.8.0",
+    "@comunica/actor-derived-resource-identify-pattern-batch": "^0.8.0",
     "@comunica/actor-derived-resource-identify-qpf": "^0.8.0",
     "@comunica/actor-derived-resource-identify-star-query": "^0.8.0",
     "@comunica/actor-derived-resource-identify-triple-pattern-query": "^0.8.0",

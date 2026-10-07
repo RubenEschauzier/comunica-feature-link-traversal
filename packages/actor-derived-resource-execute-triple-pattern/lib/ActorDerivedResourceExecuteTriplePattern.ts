@@ -55,11 +55,22 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
   public async run(action: IActionDerivedResourceExecute): Promise<IActorDerivedResourceExecuteOutput> {
     // TODO: Use signal to abort!!
     const controller = new AbortController();
-
-    const context = action.context;
-    const manager = context.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
+    const manager = action.context.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
     manager.addDereferencingDerivedResource(controller);
+    try {
+      return await this.runBlocks(action, manager);
+    } finally {
+      // Traversal only ends once no derived resource is dereferencing, so a failing one must not
+      // stay registered or the query never ends
+      manager.removeDereferencingDerivedResource(controller);
+    }
+  }
 
+  protected async runBlocks(
+    action: IActionDerivedResourceExecute,
+    manager: ILinkTraversalManager,
+  ): Promise<IActorDerivedResourceExecuteOutput> {
+    const context = action.context;
     const query = context.get(KeysInitQuery.query);
     const queryPatterns = query ? this.extractPatternsQuery(query) : [];
     const hasWildcardQueryPattern = queryPatterns.some(pattern => this.isWildcardPattern(pattern));
@@ -123,7 +134,6 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
 
         await this.importIntoStore(manager, dataToImport, resource.baseUrl);
 
-        manager.removeDereferencingDerivedResource(controller);
         return { links: this.dedupeLinks(extractedLinks.links) };
       }
     }
@@ -233,7 +243,6 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       ],
     ]);
 
-    manager.removeDereferencingDerivedResource(controller);
     return { links: this.dedupeLinks(extractLinksOutput.flatMap(output => output.links)) };
   }
 

@@ -1,0 +1,19 @@
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX snvoc: <http://solidbench-server:3000/www.ldbc.eu/ldbc_socialnet/1.0/vocabulary/>
+SELECT ?personId ?firstName ?lastName ?friendshipCreationDate WHERE {
+  <http://solidbench-server:3000/pods/00000004398046512167/profile/card#me> rdf:type snvoc:Person;
+    snvoc:id ?rootId.
+  {
+    <http://solidbench-server:3000/pods/00000004398046512167/profile/card#me> snvoc:knows ?knows.
+    ?knows snvoc:hasPerson ?person.
+  }
+  UNION
+  {
+    ?person snvoc:knows ?knows.
+    ?knows snvoc:hasPerson <http://solidbench-server:3000/pods/00000004398046512167/profile/card#me>.
+  }
+  ?knows snvoc:creationDate ?friendshipCreationDate.
+  ?person snvoc:firstName ?firstName;
+    snvoc:lastName ?lastName;
+    snvoc:id ?personId.
+}

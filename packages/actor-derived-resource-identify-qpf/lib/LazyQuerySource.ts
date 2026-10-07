@@ -9,7 +9,7 @@ import type {
 import type { Algebra } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
-import { wrap } from 'asynciterator';
+import { TransformIterator } from 'asynciterator';
 
 /**
  * A query source that is only created once it is first queried.
@@ -72,10 +72,13 @@ export class LazyQuerySource implements IQuerySource {
    * A stream over the one the source will produce, passing on its metadata once it is known.
    */
   protected wrapWithMetadata<T>(inner: Promise<AsyncIterator<T>>): AsyncIterator<T> {
-    const outer = wrap<T>(inner);
+    // Not wrap: a WrappingIterator that reads its source while the source is not readable returns
+    // null but stays readable itself, so it misses the source becoming readable again and stalls.
+    // The cloned streams a QPF source caches its fragments in do exactly this, hanging the query
+    const outer = new TransformIterator<T>(inner, { autoStart: false });
     inner
       .then(stream => stream.getProperty('metadata', metadata => outer.setProperty('metadata', metadata)))
-      // A failing source errors the stream through wrap already
+      // A failing source errors the stream through the transform iterator already
       .catch(() => {});
     return outer;
   }

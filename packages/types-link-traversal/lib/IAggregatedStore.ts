@@ -96,9 +96,9 @@ export interface IAggregatedStore<Q extends RDF.BaseQuad = RDF.Quad>
   getSources: (quad: RDF.BaseQuad) => string | string[] | undefined;
 
   /**
-   * Declare that the documents under `scope` and the derived resources answering over them use each
+   * Declare that the documents under `scope` and the composite sources aggregating them use each
    * blank node label for one node, so a blank node gets the same term in all of them.
-   * @param scope The url the scope starts at, such as the root of a pod.
+   * @param scope The url of the container the composite sources are published for.
    */
   addBlankNodeScope?: (scope: string) => void;
 

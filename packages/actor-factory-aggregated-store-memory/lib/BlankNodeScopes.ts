@@ -3,7 +3,9 @@ import type * as RDF from '@rdfjs/types';
 
 /**
  * The prefix a parser puts in front of every blank node label of a document, so that the blank nodes
- * of different documents stay apart. N3.js uses `b<counter>_`, a new counter for every parse.
+ * of different documents stay apart. N3.js uses `b<counter>_`, a new counter for every parse, and
+ * cannot be told to leave the label as it is. It is stripped here rather than avoided, as the blank
+ * nodes of documents outside any scope still need it to be kept apart.
  */
 const PARSE_PREFIX = /^b\d+_/u;
 
@@ -11,12 +13,14 @@ const PARSE_PREFIX = /^b\d+_/u;
  * Gives a blank node the same term in every document and derived resource of a scope.
  *
  * Blank node labels only identify a node within one document, so every parse gives its blank nodes
- * labels of their own. A derived resource however answers over all documents of the pod it lives on,
- * which is only meaningful when the pod uses each label for one node throughout. Within such a scope,
- * the label the server stores is therefore taken to name the same node wherever it appears, and the
- * blank node gets the term of the first source it was seen in.
+ * labels of their own. A composite source however contains the triples of the documents it aggregates,
+ * blank nodes included, and can only join over them if its server labels every blank node the same in
+ * all of them, and does not use one label for two nodes. Its answers then carry the labels of the
+ * documents, and within the container it is published for, a label names the same node wherever it
+ * appears. Such a blank node gets the term of the first source it was seen in. Documents outside any
+ * scope keep the blank nodes of their own parse.
  *
- * A document can be read before the derived resources of its pod are known, so it is not known yet
+ * A document can be read before the composites of its container are known, so it is not known yet
  * which scope it is in. The terms it hands out are recorded under the document itself, and are found
  * again once the scope is declared, as the document lies within it.
  */

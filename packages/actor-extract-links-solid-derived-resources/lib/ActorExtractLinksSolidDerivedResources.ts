@@ -121,13 +121,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       return { links: await this.executeDerivedResources(action, derivedResources, () => {}) };
     }
 
-    // A derived resource answers over all documents of its pod, which only works if the pod uses each
-    // blank node label for one node. Declared before anything is executed, so that the documents read
-    // from here on and the answers of the resources share their blank nodes
-    for (const url of derivedResources) {
-      manager.getAggregatedStore().addBlankNodeScope?.(this.podBaseUrl(url));
-    }
-
     // The links just returned can lead into the pods these resources cover, but which documents they
     // cover is only known once the resources are executed. Until then those links are held back
     // rather than crawled, as a crawled document would be answered a second time by its resource
@@ -192,6 +185,16 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const derivedResourcesIdentified = successfullyIdentified.map(
       output => output!.derivedResourceIdentified
     );
+
+    // A composite answers over the union of the documents it aggregates, so it can only join over them
+    // if its server gives every blank node one label throughout them, in the documents as well as in
+    // the answers. Publishing a composite thus implies that, and the blank nodes read from its
+    // container are given one identity per label from here on. Done before anything is executed, so
+    // the answers of the resources already share the blank nodes of the documents read so far
+    const store = context.get(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager)?.getAggregatedStore();
+    for (const baseUrl of new Set(derivedResourcesIdentified.map(resource => resource.baseUrl))) {
+      store?.addBlankNodeScope?.(baseUrl);
+    }
 
     // Which documents no longer have to be crawled is left to the execute actors: only one that
     // answers every pattern over a resource's documents, as the triple pattern actor does, may take

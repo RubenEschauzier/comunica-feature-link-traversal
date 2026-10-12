@@ -81,7 +81,8 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
 
       // The anchors that are still variables are only known once bound, so those are checked per
       // binding. In chain ?s <p1> ?o1 . ?o1 <p2> ?o2 we need authority over ?s and ?o1, not ?o2.
-      // A blank node has no url to check, but one answered by this resource is a node of its pod
+      // A blank node has no url to check, but one answered by this resource is a node of the container
+      // it aggregates, as its server labels the blank nodes there the same in all of them
       const anchorVariables = <RDF.Variable[]> block.anchorTerms
         .filter(term => term.termType === 'Variable');
       if (anchorVariables.length > 0) {
@@ -109,8 +110,9 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
 
   /**
    * Gives the blank nodes in the answers of a resource the terms the join sees for them elsewhere.
-   * The resource hands out the labels its pod stores, which the aggregated store maps to the term
-   * that blank node has in the documents and other resources of the pod. The join reads the store
+   * The resource hands out the labels its server gives the blank nodes of the documents it aggregates,
+   * which the aggregated store maps to the term that blank node has in those documents and in the
+   * other resources over them. The join reads the store
    * through a skolemized source, so the same skolemization is applied here.
    */
   protected scopeBlankNodes(

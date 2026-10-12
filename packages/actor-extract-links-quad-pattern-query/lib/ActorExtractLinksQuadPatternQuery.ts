@@ -17,7 +17,6 @@ const VAR = DF.variable('__comunica:pp_var');
 const VAR_SUBJ = DF.variable('__comunica:pp_var_subj');
 const VAR_PRED = DF.variable('__comunica:pp_var_pred');
 const VAR_OBJ = DF.variable('__comunica:pp_var_obj');
-const VAR_GRAPH = DF.variable('__comunica:pp_var_graph')
 
 /**
  * A comunica Traverse Quad Pattern Query RDF Metadata Extract Actor.
@@ -137,9 +136,9 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
       [Algebra.Types.PATTERN]: {
         preVisitor: () => ({ continue: false }),
         visitor: (pattern: Algebra.Pattern) => {
-          patternQuery.push(
-            AF.createPattern(VAR_SUBJ, pattern.predicate, VAR_OBJ, VAR_GRAPH)
-          );        
+          // Links are only taken from quads matching a pattern of the query as it is, constants
+          // included, so that pattern is all a source has to be asked for to find them
+          patternQuery.push(pattern);
         },
       },
       [Algebra.Types.PATH]: {

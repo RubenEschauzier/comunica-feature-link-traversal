@@ -6,8 +6,10 @@ import { KeysInitQuery } from '@comunica/context-entries';
 import { KeysDerivedResourceIdentify } from '@comunica/context-entries-link-traversal';
 import type { IActorArgs, TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
+import { AlgebraFactory } from '@comunica/utils-algebra';
 import type { IDerivedResourceUnidentified } from './ActorExtractLinksSolidDerivedResources';
 import { DerivedResourceDescriptionFetcher } from './DerivedResourceDescriptionFetcher';
+import { UnionPushdown } from './UnionPushdown';
 
 /**
  * A comunica Prefetch Derived Resources Optimize Query Operation Actor.
@@ -22,6 +24,8 @@ import { DerivedResourceDescriptionFetcher } from './DerivedResourceDescriptionF
  */
 export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOptimizeQueryOperation {
   protected readonly descriptionFetcher: DerivedResourceDescriptionFetcher;
+  // TODO: move into an optimize-query-operation actor of its own
+  protected readonly unionPushdown = new UnionPushdown(new AlgebraFactory());
 
   public constructor(args: IActorOptimizeQueryOperationPrefetchDerivedResourcesArgs) {
     super(args);
@@ -36,6 +40,11 @@ export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOp
   }
 
   public async run(action: IActionOptimizeQueryOperation): Promise<IActorOptimizeQueryOperationOutput> {
+    // The query is rewritten before the traversal it starts takes it from the context, so that what is
+    // delegated to derived resources is planned on the same operation that is executed
+    const operation = this.unionPushdown.rewrite(action.operation);
+    action = { ...action, operation, context: action.context.set(KeysInitQuery.query, operation) };
+
     const seeds = this.seedUrls(action.context.get(KeysInitQuery.querySourcesUnidentified) ?? []);
     if (seeds.length === 0) {
       return { ...action, context: action.context };

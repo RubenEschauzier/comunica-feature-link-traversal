@@ -291,25 +291,44 @@ describe('LinkQueuePriority', () => {
         { url: 'd', metadata: { priority: -2, index: 4 }},
         { url: 'c', metadata: { priority: 6, index: 5 }},
       ]);
+      // c now ties with f, and was pushed before it, so it rises above it
       queue.modifyPriority('c', 1);
       expect(queue.links).toEqual([
-        { url: 'f', metadata: { priority: 7, index: 0 }},
+        { url: 'c', metadata: { priority: 7, index: 0 }},
         { url: 'e', metadata: { priority: 2, index: 1 }},
-        { url: 'c', metadata: { priority: 7, index: 2 }},
+        { url: 'f', metadata: { priority: 7, index: 2 }},
         { url: 'a', metadata: { priority: 0, index: 3 }},
         { url: 'd', metadata: { priority: -2, index: 4 }},
         { url: 'b', metadata: { priority: 6, index: 5 }},
       ]);
-      // Case where we don't swap left but do swap right on downheap
+      // f now ties with its child b, which was pushed before it, so it sinks below it
       queue.modifyPriority('f', -1);
       expect(queue.links).toEqual([
         { url: 'c', metadata: { priority: 7, index: 0 }},
         { url: 'e', metadata: { priority: 2, index: 1 }},
-        { url: 'f', metadata: { priority: 6, index: 2 }},
+        { url: 'b', metadata: { priority: 6, index: 2 }},
         { url: 'a', metadata: { priority: 0, index: 3 }},
         { url: 'd', metadata: { priority: -2, index: 4 }},
-        { url: 'b', metadata: { priority: 6, index: 5 }},
+        { url: 'f', metadata: { priority: 6, index: 5 }},
       ]);
+    });
+  });
+
+  describe('equal priorities', () => {
+    it('hands out links of equal priority in the order they were pushed.', () => {
+      for (const url of [ 'a', 'b', 'c', 'd', 'e', 'f', 'g' ]) {
+        queue.push({ url, metadata: { priority: 0 }});
+      }
+      queue.pop();
+      queue.push({ url: 'h', metadata: { priority: 0 }});
+      expect([ 1, 2, 3, 4, 5, 6, 7 ].map(() => queue.pop()!.url)).toEqual([ 'b', 'c', 'd', 'e', 'f', 'g', 'h' ]);
+    });
+
+    it('still hands out a higher priority first.', () => {
+      queue.push({ url: 'a', metadata: { priority: 0 }});
+      queue.push({ url: 'b', metadata: { priority: 0 }});
+      queue.push({ url: 'c', metadata: { priority: 1 }});
+      expect([ 1, 2, 3 ].map(() => queue.pop()!.url)).toEqual([ 'c', 'a', 'b' ]);
     });
   });
 

@@ -18,8 +18,16 @@ export interface IBatchQuerySource extends IQuerySource {
   /**
    * The quads matching each of the patterns, all in one stream. A quad matching several of the
    * patterns may occur once for each of them.
+   * @param patterns The patterns to match.
+   * @param context The action context.
+   * @param unclaimedBy Per pattern, a namespace whose claimed quads are left out, as a composite of
+   * that namespace already answers them. A claimed quad linking out of the namespace is kept.
    */
-  queryQuadsBatch: (patterns: Algebra.Pattern[], context: IActionContext) => AsyncIterator<RDF.Quad>;
+  queryQuadsBatch: (
+    patterns: Algebra.Pattern[],
+    context: IActionContext,
+    unclaimedBy?: (string | undefined)[],
+  ) => AsyncIterator<RDF.Quad>;
 }
 
 /**

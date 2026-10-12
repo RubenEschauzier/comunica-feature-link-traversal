@@ -93,10 +93,21 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
         }));
       }
 
-      adaptiveJoinController.addCompositeSource(block.operations, bindingsStream, {
+      // The join only hands the operations to the resource once it has the resource's answers.
+      // From then on it drops what the documents of the resource's domain produce for them, so
+      // doing so before would hold back answers those documents already give while the request is
+      // underway. What the documents produced before is compared against the answers instead, so
+      // a solution is kept once whichever way it is found first
+      if (responded) {
+        await responded;
+      }
+      const accepted = adaptiveJoinController.addCompositeSource(block.operations, bindingsStream, {
         authoritativeDomain: domain,
         anchorTerms: block.anchorTerms,
       });
+      if (accepted) {
+        action.compositeResponses?.accept(block);
+      }
 
       // TODO: Think about how reachability works when we aggregate over data.
       // When we aggregate over something that is not reachable, we will still include

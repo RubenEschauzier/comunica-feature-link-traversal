@@ -1,7 +1,8 @@
 import type { ILink, ILinkQueue } from '@comunica/types';
 
 /**
- * A link queue based on priority, using binary heap.
+ * A link queue based on priority, using binary heap. Links of equal priority leave the queue in the
+ * order they entered it, so that among them traversal stays breadth-first.
  */
 export class LinkQueuePriority implements ILinkQueue {
   /**
@@ -13,6 +14,12 @@ export class LinkQueuePriority implements ILinkQueue {
    * on link URL
    */
   public readonly urlToLink: Record<string, ILink> = {};
+  /**
+   * When each link in the queue was pushed, which orders links of equal priority. Kept beside the
+   * links rather than in their metadata, which other actors read.
+   */
+  protected readonly pushOrder = new WeakMap<ILink, number>();
+  protected pushed = 0;
 
   /**
    * Pushes element to heap by appending it to array and up-heaping the new element
@@ -28,6 +35,7 @@ export class LinkQueuePriority implements ILinkQueue {
     } else {
       link.metadata = { priority: 0, index: idx };
     }
+    this.pushOrder.set(link, this.pushed++);
 
     this.links.push(link);
 
@@ -125,7 +133,7 @@ export class LinkQueuePriority implements ILinkQueue {
     while (idx > 0) {
       const parentIdx = Math.floor((idx - 1) / 2);
       const parent = this.links[parentIdx];
-      if (element.metadata!.priority <= parent.metadata!.priority) {
+      if (!this.before(element, parent)) {
         element.metadata!.index = idx;
         break;
       }
@@ -162,7 +170,7 @@ export class LinkQueuePriority implements ILinkQueue {
       // If there exist a left/right child we do comparison
       if (leftChildIdx < length) {
         leftChild = this.links[leftChildIdx];
-        if (leftChild.metadata!.priority > element.metadata!.priority) {
+        if (this.before(leftChild, element)) {
           swap = leftChildIdx;
         }
       }
@@ -171,8 +179,8 @@ export class LinkQueuePriority implements ILinkQueue {
         // Only swap with right child if we either: don't swap a left child and the right child has higher
         // priority or if we do swap and left child has lower priority than right
         if (
-          (swap === null && rightChild.metadata!.priority > element.metadata!.priority) ||
-          (swap !== null && leftChild && rightChild.metadata!.priority > leftChild.metadata!.priority)
+          (swap === null && this.before(rightChild, element)) ||
+          (swap !== null && leftChild && this.before(rightChild, leftChild))
         ) {
           swap = rightChildIdx;
         }
@@ -194,6 +202,18 @@ export class LinkQueuePriority implements ILinkQueue {
       this.links[swap].metadata!.index = swap;
       idx = swap;
     }
+  }
+
+  /**
+   * Whether `left` leaves the queue before `right`: it has a higher priority, or an equal one and
+   * entered the queue earlier. Without the second, a heap hands out the latest of equal links first,
+   * which turns traversal depth-first.
+   */
+  protected before(left: ILink, right: ILink): boolean {
+    const leftPriority = left.metadata!.priority;
+    const rightPriority = right.metadata!.priority;
+    return leftPriority > rightPriority ||
+      (leftPriority === rightPriority && this.pushOrder.get(left)! < this.pushOrder.get(right)!);
   }
 
   public getSize(): number {

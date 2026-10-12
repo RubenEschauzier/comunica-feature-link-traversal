@@ -6,7 +6,7 @@ import { isBatchQuerySource } from '@comunica/bus-derived-resource-identify';
 import type { IActorExtractLinksOutput, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
 import type { MediatorRdfMetadataExtract } from '@comunica/bus-rdf-metadata-extract';
-import { KeysInitQuery } from '@comunica/context-entries';
+import { KeysInitQuery, KeysRdfJoin } from '@comunica/context-entries';
 import { KeysQuerySourceIdentifyLinkTraversal, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import type { TestResult, IActorTest } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
@@ -177,8 +177,12 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
     // sees all of their data at once, and only what answers a query pattern is imported
     const runBatch = async(resource: IDerivedResource, patterns: Algebra.Pattern[]): Promise<IActorExtractLinksOutput> => {
       const source = <IBatchQuerySource> resource.querySource;
+      // A pattern a composite of this resource's container answers only needs the quads that
+      // container does not claim, the composite answering for all the others (Theorem 3)
+      const unclaimedBy = patterns
+        .map(pattern => this.answeredByAcceptedComposite(action, pattern, resource.baseUrl) ? resource.baseUrl : undefined);
       const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-        { context, url: resource.iri, quads: source.queryQuadsBatch(patterns, context) },
+        { context, url: resource.iri, quads: source.queryQuadsBatch(patterns, context, unclaimedBy) },
       );
       const extractedLinks = this.mediatorExtractLinks.mediate({
         context,
@@ -202,6 +206,8 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       return extractedLinks;
     };
 
+    // The patterns already asked of each batch resource, so a later batch leaves out what they cover
+    const requested = new Map<IDerivedResource, Algebra.Pattern[]>();
     const runGroup = (entries: (readonly [Algebra.Pattern, IDerivedResource])[]): Promise<IActorExtractLinksOutput>[] => {
       const batches = new Map<IDerivedResource, Algebra.Pattern[]>();
       const single: (readonly [Algebra.Pattern, IDerivedResource])[] = [];
@@ -213,7 +219,16 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
         }
       }
       const runs = single.map(runEntry);
-      for (const [ resource, patterns ] of batches) {
+      for (const [ resource, asked ] of batches) {
+        // A batch answers every pattern in it separately, so a pattern another one covers is sent back
+        // twice. Its quads are in the answer to the wider pattern already, and the data is filtered to
+        // the query patterns it answers before it is imported, so it can be left out
+        const before = requested.get(resource) ?? [];
+        const patterns = this.withoutCovered(asked, before);
+        requested.set(resource, [ ...before, ...patterns ]);
+        if (patterns.length === 0) {
+          continue;
+        }
         const { maxBatchSize } = <IBatchQuerySource> resource.querySource;
         for (let start = 0; start < patterns.length; start += maxBatchSize) {
           runs.push(runBatch(resource, patterns.slice(start, start + maxBatchSize)));
@@ -258,6 +273,68 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       }
     }
     return [ ...byUrl.values() ];
+  }
+
+  /**
+   * Whether composites the join took on for the given container answer this pattern wherever the query
+   * has it. The quads left out of a request are left out of the store every join reads, so each join
+   * the pattern occurs in, such as every branch of a union, needs a composite answering it there.
+   * Only known for certain once the composite response gate is closed, which the requests asking it
+   * wait for.
+   */
+  protected answeredByAcceptedComposite(
+    action: IActionDerivedResourceExecute,
+    pattern: Algebra.Pattern,
+    container: string,
+  ): boolean {
+    const key = this.termsKey(pattern);
+    const isPattern = (operation: Algebra.Operation): boolean => operation.type === Algebra.Types.PATTERN &&
+      this.termsKey(<Algebra.Pattern> operation) === key;
+    const blocks = (action.compositeResponses?.acceptedBlocks() ?? []).filter(block =>
+      block.resource.baseUrl === container &&
+      block.operations.some(operation => this.extractPatternsQuery(operation).some(isPattern)));
+    const query = action.context.get(KeysInitQuery.query);
+    const controller = action.context.get(KeysRdfJoin.adaptiveJoinController);
+    if (blocks.length === 0 || !query || !controller) {
+      return false;
+    }
+    const occurrences = this.extractPatternsQuery(query).filter(isPattern).length;
+    const covered = controller.getComponents()
+      .filter(component => blocks.some(block => component.canCoverOperations(block.operations)))
+      .reduce((count, component) => count + component.operations.filter(isPattern).length, 0);
+    return covered >= occurrences;
+  }
+
+  /**
+   * The given patterns without those whose quads another of them, or one requested before, returns as
+   * well. Of two equal patterns the first is kept.
+   */
+  public withoutCovered(patterns: Algebra.Pattern[], requestedBefore: Algebra.Pattern[]): Algebra.Pattern[] {
+    return patterns.filter((pattern, index) =>
+      !requestedBefore.some(other => this.covers(other, pattern)) &&
+      !patterns.some((other, otherIndex) => otherIndex !== index && this.covers(other, pattern) &&
+        (otherIndex < index || !this.covers(pattern, other))));
+  }
+
+  /**
+   * Whether every quad matching `specific` also matches `general`. A pattern in the default graph is
+   * sent without a graph, which the server matches against every graph, so it covers any graph.
+   */
+  public covers(general: Algebra.Pattern, specific: Algebra.Pattern): boolean {
+    // A variable occurring twice asks for equal terms, which this does not compare, so such a pattern
+    // is only taken to cover itself
+    const variables = filterQuadTermNames(general, term => term.termType === 'Variable')
+      .map(name => general[name].value);
+    if (new Set(variables).size !== variables.length) {
+      return general === specific;
+    }
+    for (const name of [ 'subject', 'predicate', 'object' ] as const) {
+      if (general[name].termType !== 'Variable' && !general[name].equals(specific[name])) {
+        return false;
+      }
+    }
+    return general.graph.termType === 'Variable' || general.graph.termType === 'DefaultGraph' ||
+      general.graph.equals(specific.graph);
   }
 
   /**

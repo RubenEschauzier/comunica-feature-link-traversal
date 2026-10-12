@@ -95,6 +95,21 @@ export interface IAggregatedStore<Q extends RDF.BaseQuad = RDF.Quad>
    */
   getSources: (quad: RDF.BaseQuad) => string | string[] | undefined;
 
+  /**
+   * Declare that the documents under `scope` and the derived resources answering over them use each
+   * blank node label for one node, so a blank node gets the same term in all of them.
+   * @param scope The url the scope starts at, such as the root of a pod.
+   */
+  addBlankNodeScope?: (scope: string) => void;
+
+  /**
+   * The term this store has, or will have, for a blank node carrying the label the server stores, as
+   * read from data under `source`.
+   * @param label The blank node label as stored by the server.
+   * @param source The url the data was read from.
+   */
+  scopeStoredBlankNode?: (label: string, source: string) => RDF.BlankNode;
+
   match: (
     subject?: RDF.Term | null,
     predicate?: RDF.Term | null,

@@ -15,6 +15,7 @@ import type * as RDF from '@rdfjs/types';
 import type { AsyncIterator } from 'asynciterator';
 import { wrap } from 'asynciterator';
 import { StreamingStore } from 'rdf-streaming-store';
+import { BlankNodeScopes } from './BlankNodeScopes';
 
 /**
  * Separates the parts of an object key. An object is keyed by its value, so a literal has to be
@@ -49,6 +50,11 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
   (accumulatedMetadata: MetadataBindings, appendingMetadata: MetadataBindings) => Promise<MetadataBindings>;
 
   protected readonly dataFactory: ComunicaDataFactory;
+
+  /**
+   * The terms blank nodes are stored under, shared by all documents and derived resources of a scope.
+   */
+  protected blankNodeScopes: BlankNodeScopes;
 
   /**
    * The documents that asserted each triple, nested subject / predicate / object.
@@ -89,6 +95,7 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
     this.emitPartialCardinalities = emitPartialCardinalities;
     this.dataFactory = dataFactory;
     this.trackSources = trackSources;
+    this.blankNodeScopes = new BlankNodeScopes(dataFactory);
   }
 
   /**
@@ -123,6 +130,9 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
     if (this.ended) {
       return stream;
     }
+    if (source !== undefined) {
+      stream = this.scopeBlankNodes(stream, source);
+    }
     if (source === undefined || !this.trackSources) {
       super.import(stream);
       return stream;
@@ -135,6 +145,37 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
     });
     super.import(recorded);
     return recorded;
+  }
+
+  public addBlankNodeScope(scope: string): void {
+    this.blankNodeScopes.addScope(scope);
+  }
+
+  public scopeStoredBlankNode(label: string, source: string): RDF.BlankNode {
+    return this.blankNodeScopes.forStored(label, source, this.blankNodeScopes.scopeOf(source));
+  }
+
+  /**
+   * Gives the blank nodes of the data read from `source` the terms they have in the rest of its scope.
+   */
+  protected scopeBlankNodes(stream: RDF.Stream, source: string): RDF.Stream {
+    // The scope is looked up once per document rather than per blank node, as it takes a walk up the url
+    const scope = this.blankNodeScopes.scopeOf(source);
+    const scopeTerm = <T extends RDF.Term>(term: T): T | RDF.BlankNode => term.termType === 'BlankNode' ?
+      this.blankNodeScopes.forParsed(term, source, scope) :
+      term;
+    return wrap<RDF.Quad>(stream).map((quad) => {
+      if (quad.subject.termType !== 'BlankNode' && quad.object.termType !== 'BlankNode' &&
+        quad.graph.termType !== 'BlankNode') {
+        return quad;
+      }
+      return this.dataFactory.quad(
+        <RDF.Quad_Subject> scopeTerm(quad.subject),
+        quad.predicate,
+        <RDF.Quad_Object> scopeTerm(quad.object),
+        <RDF.Quad_Graph> scopeTerm(quad.graph),
+      );
+    });
   }
 
   /**
@@ -355,12 +396,15 @@ export class AggregatedStoreMemory extends StreamingStore implements IAggregated
   }
 
   public clone(): IAggregatedStore {
-    return new AggregatedStoreMemory(
+    const clone = new AggregatedStoreMemory(
       this.store,
       this.metadataAccumulator,
       this.emitPartialCardinalities,
       this.dataFactory,
       this.trackSources,
     );
+    // The clone holds the same quads, so it has to hand out the same blank nodes
+    clone.blankNodeScopes = this.blankNodeScopes;
+    return clone;
   }
 }

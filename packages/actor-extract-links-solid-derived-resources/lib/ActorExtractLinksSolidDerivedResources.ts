@@ -121,6 +121,13 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       return { links: await this.executeDerivedResources(action, derivedResources, () => {}) };
     }
 
+    // A derived resource answers over all documents of its pod, which only works if the pod uses each
+    // blank node label for one node. Declared before anything is executed, so that the documents read
+    // from here on and the answers of the resources share their blank nodes
+    for (const url of derivedResources) {
+      manager.getAggregatedStore().addBlankNodeScope?.(this.podBaseUrl(url));
+    }
+
     // The links just returned can lead into the pods these resources cover, but which documents they
     // cover is only known once the resources are executed. Until then those links are held back
     // rather than crawled, as a crawled document would be answered a second time by its resource

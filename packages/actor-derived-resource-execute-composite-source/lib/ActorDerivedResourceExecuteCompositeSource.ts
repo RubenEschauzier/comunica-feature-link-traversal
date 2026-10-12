@@ -1,12 +1,15 @@
 import { ActorDerivedResourceExecute, IActionDerivedResourceExecute, IActorDerivedResourceExecuteOutput, IActorDerivedResourceExecuteArgs } from '@comunica/bus-derived-resource-execute';
 import { ICompositeExecutionBlock } from '@comunica/bus-derived-resource-partition';
-import { KeysRdfJoin } from '@comunica/context-entries';
+import { skolemizeTerm } from '@comunica/actor-optimize-query-operation-query-source-skolemize';
+import { KeysQueryOperation, KeysQuerySourceIdentify, KeysRdfJoin } from '@comunica/context-entries';
 import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, failTest, passTestVoid } from '@comunica/core';
-import { Bindings } from '@comunica/types';
+import type { Bindings, BindingsStream, ComunicaDataFactory, IActionContext } from '@comunica/types';
+import type { IAggregatedStore } from '@comunica/types-link-traversal';
 import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
 import { isDomainDelimited, isWithinDomain } from '@comunica/actor-rdf-join-inner-multi-stems';
 import type * as RDF from '@rdfjs/types';
+import { DataFactory } from 'rdf-data-factory';
 
 /**
  * A comunica Composite Source Derived Resource Execute Actor. This hands every block of join entries
@@ -15,6 +18,7 @@ import type * as RDF from '@rdfjs/types';
  */
 export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedResourceExecute {
   protected readonly algebraFactory = new AlgebraFactory();
+  protected readonly dataFactory: ComunicaDataFactory = new DataFactory();
 
   public constructor(args: IActorDerivedResourceExecuteArgs) {
     super(args);
@@ -45,6 +49,8 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
     manager.addDereferencingDerivedResource(controller);
 
     const adaptiveJoinController = context.getSafe(KeysRdfJoin.adaptiveJoinController);
+    const store = manager.getAggregatedStore();
+    const skolemId = this.storeSkolemId(context);
 
     // The blocks are disjoint over their operations, so they can all be sent without two composite
     // sources ever covering the same join entry
@@ -63,23 +69,26 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
         return;
       }
 
-      let bindingsStream = block.resource.querySource.queryBindings(
+      const answers = block.resource.querySource.queryBindings(
         this.asSingleOperation(block.operations),
         context,
       );
-      const responded = bindingsStream.getProperty<Promise<void>>('responded');
+      const responded = answers.getProperty<Promise<void>>('responded');
       if (responded) {
         action.compositeResponses?.add(responded);
       }
+      let bindingsStream = this.scopeBlankNodes(answers, block.resource.baseUrl, store, skolemId);
 
       // The anchors that are still variables are only known once bound, so those are checked per
-      // binding. In chain ?s <p1> ?o1 . ?o1 <p2> ?o2 we need authority over ?s and ?o1, not ?o2
+      // binding. In chain ?s <p1> ?o1 . ?o1 <p2> ?o2 we need authority over ?s and ?o1, not ?o2.
+      // A blank node has no url to check, but one answered by this resource is a node of its pod
       const anchorVariables = <RDF.Variable[]> block.anchorTerms
         .filter(term => term.termType === 'Variable');
       if (anchorVariables.length > 0) {
         bindingsStream = bindingsStream.filter((binding: Bindings) => anchorVariables.every((variable) => {
           const term = binding.get(variable);
-          return term !== undefined && isWithinDomain(term.value, domain, domainIsDelimited);
+          return term !== undefined &&
+            (term.termType === 'BlankNode' || isWithinDomain(term.value, domain, domainIsDelimited));
         }));
       }
 
@@ -96,6 +105,47 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
 
     manager.removeDereferencingDerivedResource(controller);
     return { links: []};
+  }
+
+  /**
+   * Gives the blank nodes in the answers of a resource the terms the join sees for them elsewhere.
+   * The resource hands out the labels its pod stores, which the aggregated store maps to the term
+   * that blank node has in the documents and other resources of the pod. The join reads the store
+   * through a skolemized source, so the same skolemization is applied here.
+   */
+  protected scopeBlankNodes(
+    answers: BindingsStream,
+    source: string,
+    store: IAggregatedStore,
+    skolemId: string | undefined,
+  ): BindingsStream {
+    if (!store.scopeStoredBlankNode) {
+      return answers;
+    }
+    const scopeTerm = (term: RDF.Term): RDF.Term => {
+      if (term.termType !== 'BlankNode') {
+        return term;
+      }
+      const scoped = store.scopeStoredBlankNode!(term.value, source);
+      return skolemId === undefined ? scoped : skolemizeTerm(this.dataFactory, scoped, skolemId);
+    };
+    return answers.map(bindings => bindings.map(term => scopeTerm(term)));
+  }
+
+  /**
+   * The id the skolemized source over the aggregated store relabels its blank nodes with. Traversal
+   * queries all data through that one source, so it is the only source an id was handed out to. The
+   * context of link extraction carries the ids, though not always the sources themselves.
+   */
+  protected storeSkolemId(context: IActionContext): string | undefined {
+    const sourceIds = context.get(KeysQuerySourceIdentify.sourceIds);
+    if (sourceIds?.size === 1) {
+      return [ ...sourceIds.values() ][0];
+    }
+    const ids = (context.get(KeysQueryOperation.querySources) ?? [])
+      .map(wrapper => (<{ sourceId?: string }> wrapper.source).sourceId)
+      .filter((id): id is string => id !== undefined);
+    return ids.length === 1 ? ids[0] : undefined;
   }
 
   /**

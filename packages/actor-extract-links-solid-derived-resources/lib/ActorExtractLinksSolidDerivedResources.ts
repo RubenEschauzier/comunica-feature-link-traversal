@@ -186,6 +186,16 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
       output => output!.derivedResourceIdentified
     );
 
+    // A composite answers over the union of the documents it aggregates, so it can only join over them
+    // if its server gives every blank node one label throughout them, in the documents as well as in
+    // the answers. Publishing a composite thus implies that, and the blank nodes read from its
+    // container are given one identity per label from here on. Done before anything is executed, so
+    // the answers of the resources already share the blank nodes of the documents read so far
+    const store = context.get(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager)?.getAggregatedStore();
+    for (const baseUrl of new Set(derivedResourcesIdentified.map(resource => resource.baseUrl))) {
+      store?.addBlankNodeScope?.(baseUrl);
+    }
+
     // Which documents no longer have to be crawled is left to the execute actors: only one that
     // answers every pattern over a resource's documents, as the triple pattern actor does, may take
     // them off the crawl. A composite answers just its own sub-query, so the rest of the query still

@@ -2,6 +2,7 @@ import type { IDerivedResource, IDerivedResourceCoefficients } from '@comunica/a
 import type { IActionDerivedResourceExecute, IActorDerivedResourceExecuteOutput, IActorDerivedResourceExecuteArgs } from '@comunica/bus-derived-resource-execute';
 import { ActorDerivedResourceExecute } from '@comunica/bus-derived-resource-execute';
 import type { IBatchQuerySource } from '@comunica/bus-derived-resource-identify';
+import type { ICompositeExecutionBlock } from '@comunica/bus-derived-resource-partition';
 import { isBatchQuerySource } from '@comunica/bus-derived-resource-identify';
 import type { IActorExtractLinksOutput, MediatorExtractLinks } from '@comunica/bus-extract-links';
 import type { IActorRdfMetadataOutput, MediatorRdfMetadata } from '@comunica/bus-rdf-metadata';
@@ -12,10 +13,12 @@ import type { TestResult, IActorTest } from '@comunica/core';
 import { failTest, passTestVoid } from '@comunica/core';
 import type { ComunicaDataFactory, ILink } from '@comunica/types';
 import type { ILinkTraversalManager } from '@comunica/types-link-traversal';
+import { isDomainDelimited, isWithinDomain } from '@comunica/actor-rdf-join-inner-multi-stems';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 import type * as RDF from '@rdfjs/types';
 import { wrap } from 'asynciterator';
 import { DataFactory } from 'rdf-data-factory';
+import type { QuadTermName } from 'rdf-terms';
 import { filterQuadTermNames, matchPatternComplete, matchPatternMappings } from 'rdf-terms';
 
 const DF = new DataFactory<RDF.BaseQuad>();
@@ -105,8 +108,6 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       }
     }
 
-    const shouldAnnotate = context.get(KeysRdfResolveHypermediaLinks.annotateSources) === 'graph';
-
     // Fast path: if the query contains a ?s ?p ?o
     // (e.g. wildcard or NPS), all data is fetched in one request
     if (hasWildcardQueryPattern) {
@@ -128,10 +129,6 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
         });
 
         let dataToImport = rdfMetadataOutput.data;
-        if (shouldAnnotate) {
-          dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
-        }
-
         await this.importIntoStore(manager, dataToImport, resource.baseUrl);
 
         return { links: this.dedupeLinks(extractedLinks.links) };
@@ -161,12 +158,10 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
         rdfMetadataOutput.data,
         queryPatterns,
         answeredQueryPatterns,
+        queryPattern => this.claimedByAcceptedComposite(action, queryPattern, resource.baseUrl, queryPatterns),
       );
 
       if (dataToImport) {
-        if (shouldAnnotate) {
-          dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
-        }
         await this.importIntoStore(manager, dataToImport, resource.baseUrl);
       }
 
@@ -177,12 +172,8 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
     // sees all of their data at once, and only what answers a query pattern is imported
     const runBatch = async(resource: IDerivedResource, patterns: Algebra.Pattern[]): Promise<IActorExtractLinksOutput> => {
       const source = <IBatchQuerySource> resource.querySource;
-      // A pattern a composite of this resource's container answers only needs the quads that
-      // container does not claim, the composite answering for all the others (Theorem 3)
-      const unclaimedBy = patterns
-        .map(pattern => this.answeredByAcceptedComposite(action, pattern, resource.baseUrl) ? resource.baseUrl : undefined);
       const rdfMetadataOutput: IActorRdfMetadataOutput = await this.mediatorMetadata.mediate(
-        { context, url: resource.iri, quads: source.queryQuadsBatch(patterns, context, unclaimedBy) },
+        { context, url: resource.iri, quads: source.queryQuadsBatch(patterns, context) },
       );
       const extractedLinks = this.mediatorExtractLinks.mediate({
         context,
@@ -196,11 +187,9 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
         rdfMetadataOutput.data,
         queryPatterns,
         answeredQueryPatterns,
+        queryPattern => this.claimedByAcceptedComposite(action, queryPattern, resource.baseUrl, queryPatterns),
       );
       if (dataToImport) {
-        if (shouldAnnotate) {
-          dataToImport = this.annotateQuadsWithSource(dataToImport, resource.baseUrl);
-        }
         await this.importIntoStore(manager, dataToImport, resource.baseUrl);
       }
       return extractedLinks;
@@ -262,43 +251,84 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
   }
 
   /**
-   * The links by url, keeping the first of each. Links are objects, so a set would compare them by
-   * reference and never drop anything.
-   */
-  protected dedupeLinks(links: ILink[]): ILink[] {
-    const byUrl = new Map<string, ILink>();
-    for (const link of links) {
-      if (!byUrl.has(link.url)) {
-        byUrl.set(link.url, link);
-      }
-    }
-    return [ ...byUrl.values() ];
-  }
-
-  /**
-   * Whether composites the join took on for the given container answer this pattern wherever the query
-   * has it. The quads left out of a request are left out of the store every join reads, so each join
-   * the pattern occurs in, such as every branch of a union, needs a composite answering it there.
-   * Only known for certain once the composite response gate is closed, which the requests asking it
-   * wait for.
-   */
-  protected answeredByAcceptedComposite(
+   * Quads that a composite resource completely covers. Drops the bindings the resource
+   * has claimed to prevent duplicate indexing and join work.
+  */
+  protected claimedByAcceptedComposite(
     action: IActionDerivedResourceExecute,
     pattern: Algebra.Pattern,
     container: string,
+    queryPatterns: Algebra.Pattern[],
+  ): ((quad: RDF.Quad) => boolean) | undefined {
+    const blocks = this.acceptedBlocksWith(action, pattern, container);
+    if (!this.answeredByAcceptedComposite(action, blocks, pattern, queryPatterns)) {
+      return undefined;
+    }
+
+    const domainIsDelimited = isDomainDelimited(container);
+    const anchorPositions = new Set<QuadTermName>();
+    for (const block of blocks) {
+      if (block.anchorTerms.length === 0) {
+        return undefined;
+      }
+      for (const anchor of block.anchorTerms) {
+        if (anchor.termType === 'Variable') {
+          // A variable repeated in the pattern binds the same term at each of its positions
+          const [ position ] = filterQuadTermNames(pattern, term => term.equals(anchor));
+          if (!position) {
+            return undefined;
+          }
+          anchorPositions.add(position);
+        } else if (anchor.termType !== 'NamedNode' || !isWithinDomain(anchor.value, container, domainIsDelimited)) {
+          // The join only filters for a block whose constant anchors are within the domain
+          return undefined;
+        }
+      }
+    }
+
+    const positions = [ ...anchorPositions ];
+    return quad => positions.every(position => quad[position].termType === 'BlankNode' ||
+      isWithinDomain(quad[position].value, container, domainIsDelimited));
+  }
+
+  /**
+   * The composites the join took on for the given container that hold this pattern. Only known for
+   * certain once the composite response gate is closed, though a block once accepted stays accepted.
+   */
+  protected acceptedBlocksWith(
+    action: IActionDerivedResourceExecute,
+    pattern: Algebra.Pattern,
+    container: string,
+  ): ICompositeExecutionBlock[] {
+    const key = this.termsKey(pattern);
+    return (action.compositeResponses?.acceptedBlocks() ?? []).filter(block =>
+      block.resource.baseUrl === container &&
+      block.operations.some(operation => this.extractPatternsQuery(operation)
+        .some(inner => this.termsKey(inner) === key)));
+  }
+
+  /**
+   * Whether the given accepted composites answer this pattern wherever the query has it. The quads left
+   * out of the store are left out for every join reading it, so each join the pattern occurs in, such
+   * as every branch of a union, needs a composite answering it there.
+   */
+  protected answeredByAcceptedComposite(
+    action: IActionDerivedResourceExecute,
+    blocks: ICompositeExecutionBlock[],
+    pattern: Algebra.Pattern,
+    queryPatterns: Algebra.Pattern[],
   ): boolean {
     const key = this.termsKey(pattern);
     const isPattern = (operation: Algebra.Operation): boolean => operation.type === Algebra.Types.PATTERN &&
       this.termsKey(<Algebra.Pattern> operation) === key;
-    const blocks = (action.compositeResponses?.acceptedBlocks() ?? []).filter(block =>
-      block.resource.baseUrl === container &&
-      block.operations.some(operation => this.extractPatternsQuery(operation).some(isPattern)));
-    const query = action.context.get(KeysInitQuery.query);
+
     const controller = action.context.get(KeysRdfJoin.adaptiveJoinController);
-    if (blocks.length === 0 || !query || !controller) {
+
+    if (blocks.length === 0 || queryPatterns.length === 0 || !controller) {
       return false;
     }
-    const occurrences = this.extractPatternsQuery(query).filter(isPattern).length;
+
+    const occurrences = queryPatterns.filter(isPattern).length;
     const covered = controller.getComponents()
       .filter(component => blocks.some(block => component.canCoverOperations(block.operations)))
       .reduce((count, component) => count + component.operations.filter(isPattern).length, 0);
@@ -357,48 +387,16 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       resource.resourceCoefficients.selectivity * this.derivedResourceCoefficients.selectivity;
   }
 
-  /**
-   * A pattern that matches everything, and so is answered in a single request.
-   */
-  protected isWildcardPattern(pattern: Algebra.Pattern): boolean {
-    const varNames = filterQuadTermNames(pattern, term => term.termType === 'Variable');
-    return varNames.length === 4 || (varNames.length === 3 && pattern.graph.termType !== 'Variable');
-  }
-
-  /**
-   * Imports the given quads into the aggregated store.
-   *
-   * A derived resource aggregates documents of the pod it lives on, so the URL it was requested
-   * under names a subtree rather than a document. The store keeps whichever of the two names is
-   * narrower where traversal also reaches one of those documents itself.
-   * @param manager The link traversal manager holding the store.
-   * @param data The quads to import.
-   * @param source The URL the data was requested under.
-   */
-  protected async importIntoStore(
-    manager: ILinkTraversalManager,
-    data: RDF.Stream<RDF.Quad>,
-    source?: string,
-  ): Promise<void> {
-    const eventEmitter = manager.getAggregatedStore().import(data, source);
-    await new Promise((resolve, reject) => {
-      eventEmitter.on('end', resolve);
-      eventEmitter.on('error', reject);
-    }).catch(() => {
-      throw new Error(`Importing triple pattern derived resource failed`);
-    });
-  }
 
   /**
    * Determine the data stream to import into the aggregated store for a given traversal pattern.
-   * Filters out quads if the query patterns are specializations of the traversal pattern,
-   * or returns undefined if the pattern is solely for traversal or already answered.
    */
   public filterDataToImport(
     pattern: Algebra.Pattern,
     data: RDF.Stream<RDF.Quad>,
     queryPatterns: Algebra.Pattern[],
     answeredQueryPatterns: Set<Algebra.Pattern>,
+    claimedBy: (queryPattern: Algebra.Pattern) => ((quad: RDF.Quad) => boolean) | undefined = () => undefined,
   ): RDF.Stream<RDF.Quad> | undefined {
     // Only import when actually in query and not already answered
     const matchingQueryPatterns = queryPatterns.filter(queryPattern =>
@@ -415,25 +413,25 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
     const isSpecialization = matchingQueryPatterns.every(queryPattern =>
       filterQuadTermNames(pattern, term => term.termType === 'Variable')
         .some(name => queryPattern[name].termType !== 'Variable'));
+    const claims = matchingQueryPatterns.map(queryPattern => claimedBy(queryPattern));
 
-    return isSpecialization ?
-      wrap<RDF.Quad>(data).filter(quad =>
-        matchingQueryPatterns.some(queryPattern => matchPatternComplete(quad, queryPattern))) :
-      data;
+    if (!isSpecialization && claims.every(claimed => claimed === undefined)) {
+      return data;
+    }
+    return wrap<RDF.Quad>(data).filter(quad => matchingQueryPatterns.some((queryPattern, index) =>
+      matchPatternComplete(quad, queryPattern) && !claims[index]?.(quad)));
   }
 
   /**
-   * The data of a batch worth importing: the quads answering a query pattern that one of the batch's
-   * patterns answers and that is not answered yet. A batch mixes the data of all of its patterns, some
-   * of which are there only to find links, so the data is always filtered by those query patterns.
-   * A quad matching several of the patterns is in the data once for each of them; the store it is
-   * imported into keeps it once.
+   * Filters out data that is not required to answer the query. An example of this
+   * are link traversal predicates.
    */
   public filterBatchDataToImport(
     patterns: Algebra.Pattern[],
     data: RDF.Stream<RDF.Quad>,
     queryPatterns: Algebra.Pattern[],
     answeredQueryPatterns: Set<Algebra.Pattern>,
+    claimedBy: (queryPattern: Algebra.Pattern) => ((quad: RDF.Quad) => boolean) | undefined = () => undefined,
   ): RDF.Stream<RDF.Quad> | undefined {
     const matchingQueryPatterns = new Set<Algebra.Pattern>();
     for (const pattern of patterns) {
@@ -451,20 +449,40 @@ export class ActorDerivedResourceExecuteTriplePattern extends ActorDerivedResour
       return undefined;
     }
 
-    const answering = [ ...matchingQueryPatterns ];
-    return wrap<RDF.Quad>(data).filter(quad => answering.some(queryPattern => matchPatternComplete(quad, queryPattern)));
+    const answering = [ ...matchingQueryPatterns ].map(queryPattern => <const> [ queryPattern, claimedBy(queryPattern) ]);
+    return wrap<RDF.Quad>(data).filter(quad => answering.some(([ queryPattern, claimed ]) =>
+      matchPatternComplete(quad, queryPattern) && !claimed?.(quad)));
   }
 
-  protected annotateQuadsWithSource(
-    data: RDF.Stream<RDF.Quad>,
-    sourceIri: string,
-  ): RDF.Stream<RDF.Quad> {
-    const sourceNode = this.dataFactory.namedNode(sourceIri);
-    return wrap<RDF.Quad>(data).map((quad) => {
-      if (quad.graph.termType === 'DefaultGraph') {
-        return this.dataFactory.quad(quad.subject, quad.predicate, quad.object, sourceNode);
+  protected dedupeLinks(links: ILink[]): ILink[] {
+    const byUrl = new Map<string, ILink>();
+    for (const link of links) {
+      if (!byUrl.has(link.url)) {
+        byUrl.set(link.url, link);
       }
-      return quad;
+    }
+    return [ ...byUrl.values() ];
+  }
+
+  /**
+   * A pattern that matches everything, and so is answered in a single request.
+   */
+  protected isWildcardPattern(pattern: Algebra.Pattern): boolean {
+    const varNames = filterQuadTermNames(pattern, term => term.termType === 'Variable');
+    return varNames.length === 4 || (varNames.length === 3 && pattern.graph.termType !== 'Variable');
+  }
+
+  protected async importIntoStore(
+    manager: ILinkTraversalManager,
+    data: RDF.Stream<RDF.Quad>,
+    source?: string,
+  ): Promise<void> {
+    const eventEmitter = manager.getAggregatedStore().import(data, source);
+    await new Promise((resolve, reject) => {
+      eventEmitter.on('end', resolve);
+      eventEmitter.on('error', reject);
+    }).catch(() => {
+      throw new Error(`Importing triple pattern derived resource failed`);
     });
   }
 

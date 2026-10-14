@@ -5,10 +5,6 @@ import type { AsyncIterator } from 'asynciterator';
 
 /**
  * A query source that answers several independent patterns in one request.
- *
- * Each request to a derived resource costs the server far more than matching a pattern does, so
- * where a pod is asked for many single patterns, as link traversal does for every kind of link it
- * follows, sending them together saves nearly all of that cost.
  */
 export interface IBatchQuerySource extends IQuerySource {
   /**
@@ -20,14 +16,8 @@ export interface IBatchQuerySource extends IQuerySource {
    * patterns may occur once for each of them.
    * @param patterns The patterns to match.
    * @param context The action context.
-   * @param unclaimedBy Per pattern, a namespace whose claimed quads are left out, as a composite of
-   * that namespace already answers them. A claimed quad linking out of the namespace is kept.
    */
-  queryQuadsBatch: (
-    patterns: Algebra.Pattern[],
-    context: IActionContext,
-    unclaimedBy?: (string | undefined)[],
-  ) => AsyncIterator<RDF.Quad>;
+  queryQuadsBatch: (patterns: Algebra.Pattern[], context: IActionContext) => AsyncIterator<RDF.Quad>;
 }
 
 /**

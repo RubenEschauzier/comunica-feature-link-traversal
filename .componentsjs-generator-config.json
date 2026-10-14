@@ -16,7 +16,9 @@
     "ILink",
     "IQuerySource",
     "AggregatedStoreMemory",
-    "QuerySourceParameterizedQuery"
+    "QuerySourceParameterizedQuery",
+    "BlankNodeScopes",
+    "LinkQueuePriority"
   ],
   "modulePrefix": {}
 }

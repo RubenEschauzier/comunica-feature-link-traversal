@@ -2,21 +2,18 @@ import type { ICompositeExecutionBlock } from '@comunica/bus-derived-resource-pa
 
 /**
  * Opens once every composite request sent for an execution has had its response.
- *
- * A derived resource is evaluated by the server rather than read from disk, and a server evaluating
- * a small composite alongside many pod-wide triple pattern requests answers the composite last: on
- * SolidBench, one composite took ~15ms alone and ~125ms next to the triple pattern requests of the
- * same pod, while sending those 5ms after it brought it back to ~9ms at no cost to them. Requests
- * that nothing is waiting on can therefore wait for this gate, so the composite that produces the
- * first answer is not queued behind them.
- *
- * The composite actor adds its responses and closes the gate once it has sent every request; an
- * execution without composite blocks closes it straight away.
+ * Large triple pattern queries that are covered by composite can slow down the server,
+ * causing the composite source response to be delayed. Slowing down the time untill first result.
  */
+
 export class CompositeResponseGate {
+  /**
+   * Responses underway
+   */
   private readonly responses: Promise<unknown>[] = [];
   private readonly accepted: ICompositeExecutionBlock[] = [];
   private closeGate!: () => void;
+
   private readonly closed = new Promise<void>((resolve) => {
     this.closeGate = resolve;
   });

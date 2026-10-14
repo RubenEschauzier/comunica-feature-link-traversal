@@ -61,24 +61,19 @@ export class QuerySourcePatternBatch implements IBatchQuerySource {
     return this.queryQuadsBatch([ operation ], context);
   }
 
-  public queryQuadsBatch(
-    patterns: Algebra.Pattern[],
-    context: IActionContext,
-    unclaimedBy?: (string | undefined)[],
-  ): AsyncIterator<RDF.Quad> {
+  public queryQuadsBatch(patterns: Algebra.Pattern[], context: IActionContext): AsyncIterator<RDF.Quad> {
     if (patterns.length === 0 || patterns.length > this.maxBatchSize) {
       throw new Error(`${this.constructor.name} takes 1 to ${this.maxBatchSize} patterns, got ${patterns.length}`);
     }
-    const url = this.getBatchUrl(patterns, unclaimedBy);
+    const url = this.getBatchUrl(patterns);
     return wrap<RDF.Quad>(this.mediatorDereferenceRdf.mediate({ context, url })
       .then(output => <AsyncIterator<RDF.Quad>> wrap(output.data)));
   }
 
   /**
-   * The url asking for all the given patterns. A pattern with a namespace in `unclaimedBy` asks only
-   * for the quads that namespace does not claim, as `u<index>`.
+   * The url asking for all the given patterns.
    */
-  public getBatchUrl(patterns: Algebra.Pattern[], unclaimedBy: (string | undefined)[] = []): string {
+  public getBatchUrl(patterns: Algebra.Pattern[]): string {
     const parameters = new URLSearchParams();
     patterns.forEach((pattern, index) => {
       for (const [ key, position ] of POSITIONS) {
@@ -87,9 +82,6 @@ export class QuerySourcePatternBatch implements IBatchQuerySource {
           continue;
         }
         parameters.set(`${key}${index}`, term.termType === 'Variable' ? `?${term.value}` : termToString(term));
-      }
-      if (unclaimedBy[index] !== undefined) {
-        parameters.set(`u${index}`, unclaimedBy[index]!);
       }
     });
     return `${this.url}?${parameters.toString()}`;

@@ -5,7 +5,7 @@ import { KeysQueryOperation, KeysQuerySourceIdentify, KeysRdfJoin } from '@comun
 import { KeysQuerySourceIdentifyLinkTraversal } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, failTest, passTestVoid } from '@comunica/core';
 import type { Bindings, BindingsStream, ComunicaDataFactory, IActionContext } from '@comunica/types';
-import type { IAggregatedStore } from '@comunica/types-link-traversal';
+import type { IAggregatedStore, ILinkTraversalManager } from '@comunica/types-link-traversal';
 import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
 import { isDomainDelimited, isWithinDomain } from '@comunica/actor-rdf-join-inner-multi-stems';
 import type * as RDF from '@rdfjs/types';
@@ -32,22 +32,26 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
   }
 
   public async run(action: IActionDerivedResourceExecute): Promise<IActorDerivedResourceExecuteOutput> {
+    // TODO Use signal to abort dereference operation (is this needed for experiments?)
+    const controller = new AbortController();
+    const manager = action.context.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
+    manager.addDereferencingDerivedResource(controller);
     try {
-      return await this.runBlocks(action);
+      return await this.runBlocks(action, manager);
     } finally {
+      // Traversal only ends once no derived resource is dereferencing, so a failing one must not
+      // stay registered or the query never ends
+      manager.removeDereferencingDerivedResource(controller);
       // Every composite request has been sent, or none will be, so waiting on them can begin
       action.compositeResponses?.close();
     }
   }
 
-  protected async runBlocks(action: IActionDerivedResourceExecute): Promise<IActorDerivedResourceExecuteOutput> {
-    // TODO Use signal to abort dereference operation (is this needed for experiments?)
-    const controller = new AbortController();
-
+  protected async runBlocks(
+    action: IActionDerivedResourceExecute,
+    manager: ILinkTraversalManager,
+  ): Promise<IActorDerivedResourceExecuteOutput> {
     const context = action.context;
-    const manager = context.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
-    manager.addDereferencingDerivedResource(controller);
-
     const adaptiveJoinController = context.getSafe(KeysRdfJoin.adaptiveJoinController);
     const store = manager.getAggregatedStore();
     const skolemId = this.storeSkolemId(context);
@@ -79,32 +83,32 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
       }
       let bindingsStream = this.scopeBlankNodes(answers, block.resource.baseUrl, store, skolemId);
 
-      // The anchors that are still variables are only known once bound, so those are checked per
-      // binding. In chain ?s <p1> ?o1 . ?o1 <p2> ?o2 we need authority over ?s and ?o1, not ?o2.
-      // A blank node has no url to check, but one answered by this resource is a node of the container
-      // it aggregates, as its server labels the blank nodes there the same in all of them
+      // Variables required to be within authority of composite source
       const anchorVariables = <RDF.Variable[]> block.anchorTerms
         .filter(term => term.termType === 'Variable');
+
       if (anchorVariables.length > 0) {
         bindingsStream = bindingsStream.filter((binding: Bindings) => anchorVariables.every((variable) => {
           const term = binding.get(variable);
+          // If binding for variable exist and is within domain or blank node we keep it.
+          // Blank nodes are scoped to the source and assumed to be equal between the composite source 
+          // and non-composite sources aggregated by composite
           return term !== undefined &&
             (term.termType === 'BlankNode' || isWithinDomain(term.value, domain, domainIsDelimited));
         }));
       }
 
-      // The join only hands the operations to the resource once it has the resource's answers.
-      // From then on it drops what the documents of the resource's domain produce for them, so
-      // doing so before would hold back answers those documents already give while the request is
-      // underway. What the documents produced before is compared against the answers instead, so
-      // a solution is kept once whichever way it is found first
+      // Only add the non-composite filters to qurey execution once composite has responded.
+      // If composite is delayed we still execute query normally allowing us to produce results locally.
       if (responded) {
         await responded;
       }
+
       const accepted = adaptiveJoinController.addCompositeSource(block.operations, bindingsStream, {
         authoritativeDomain: domain,
         anchorTerms: block.anchorTerms,
       });
+
       if (accepted) {
         action.compositeResponses?.accept(block);
       }
@@ -115,16 +119,12 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
       // maybe call it the hybrid cMatch - all criterion?
     }));
 
-    manager.removeDereferencingDerivedResource(controller);
     return { links: []};
   }
 
   /**
-   * Gives the blank nodes in the answers of a resource the terms the join sees for them elsewhere.
-   * The resource hands out the labels its server gives the blank nodes of the documents it aggregates,
-   * which the aggregated store maps to the term that blank node has in those documents and in the
-   * other resources over them. The join reads the store
-   * through a skolemized source, so the same skolemization is applied here.
+   * Ensure blank nodes of composite sources and non-composite sources aggregated by the composite
+   * are skolemized the same way.
    */
   protected scopeBlankNodes(
     answers: BindingsStream,

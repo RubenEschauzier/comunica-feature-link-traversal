@@ -26,6 +26,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   public readonly mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
   public readonly mediatorDerivedResourceExecute: MediatorDerivedResourceExecute;
   public readonly mediatorDerivedResourcePartition: MediatorDerivedResourcePartition;
+  public readonly holdPodLinks: boolean;
   public readonly queryEngine: QueryEngineBase;
   protected readonly descriptionFetcher: DerivedResourceDescriptionFetcher;
 
@@ -38,6 +39,7 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     this.mediatorDerivedResourceIdentify = args.mediatorDerivedResourceIdentify;
     this.mediatorDerivedResourceExecute = args.mediatorDerivedResourceExecute;
     this.mediatorDerivedResourcePartition = args.mediatorDerivedResourcePartition;
+    this.holdPodLinks = args.holdPodLinks;
 
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
     this.descriptionFetcher = new DerivedResourceDescriptionFetcher(this.mediatorDereferenceRdf, this.mediatorDereference);
@@ -124,7 +126,10 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // The links just returned can lead into the pods these resources cover, but which documents they
     // cover is only known once the resources are executed. Until then those links are held back
     // rather than crawled, as a crawled document would be answered a second time by its resource
-    const releases = derivedResources.map(url => dynamicLinkFilter.hold(this.podBaseUrl(url)));
+    // Without holding, those links are crawled as usual, see holdPodLinks
+    const releases = this.holdPodLinks ?
+      derivedResources.map(url => dynamicLinkFilter.hold(this.podBaseUrl(url))) :
+      [];
     const release = (): void => releases.forEach(releaseHold => releaseHold());
 
     const controller = new AbortController();
@@ -305,6 +310,16 @@ export interface IActorExtractLinksSolidDerivedResourcesArgs
    * The partition mediator that divides the query over the identified derived resources
    */
   mediatorDerivedResourcePartition: MediatorDerivedResourcePartition;
+  /**
+   * Whether links into a pod are held back while its derived resources are identified and executed.
+   *
+   * A resource that answers every pattern over the pod's documents takes those documents off the crawl
+   * once it has been executed; holding keeps them from being crawled before then, which would fetch and
+   * import the same data twice. Where no resource does that, as with composite resources only, nothing
+   * is ever taken off the crawl and holding only delays it, so it can be disabled.
+   * @default {true}
+   */
+  holdPodLinks: boolean;
 }
 
 export interface IDerivedResourceRaw {

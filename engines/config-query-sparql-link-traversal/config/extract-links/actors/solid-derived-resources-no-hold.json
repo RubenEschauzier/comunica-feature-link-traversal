@@ -1,0 +1,22 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-extract-links-solid-derived-resources/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "comment": "As solid-derived-resources.json, without holding links into a pod back. Only for configurations in which no derived resource takes documents off the crawl, such as composite resources only.",
+      "@id": "urn:comunica:default:extract-links/actors#solid-derived-resources",
+      "@type": "ActorExtractLinksSolidDerivedResources",
+      "holdPodLinks": false,
+      "mediatorDereferenceRdf": { "@id": "urn:comunica:default:dereference-rdf/mediators#main" },
+      "mediatorDereference": { "@id": "urn:comunica:default:dereference/mediators#main"},
+      "mediatorDerivedResourceIdentify": { "@id": "urn:comunica:default:derived-resource-identify/mediators#main" },
+      "mediatorDerivedResourcePartition": { "@id": "urn:comunica:default:derived-resource-partition/mediators#main"},
+      "mediatorDerivedResourceExecute": { "@id": "urn:comunica:default:derived-resource-execute/mediators#main"}
+    }
+  ]
+}

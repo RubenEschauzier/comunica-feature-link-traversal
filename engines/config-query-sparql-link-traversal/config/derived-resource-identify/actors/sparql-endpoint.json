@@ -1,0 +1,41 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/core/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/mediator-number/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-query-source-identify-hypermedia-sparql/^5.0.0/components/context.jsonld",
+
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-derived-resource-identify-sparql-endpoint/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:derived-resource-identify/actors#sparql-endpoint",
+      "@type": "ActorDerivedResourceIdentifySparqlEndpoint",
+      "mediatorQuerySourceIdentifyHypermedia": {
+        "@id": "urn:comunica:default:derived-resource-identify/sparql-endpoint/mediators#query-source",
+        "@type": "MediatorNumber",
+        "type": "max",
+        "field": "filterFactor",
+        "ignoreFailures": true,
+        "bus": {
+          "@id": "urn:comunica:default:derived-resource-identify/sparql-endpoint#query-source-bus",
+          "@type": "cc:components/Bus.jsonld#Bus"
+        }
+      },
+      "interfaceTypes": [ "http://rdfs.org/ns/void#sparqlEndpoint" ]
+    },
+    {
+      "comment": "The SPARQL source of the endpoints taken up as derived resources: as the default one, but on a bus of its own, so it is not used for the query sources, and without COUNT queries for cardinalities, which the adaptive joins do without.",
+      "@id": "urn:comunica:default:derived-resource-identify/sparql-endpoint#query-source",
+      "@type": "ActorQuerySourceIdentifyHypermediaSparql",
+      "bus": { "@id": "urn:comunica:default:derived-resource-identify/sparql-endpoint#query-source-bus" },
+      "mediatorHttp": { "@id": "urn:comunica:default:http/mediators#main" },
+      "mediatorMergeBindingsContext": { "@id": "urn:comunica:default:merge-bindings-context/mediators#main" },
+      "mediatorQuerySerialize": { "@id": "urn:comunica:default:query-serialize/mediators#main" },
+      "sparqlServerSoftwarePatterns": [ "Virtuoso", "Fuseki" ],
+      "cardinalityCountQueries": false
+    }
+  ]
+}

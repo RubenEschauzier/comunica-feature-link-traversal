@@ -1,0 +1,15 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-derived-resource-discover-declared/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:derived-resource-discover/actors#declared",
+      "@type": "ActorDerivedResourceDiscoverDeclared",
+      "mediatorDereference": { "@id": "urn:comunica:default:dereference/mediators#main" }
+    }
+  ]
+}

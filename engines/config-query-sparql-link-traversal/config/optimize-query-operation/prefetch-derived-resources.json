@@ -13,8 +13,8 @@
       "mediatorDereferenceRdf": {
         "@id": "urn:comunica:default:dereference-rdf/mediators#main"
       },
-      "mediatorDereference": {
-        "@id": "urn:comunica:default:dereference/mediators#main"
+      "mediatorDerivedResourceDiscover": {
+        "@id": "urn:comunica:default:derived-resource-discover/mediators#main"
       },
       "beforeActors": [
         {

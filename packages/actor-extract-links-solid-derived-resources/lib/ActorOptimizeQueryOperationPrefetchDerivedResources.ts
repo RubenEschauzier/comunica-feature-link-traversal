@@ -1,5 +1,6 @@
-import type { MediatorDereference } from '@comunica/bus-dereference';
 import type { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
+import type { MediatorDerivedResourceDiscover } from '@comunica/bus-derived-resource-discover';
+import { ActorDerivedResourceDiscover } from '@comunica/bus-derived-resource-discover';
 import type { IActionOptimizeQueryOperation, IActorOptimizeQueryOperationOutput } from '@comunica/bus-optimize-query-operation';
 import { ActorOptimizeQueryOperation } from '@comunica/bus-optimize-query-operation';
 import { KeysInitQuery } from '@comunica/context-entries';
@@ -8,7 +9,6 @@ import type { IActorArgs, TestResult, IActorTest } from '@comunica/core';
 import { passTestVoid } from '@comunica/core';
 import { AlgebraFactory } from '@comunica/utils-algebra';
 import type { IDerivedResourceUnidentified } from './ActorExtractLinksSolidDerivedResources';
-import { DerivedResourceDescriptionFetcher } from './DerivedResourceDescriptionFetcher';
 import { UnionPushdown } from './UnionPushdown';
 
 /**
@@ -23,16 +23,15 @@ import { UnionPushdown } from './UnionPushdown';
  * alongside the seed rather than after it.
  */
 export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOptimizeQueryOperation {
-  protected readonly descriptionFetcher: DerivedResourceDescriptionFetcher;
+  public readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
+  public readonly mediatorDerivedResourceDiscover: MediatorDerivedResourceDiscover;
   // TODO: move into an optimize-query-operation actor of its own
   protected readonly unionPushdown = new UnionPushdown(new AlgebraFactory());
 
   public constructor(args: IActorOptimizeQueryOperationPrefetchDerivedResourcesArgs) {
     super(args);
-    this.descriptionFetcher = new DerivedResourceDescriptionFetcher(
-      args.mediatorDereferenceRdf,
-      args.mediatorDereference,
-    );
+    this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
+    this.mediatorDerivedResourceDiscover = args.mediatorDerivedResourceDiscover;
   }
 
   public async test(_action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
@@ -56,18 +55,28 @@ export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOp
     for (const url of seeds.flatMap(seed => this.candidateDescriptions(seed))) {
       if (!descriptions.has(url)) {
         // A candidate that is not there is simply a pod without derived resources at that level
-        descriptions.set(url, this.descriptionFetcher.fetch(url, context).catch(() => []));
+        descriptions.set(url, ActorDerivedResourceDiscover.discoverDescription(
+          url,
+          context,
+          this.mediatorDereferenceRdf,
+          this.mediatorDerivedResourceDiscover,
+        ).catch(() => []));
       }
     }
     return { ...action, context };
   }
 
   /**
-   * The urls among the query sources, which are the seeds of traversal.
+   * The urls among the query sources, which are the seeds of traversal. A source given with a type, such
+   * as a SPARQL endpoint, is queried as that type rather than traversed, so it is no seed: its url is not
+   * a document in a container that could be described.
    */
   protected seedUrls(sources: unknown[]): string[] {
     const urls: string[] = [];
     for (const source of sources) {
+      if (typeof source === 'object' && source !== null && (<{ type?: unknown }> source).type !== undefined) {
+        continue;
+      }
       const value = typeof source === 'string' ? source : (<{ value?: unknown }> source)?.value;
       if (typeof value === 'string' && /^https?:\/\//u.test(value)) {
         urls.push(value);
@@ -99,11 +108,11 @@ export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOp
 export interface IActorOptimizeQueryOperationPrefetchDerivedResourcesArgs
   extends IActorArgs<IActionOptimizeQueryOperation, IActorTest, IActorOptimizeQueryOperationOutput> {
   /**
-   * The Dereference RDF mediator
+   * The Dereference RDF mediator fetching the descriptions.
    */
   mediatorDereferenceRdf: MediatorDereferenceRdf;
   /**
-   * The Dereference mediator
+   * The discover mediator finding the resources in a description.
    */
-  mediatorDereference: MediatorDereference;
+  mediatorDerivedResourceDiscover: MediatorDerivedResourceDiscover;
 }

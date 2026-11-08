@@ -1,0 +1,11 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/bus-derived-resource-discover/^0.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/mediator-combine-array/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:derived-resource-discover/mediators#main",
+  "@type": "MediatorCombineArray",
+  "bus": { "@id": "ActorDerivedResourceDiscover:_default_bus" },
+  "fields": ["discovered"],
+  "filterErrors": true
+}

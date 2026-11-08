@@ -2,6 +2,7 @@ import type { AlgebraFactory } from '@comunica/utils-algebra';
 import { Algebra, algebraUtils } from '@comunica/utils-algebra';
 
 /**
+ * TODO: This should be its own actor
  * Moves triple patterns joined with a UNION into each of its branches, where that lets them be
  * delegated to a composite source rather than requested pod-wide.
  *

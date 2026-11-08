@@ -1,7 +1,5 @@
 import { ActorInitQueryBase, QueryEngineBase } from '@comunica/actor-init-query';
-import { MediatorDereferenceRdf } from '@comunica/bus-dereference-rdf';
 import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActorExtractLinksArgs, IExtractPattern } from '@comunica/bus-extract-links';
-import { MediatorDereference } from "@comunica/bus-dereference";
 import { KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
 import { KeysQuerySourceIdentifyLinkTraversal, KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs } from '@comunica/core';
@@ -13,36 +11,42 @@ import { CompositeResponseGate, MediatorDerivedResourceExecute } from '@comunica
 import { MediatorDerivedResourcePartition } from '@comunica/bus-derived-resource-partition';
 import { Algebra } from '@comunica/utils-algebra';
 import { DataFactory } from 'rdf-data-factory';
-import { DerivedResourceDescriptionFetcher } from './DerivedResourceDescriptionFetcher';
-import { link } from 'fs';
+import type { IDiscoveredResources, MediatorDerivedResourceDiscover } from '@comunica/bus-derived-resource-discover';
+import type { IDynamicFilter } from '@comunica/types-link-traversal';
+import { Readable } from 'readable-stream';
+
+/**
+ * The resources taken up so far, per query. Several documents and descriptions can link the same
+ * resource, and every time it is taken up it answers its part of the query again. Keyed by the
+ * dynamic link filter, which lives exactly as long as the query. Kept outside of the actor, as the
+ * components generator cannot read the type of a field holding it.
+ */
+const claimedResources = new WeakMap<IDynamicFilter, Set<string>>();
 
 /**
  * A comunica Solid Derived Resources Extract Links Actor.
+ *
+ * Takes up the resources with query capability a document links to, which are found on the
+ * derived-resource-discover bus, and has them identified, partitioned and executed by the derived
+ * resource actors.
  */
 export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
-  protected readonly derivedResourcePredicates: string[];
-  public readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
-  public readonly mediatorDereference: MediatorDereference;
+  public readonly mediatorDerivedResourceDiscover: MediatorDerivedResourceDiscover;
   public readonly mediatorDerivedResourceIdentify: MediatorDerivedResourceIdentify;
   public readonly mediatorDerivedResourceExecute: MediatorDerivedResourceExecute;
   public readonly mediatorDerivedResourcePartition: MediatorDerivedResourcePartition;
   public readonly holdPodLinks: boolean;
   public readonly queryEngine: QueryEngineBase;
-  protected readonly descriptionFetcher: DerivedResourceDescriptionFetcher;
 
   public constructor(args: IActorExtractLinksSolidDerivedResourcesArgs) {
     super(args);
-    this.derivedResourcePredicates = args.derivedResourcePredicates;
-
-    this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
-    this.mediatorDereference = args.mediatorDereference
+    this.mediatorDerivedResourceDiscover = args.mediatorDerivedResourceDiscover;
     this.mediatorDerivedResourceIdentify = args.mediatorDerivedResourceIdentify;
     this.mediatorDerivedResourceExecute = args.mediatorDerivedResourceExecute;
     this.mediatorDerivedResourcePartition = args.mediatorDerivedResourcePartition;
     this.holdPodLinks = args.holdPodLinks;
 
     this.queryEngine = new QueryEngineBase(args.actorInitQuery);
-    this.descriptionFetcher = new DerivedResourceDescriptionFetcher(this.mediatorDereferenceRdf, this.mediatorDereference);
   }
 
   public async test(action: IActionExtractLinks): Promise<TestResult<IActorTest>> {
@@ -57,13 +61,6 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
   public async run(action: IActionExtractLinks): Promise<IActorExtractLinksOutput> {    
     // TODO BEFORE EXPERIMENT:
-    // 1). Deal with overlapping triples when domain also overlaps. 
-    // Needs to stateful: Track previous allocations of derived resources
-    // so when at later stage we find overlapping resource we know what we did so we dont 'forget' 
-    // that we already allocated a part of the sub-query
-    // Also when we have all identified derived-resources, we need to do a heuristic to
-    // determine the partitioning of queries. For now: prefer-star heuristic.
-    // TODO WHEN RUNNING:
     // 1). Formalize some of the things we've implemented here. Think about the temporal aspect
     // when doing overlap / deduplication etc
     // 2). Implement a cost function for determining IF and WHICH derived resources to use.
@@ -100,27 +97,29 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
     let context = action.context;
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-    // Determine links to derived resources. Every document of a pod can point at the same
-    // description, and once the pod is crawled rather than covered those documents are read too; a
-    // description the filter already holds was handled for an earlier one, and handling it again
+    if (this.isInterface(context, action.url)) {
+      return { links: [] };
+    }
+    // Find the resources the document links to. A description that every document of a pod links to
+    // is taken up by the first of them only, by the actor following the link, as taking it up again
     // would hand the join a second copy of every composite answer
-    const derivedResources = [...await this.extractDerivedResourceLinks(action.metadata)]
-      .filter(url => !dynamicLinkFilter.matchesFilter(url));
-    if (derivedResources.length === 0) {
+    const { discovered } = await this.mediatorDerivedResourceDiscover.mediate({
+      url: action.url,
+      metadata: this.forwardMetadata(action.metadata),
+      describedUrl: action.url,
+      kind: 'document',
+      context,
+    });
+    
+    if (discovered.length === 0) {
       return { links: [] }
     }
-    // Set filter immediately to prevent race conditions
-    derivedResources.forEach(url => {
-      dynamicLinkFilter.addExact(url);
-    });
 
-    // The rest is left to run in the background. Traversal only imports a document once its links
-    // are known, so waiting here would keep the document the derived resources were found in, often
-    // the seed, out of the store until every derived resource is identified and executed. The
-    // manager is told the work is pending, so traversal does not end before its links are pushed.
+    // The links extracted from this actor are returned async (if a manager exists),
+    // to prevent the relatively large amount of work done in this actor to stall traversal.
     const manager = context.get(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
     if (!manager) {
-      return { links: await this.executeDerivedResources(action, derivedResources, () => {}) };
+      return { links: await this.executeDerivedResources(action, discovered, () => {}) };
     }
 
     // The links just returned can lead into the pods these resources cover, but which documents they
@@ -128,14 +127,15 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // rather than crawled, as a crawled document would be answered a second time by its resource
     // Without holding, those links are crawled as usual, see holdPodLinks
     const releases = this.holdPodLinks ?
-      derivedResources.map(url => dynamicLinkFilter.hold(this.podBaseUrl(url))) :
+      discovered.map(({ scope }) => dynamicLinkFilter.hold(scope)) :
       [];
     const release = (): void => releases.forEach(releaseHold => releaseHold());
 
     const controller = new AbortController();
     manager.addDereferencingDerivedResource(controller);
-    this.executeDerivedResources(action, derivedResources, release)
+    this.executeDerivedResources(action, discovered, release)
       .then(async(links) => {
+        // Here discovered links are added back to the manager
         if (!controller.signal.aborted) {
           await manager.addLinks({ url: action.url }, links);
         }
@@ -153,18 +153,28 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 
   /**
    * Identifies, partitions and executes the derived resources, returning the links they lead to.
+   * @param action The extract links action.
+   * @param discovered The resources the document links to, as discovered.
+   * @param releaseHeldLinks Releases the links held back until it is known what is covered.
    */
   protected async executeDerivedResources(
     action: IActionExtractLinks,
-    derivedResources: string[],
+    discovered: IDiscoveredResources[],
     releaseHeldLinks: () => void,
   ): Promise<ILink[]> {
     const context = action.context;
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
 
-    // Often already underway, as the descriptions of the seeds are fetched before the seeds are
-    const derivedResourcesUnidentified: IDerivedResourceUnidentified[] = (await Promise.all(derivedResources
-      .map(derivedResource => this.descriptionFetcher.get(derivedResource, context)))).flat();
+    // Often already underway, as the descriptions of the seeds are fetched before the seeds are. A
+    // description that cannot be read, such as one that does not exist, leaves the others usable
+    const found = await Promise.all(discovered.map(({ resources }) => resources.catch(() => [])));
+    // Several documents and descriptions can link the same resource, such as the SPARQL endpoint of
+    // the pod, which is taken up once
+    const derivedResourcesUnidentified = this.claimResources(context, found.flat());
+    if (derivedResourcesUnidentified.length === 0) {
+      releaseHeldLinks();
+      return [];
+    }
     for (const resource of derivedResourcesUnidentified) {
       if (resource.filterUri) {
         dynamicLinkFilter.addExact(resource.filterUri.url);
@@ -195,9 +205,11 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     // if its server gives every blank node one label throughout them, in the documents as well as in
     // the answers. Publishing a composite thus implies that, and the blank nodes read from its
     // container are given one identity per label from here on. Done before anything is executed, so
-    // the answers of the resources already share the blank nodes of the documents read so far
+    // the answers of the resources already share the blank nodes of the documents read so far.
+    // An interface implies no such thing: a SPARQL endpoint labels blank nodes on its own terms
     const store = context.get(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager)?.getAggregatedStore();
-    for (const baseUrl of new Set(derivedResourcesIdentified.map(resource => resource.baseUrl))) {
+    const scoped = derivedResourcesIdentified.filter(resource => !resource.interfaceType);
+    for (const baseUrl of new Set(scoped.map(resource => resource.baseUrl))) {
       store?.addBlankNodeScope?.(baseUrl);
     }
 
@@ -233,38 +245,75 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
   }
 
   /**
-   * The url of the pod a derived resource description belongs to.
+   * The resources not yet taken up in this query, which are claimed for it. A resource is known by
+   * the url its template resolves to. Those urls are kept off the crawl as well: they answer queries
+   * rather than describe data.
    */
-  protected podBaseUrl(derivedResource: string): string {
-    return derivedResource.split('.meta')[0];
+  protected claimResources<T extends IDerivedResourceRaw>(context: IActionContext, resources: T[]): T[] {
+    const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+    let claimed = claimedResources.get(dynamicLinkFilter);
+    if (!claimed) {
+      claimed = new Set();
+      claimedResources.set(dynamicLinkFilter, claimed);
+    }
+    const unclaimed: T[] = [];
+    for (const resource of resources) {
+      const url = this.resourceUrl(resource);
+      if (!claimed.has(url)) {
+        claimed.add(url);
+        dynamicLinkFilter.addExact(url);
+        unclaimed.push(resource);
+      }
+    }
+    return unclaimed;
   }
 
   /**
-   * Extract links to type index from the metadata stream.
+   * Whether the url is that of an interface rather than of a document of a pod: a query source given
+   * with a type, such as a SPARQL endpoint, or a resource taken up in this query. What links are read from
+   * those is read from answers and descriptions of the interface, which link no derived resources and lie
+   * in no container of a pod.
+   */
+  protected isInterface(context: IActionContext, url: string): boolean {
+    const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+    if (claimedResources.get(dynamicLinkFilter)?.has(url)) {
+      return true;
+    }
+    const sources: any[] = context.get(KeysInitQuery.querySourcesUnidentified) ?? [];
+    return sources.some(source => typeof source === 'object' && source !== null &&
+      source.type !== undefined && (source.value?.value ?? source.value) === url);
+  }
+
+  /**
+   * The url a resource is found at, which is its template resolved against its base url.
+   */
+  protected resourceUrl(resource: IDerivedResourceRaw): string {
+    try {
+      return new URL(resource.template, resource.baseUrl).href;
+    } catch {
+      return resource.baseUrl + resource.template;
+    }
+  }
+
+  /**
+   * A stream of the quads of the metadata stream, for the discover actors to read.
+   *
+   * The metadata stream is shared by all extract links actors, and flows as soon as one of them reads
+   * it. The discover actors attach to what they are given only once the mediator has awaited all of
+   * their tests, and should one of those wait on the event loop, the stream has passed them by, ended
+   * included, so the discovery would never end. They are thus given a stream of their own, attached to
+   * now, that keeps what comes in until they read it.
    * @param metadata A metadata quad stream.
    */
-  public extractDerivedResourceLinks(metadata: RDF.Stream): Promise<Set<string>> {
+  protected forwardMetadata(metadata: RDF.Stream): RDF.Stream {
     // The metadata stream is shared by all extract links actors, which exceeds the default
     // listener limit, so we raise it like the bus helpers do.
     ActorExtractLinks.allowSharedMetadataListeners(metadata);
-    return new Promise<Set<string>>((resolve, reject) => {
-      const derivedResourcesInner: Set<string> = new Set();
-
-      // Forward errors
-      metadata.on('error', reject);
-
-      metadata.on('data', (quad: RDF.Quad) => {
-        if (this.derivedResourcePredicates.includes(quad.predicate.value)) {
-          derivedResourcesInner.add(quad.object.value);
-        }
-      });
-
-      // Resolve to discovered links
-      metadata.on('end', () => {
-        resolve(derivedResourcesInner);
-      });
-
-    });
+    const forwarded = new Readable({ objectMode: true, read: () => {} });
+    metadata.on('data', (quad: RDF.Quad) => forwarded.push(quad));
+    metadata.on('end', () => forwarded.push(null));
+    metadata.on('error', (error: Error) => forwarded.destroy(error));
+    return <RDF.Stream> <unknown> forwarded;
   }
 
   /**
@@ -281,23 +330,14 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
 export interface IActorExtractLinksSolidDerivedResourcesArgs
   extends IActorExtractLinksArgs {
   /**
-   * The derived resource predicate URLs that will be followed.
-   * @default {http://www.w3.org/2007/05/powder-s#describedby}
+   * The discover mediator finding the resources a document links to.
    */
-  derivedResourcePredicates: string[];
+  mediatorDerivedResourceDiscover: MediatorDerivedResourceDiscover;
   /**
    * An init query actor that is used to query shapes.
    * @default {<urn:comunica:default:init/actors#query>}
    */
   actorInitQuery: ActorInitQueryBase;
-  /**
-   * The Dereference RDF mediator
-   */
-  mediatorDereferenceRdf: MediatorDereferenceRdf;
-  /**
-   * The dereference mediator for obtaining the filter files
-   */
-  mediatorDereference: MediatorDereference;
   /**
    * The identify mediator for derived resources
    */
@@ -345,6 +385,11 @@ export interface IDerivedResourceRaw {
    * The filter itself, when the description holds it rather than pointing to it.
    */
   filter?: string
+  /**
+   * The predicate an interface was linked with, which says what kind of interface it is, such as
+   * `void:sparqlEndpoint`. Absent for derived resources, which are known by their template and filter.
+   */
+  interfaceType?: string;
 }
 
 export interface IDerivedResourceUnidentified {
@@ -370,6 +415,11 @@ export interface IDerivedResourceUnidentified {
    * URI of the file the filter was read from.
    */
   filterUri?: ILink
+  /**
+   * The predicate an interface was linked with, which says what kind of interface it is, such as
+   * `void:sparqlEndpoint`. Absent for derived resources, which are known by their template and filter.
+   */
+  interfaceType?: string;
 }
 
 export interface IDerivedResource {
@@ -408,6 +458,11 @@ export interface IDerivedResource {
    * can be used
    */
   resourceCoefficients: IDerivedResourceCoefficients
+  /**
+   * The predicate an interface was linked with, which says what kind of interface it is, such as
+   * `void:sparqlEndpoint`. Absent for derived resources, which are known by their template and filter.
+   */
+  interfaceType?: string;
 }
 
 export interface IDerivedResourceCoefficients {

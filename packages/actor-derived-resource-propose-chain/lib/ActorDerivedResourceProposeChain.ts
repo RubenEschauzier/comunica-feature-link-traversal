@@ -1,9 +1,8 @@
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
-import { ActorDerivedResourcePropose, IActionDerivedResourcePropose, IActorDerivedResourceProposeOutput, IActorDerivedResourceProposeArgs, ICandidateResource } from '@comunica/bus-derived-resource-propose';
+import { ActorDerivedResourcePropose, IActionDerivedResourcePropose, IActorDerivedResourceProposeOutput, IActorDerivedResourceProposeArgs, ICandidateResource, canShapeAnswerBgp } from '@comunica/bus-derived-resource-propose';
 import { TestResult, IActorTest, passTestVoid } from '@comunica/core';
 import { FragmentSelectorShape } from '@comunica/types';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
-import { canAnswerBgp } from '@comunica/utils-query-operation';
 import type * as RDF from '@rdfjs/types';
 
 /**
@@ -35,11 +34,10 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
     });
 
     // The shapes are fetched once, as every chain below is matched against the same set
-    const shapedResources = (await Promise.all(action.resources.map(async resource => ({
+    const shapedResources: IShapedResource[] = await Promise.all(action.resources.map(async resource => ({
       resource,
       shape: await resource.querySource.getSelectorShape(action.context),
-    }))))
-      .filter((shaped): shaped is IShapedResource => shaped.shape.type === 'operation');
+    })));
 
     const proposedChainResources: ICandidateResource[] = [];
     for (const bgp of bgps) {
@@ -56,12 +54,8 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
         // decide which combination of these (and of the other proposed resources) to take
         for (const chunk of this.enumerateProposableChains(chain)) {
           const chunkBgp = this.algebraFactory.createBgp(chunk);
-          const match = shapedResources.find(({ shape }) => canAnswerBgp(
-            shape,
-            chunkBgp,
-            shape.variablesOptional ?? [],
-            shape.variablesRequired ?? [],
-          ));
+          // A template answers a chain that is an instance of it, a SPARQL endpoint answers any chain
+          const match = shapedResources.find(({ shape }) => canShapeAnswerBgp(shape, chunkBgp));
           if (!match) {
             continue;
           }
@@ -257,7 +251,7 @@ export class ActorDerivedResourceProposeChain extends ActorDerivedResourcePropos
 
 interface IShapedResource {
   resource: IDerivedResource;
-  shape: Extract<FragmentSelectorShape, { type: 'operation' }>;
+  shape: FragmentSelectorShape;
 }
 
 /**

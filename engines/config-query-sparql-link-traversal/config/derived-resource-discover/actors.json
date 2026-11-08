@@ -1,0 +1,14 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld"
+  ],
+  "@graph": [
+    {
+      "import": [
+        "ccqslt:config/derived-resource-discover/actors/described-by.json",
+        "ccqslt:config/derived-resource-discover/actors/declared.json",
+        "ccqslt:config/derived-resource-discover/actors/interface-link.json"
+      ]
+    }
+  ]
+}

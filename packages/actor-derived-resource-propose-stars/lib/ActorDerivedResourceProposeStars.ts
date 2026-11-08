@@ -1,8 +1,7 @@
 import { IDerivedResource } from '@comunica/actor-extract-links-solid-derived-resources';
-import { ActorDerivedResourcePropose, IActionDerivedResourcePropose, IActorDerivedResourceProposeOutput, IActorDerivedResourceProposeArgs, ICandidateResource } from '@comunica/bus-derived-resource-propose';
+import { ActorDerivedResourcePropose, IActionDerivedResourcePropose, IActorDerivedResourceProposeOutput, IActorDerivedResourceProposeArgs, ICandidateResource, canShapeAnswerBgp } from '@comunica/bus-derived-resource-propose';
 import { TestResult, IActorTest, passTestVoid } from '@comunica/core';
 import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
-import { canAnswerBgp } from '@comunica/utils-query-operation';
 
 /**
  * A comunica Stars Derived Resource Propose Actor. This extracts any sub-queries in
@@ -53,12 +52,8 @@ export class ActorDerivedResourceProposeStars extends ActorDerivedResourcePropos
       for (const starPatterns of subStarsBySubject.values()) {
         for (const resource of action.resources) {
           const selectorShape = await resource.querySource.getSelectorShape(action.context);
-          if (selectorShape.type !== 'operation'){
-            continue;
-          }
-          if (canAnswerBgp(selectorShape, this.algebraFactory.createBgp(starPatterns),
-            selectorShape.variablesOptional ?? [], selectorShape.variablesRequired ?? [])
-          ){
+          // A template answers a star that is an instance of it, a SPARQL endpoint answers any star
+          if (canShapeAnswerBgp(selectorShape, this.algebraFactory.createBgp(starPatterns))){
             proposedStarResources.push(
               {
                 operations: starPatterns,

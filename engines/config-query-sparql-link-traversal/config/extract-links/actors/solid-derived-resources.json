@@ -1,12 +1,8 @@
 {
   "@context": [
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
-    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/config-query-sparql-link-traversal/^0.0.0/components/context.jsonld",
+
     "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-extract-links-solid-derived-resources/^0.0.0/components/context.jsonld"
-  ],
-  "import": [
-    "ccqslt:config/derived-resource-discover/mediators.json",
-    "ccqslt:config/derived-resource-discover/actors.json"
   ],
   "@id": "urn:comunica:default:Runner",
   "@type": "Runner",

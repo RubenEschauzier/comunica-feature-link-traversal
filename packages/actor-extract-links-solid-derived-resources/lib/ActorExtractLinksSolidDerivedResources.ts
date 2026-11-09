@@ -1,6 +1,6 @@
 import { ActorInitQueryBase, QueryEngineBase } from '@comunica/actor-init-query';
 import { ActorExtractLinks, IActionExtractLinks, IActorExtractLinksOutput, IActorExtractLinksArgs, IExtractPattern } from '@comunica/bus-extract-links';
-import { KeysInitQuery, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
+import { KeysInitQuery, KeysQueryOperation, KeysQuerySourceIdentify, KeysStatistics } from '@comunica/context-entries';
 import { KeysQuerySourceIdentifyLinkTraversal, KeysRdfJoin, KeysRdfResolveHypermediaLinks } from '@comunica/context-entries-link-traversal';
 import { TestResult, IActorTest, passTestVoid, failTest, IActorArgs } from '@comunica/core';
 import { IActionContext, ILink, IQuerySource } from '@comunica/types';
@@ -114,7 +114,8 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     if (discovered.length === 0) {
       return { links: [] }
     }
-
+    // console.log(`Found links for: ${action.url}`)
+    // console.log(discovered)
     // The links extracted from this actor are returned async (if a manager exists),
     // to prevent the relatively large amount of work done in this actor to stall traversal.
     const manager = context.get(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
@@ -232,6 +233,8 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     if (!resourceExecutionBlocks.some(block => block.type === 'composite')) {
       compositeResponses.close();
     }
+
+    console.log(`Executing: ${action.url}`)
     const { links } = await this.mediatorDerivedResourceExecute.mediate({
       executionBlocks: resourceExecutionBlocks,
       compositeResponses,
@@ -248,6 +251,11 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
    * The resources not yet taken up in this query, which are claimed for it. A resource is known by
    * the url its template resolves to. Those urls are kept off the crawl as well: they answer queries
    * rather than describe data.
+   *
+   * A resource that is a source of the query itself, such as a known SPARQL endpoint a pod also links
+   * to, is not taken up: the query already asks it what it can answer, and taking it up as well would
+   * ask it again for every triple pattern, unbound. The documents it covers are still taken off the
+   * crawl, as the query already asks it every pattern over them.
    */
   protected claimResources<T extends IDerivedResourceRaw>(context: IActionContext, resources: T[]): T[] {
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
@@ -259,13 +267,31 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
     const unclaimed: T[] = [];
     for (const resource of resources) {
       const url = this.resourceUrl(resource);
-      if (!claimed.has(url)) {
-        claimed.add(url);
-        dynamicLinkFilter.addExact(url);
+      if (claimed.has(url)) {
+        continue;
+      }
+      claimed.add(url);
+      dynamicLinkFilter.addExact(url);
+      if (this.isQuerySource(context, url)) {
+        this.claimCovered(dynamicLinkFilter, resource.selectors);
+      } else {
         unclaimed.push(resource);
       }
     }
     return unclaimed;
+  }
+
+  /**
+   * Takes the documents selected by the selectors off the crawl.
+   */
+  protected claimCovered(dynamicLinkFilter: IDynamicFilter, selectors: string[]): void {
+    for (const selector of selectors) {
+      if (selector.includes('*') || selector.includes('?')) {
+        dynamicLinkFilter.addGlob(selector);
+      } else {
+        dynamicLinkFilter.addExact(selector);
+      }
+    }
   }
 
   /**
@@ -276,7 +302,18 @@ export class ActorExtractLinksSolidDerivedResources extends ActorExtractLinks {
    */
   protected isInterface(context: IActionContext, url: string): boolean {
     const dynamicLinkFilter = context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
-    if (claimedResources.get(dynamicLinkFilter)?.has(url)) {
+    return Boolean(claimedResources.get(dynamicLinkFilter)?.has(url)) || this.isQuerySource(context, url);
+  }
+
+  /**
+   * Whether the url is that of a query source given with a type, such as a SPARQL endpoint.
+   *
+   * Once the sources are identified, which is before traversal starts, only the identified ones are left
+   * in the context, each known by the url it was given with.
+   */
+  protected isQuerySource(context: IActionContext, url: string): boolean {
+    const identified = context.get(KeysQueryOperation.querySources) ?? [];
+    if (identified.some(({ source }) => source.referenceValue === url)) {
       return true;
     }
     const sources: any[] = context.get(KeysInitQuery.querySourcesUnidentified) ?? [];

@@ -37,6 +37,7 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
     const manager = action.context.getSafe(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager);
     manager.addDereferencingDerivedResource(controller);
     try {
+      // console.log(`Running: ${JSON.stringify(action.executionBlocks.map(x => (<ICompositeExecutionBlock>x).resource))}`)
       return await this.runBlocks(action, manager);
     } finally {
       // Traversal only ends once no derived resource is dereferencing, so a failing one must not

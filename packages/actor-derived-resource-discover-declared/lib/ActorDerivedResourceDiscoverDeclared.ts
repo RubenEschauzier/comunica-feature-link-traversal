@@ -51,11 +51,14 @@ export class ActorDerivedResourceDiscoverDeclared extends ActorDerivedResourceDi
     );
     const declared = this.readDeclarations(quads, action.describedUrl);
     if (declared.length === 0) {
-      return { discovered: []};
+      return { 
+        discovered: [],
+      };
     }
     return {
       discovered: [{
         scope: action.describedUrl,
+        producedBy: this.name,
         resources: Promise.all(declared.map(resource => this.resolveFilter(resource, action.context))),
       }],
     };

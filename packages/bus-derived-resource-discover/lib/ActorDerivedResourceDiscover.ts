@@ -111,6 +111,7 @@ TS
    */
   public static takeUpDescription(
     url: string,
+    producedBy: string,
     context: IActionContext,
     mediatorDereferenceRdf: MediatorDereferenceRdf,
     mediatorDerivedResourceDiscover: MediatorDerivedResourceDiscover,
@@ -133,7 +134,7 @@ TS
       ).catch(() => []);
       descriptions?.set(url, resources);
     }
-    return { scope: ActorDerivedResourceDiscover.describedUrlOf(url), resources };
+    return { scope: ActorDerivedResourceDiscover.describedUrlOf(url), resources, producedBy };
   }
 }
 
@@ -188,6 +189,10 @@ export interface IDiscoveredResources {
    * The resources, with their filters.
    */
   resources: Promise<IDerivedResourceUnidentified[]>;
+  /**
+   * Which actor discovered the resource
+   */
+  producedBy: string;
 }
 
 export type IActorDerivedResourceDiscoverArgs<TS = undefined> = IActorArgs<

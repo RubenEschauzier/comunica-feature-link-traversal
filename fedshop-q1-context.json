@@ -1,0 +1,90 @@
+{
+  "sources": [
+    "http://fedshop-proxy:3000/taxonomy/ProductType564",
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34300/taxonomy/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34301/ratingsite0/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34302/ratingsite1/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34303/ratingsite2/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34304/ratingsite3/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34309/ratingsite8/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34310/ratingsite9/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34314/ratingsite13/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34317/ratingsite16/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34318/ratingsite17/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34319/ratingsite18/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34321/vendor0/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34322/vendor1/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34323/vendor2/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34324/vendor3/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34328/vendor7/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34329/vendor8/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34331/vendor10/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34332/vendor11/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34337/vendor16/sparql"
+    },
+    {
+      "type": "sparql",
+      "value": "http://fedshop-proxy:34338/vendor17/sparql"
+    }
+  ],
+  "lenient": true
+}

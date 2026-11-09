@@ -42,6 +42,7 @@ export class ActorDerivedResourceDiscoverWalkUp extends ActorDerivedResourceDisc
     for (const url of this.containerDescriptions(action.url)) {
       const description = ActorDerivedResourceDiscover.takeUpDescription(
         url,
+        this.name,
         action.context,
         this.mediatorDereferenceRdf,
         this.mediatorDerivedResourceDiscover,
@@ -49,8 +50,10 @@ export class ActorDerivedResourceDiscoverWalkUp extends ActorDerivedResourceDisc
       if (description) {
         discovered.push(description);
       }
-    }
-    return { discovered };
+    }``
+    return { 
+      discovered,
+    };
   }
 
   /**

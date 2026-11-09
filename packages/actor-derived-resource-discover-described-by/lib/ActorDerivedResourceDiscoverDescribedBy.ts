@@ -53,6 +53,7 @@ export class ActorDerivedResourceDiscoverDescribedBy extends ActorDerivedResourc
     for (const url of new Set(quads.map(quad => quad.object.value))) {
       const description = ActorDerivedResourceDiscover.takeUpDescription(
         url,
+        this.name,
         action.context,
         this.mediatorDereferenceRdf,
         this.mediatorDerivedResourceDiscover,
@@ -61,7 +62,9 @@ export class ActorDerivedResourceDiscoverDescribedBy extends ActorDerivedResourc
         discovered.push(description);
       }
     }
-    return { discovered };
+    return { 
+      discovered,
+    };
   }
 }
 

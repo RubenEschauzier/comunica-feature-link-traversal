@@ -22,8 +22,11 @@
     "ccqs:config/merge-bindings-context/source-binding-union.json",
 
     "ccqslt:config/extract-links/actors/solid-derived-resources.json",
-    "ccqslt:config/derived-resource-discover/actors/walk-up.json",
     "ccqslt:config/optimize-query-operation/prefetch-derived-resources.json",
+    
+    "ccqslt:config/derived-resource-discover/mediators.json",
+    "ccqslt:config/derived-resource-discover/actors.json",
+    "ccqslt:config/derived-resource-discover/actors/walk-up.json",
     "ccqslt:config/derived-resource-identify/mediators.json",
     "ccqslt:config/derived-resource-identify/actors/qpf.json",
     "ccqslt:config/derived-resource-identify/actors/sparql-endpoint.json",

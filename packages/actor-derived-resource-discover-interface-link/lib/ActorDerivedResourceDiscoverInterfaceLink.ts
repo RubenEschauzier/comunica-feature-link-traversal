@@ -42,6 +42,7 @@ export class ActorDerivedResourceDiscoverInterfaceLink extends ActorDerivedResou
     return {
       discovered: this.readInterfaces(quads, action.describedUrl).map(resource => ({
         scope: resource.baseUrl,
+        producedBy: this.name,
         resources: Promise.resolve([ resource ]),
       })),
     };

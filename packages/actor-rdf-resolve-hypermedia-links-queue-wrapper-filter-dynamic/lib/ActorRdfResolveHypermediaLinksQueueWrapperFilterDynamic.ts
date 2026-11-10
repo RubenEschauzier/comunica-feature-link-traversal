@@ -31,9 +31,10 @@ export class ActorRdfResolveHypermediaLinksQueueWrapperFilterDynamic extends Act
   public async run(action: IActionRdfResolveHypermediaLinksQueue): Promise<IActorRdfResolveHypermediaLinksQueueOutput> {
     const context = action.context.set(ActorRdfResolveHypermediaLinksQueueWrapperFilterDynamic.keyWrapped, true);
     const dynamicFilter = action.context.getSafe(KeysRdfResolveHypermediaLinks.dynamicFilter);
+    const linkFilters = action.context.get(KeysRdfResolveHypermediaLinks.linkFilters) ?? [];
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
     return {
-      linkQueue: new LinkQueueWrapperFilterDynamic(linkQueue, dynamicFilter),
+      linkQueue: new LinkQueueWrapperFilterDynamic(linkQueue, dynamicFilter, linkFilters),
     };
   }
 }

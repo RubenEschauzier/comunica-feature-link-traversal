@@ -1,0 +1,27 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-rdf-resolve-hypermedia-links-queue-priority-wrapper-derived-resource/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/actors#wrapper-prioritize-derived-resources",
+      "@type": "ActorRdfResolveHypermediaLinksQueuePriorityWrapperDerivedResource",
+      "beforeActors": [
+        {
+          "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/actors#priority"
+        }
+      ],
+      "mediatorRdfResolveHypermediaLinksQueue": {
+        "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/mediators#main"
+      },
+      "derivedResourcePredicates": [
+        "https://knows.idlab.ugent.be/vocab/derived#definedBy",
+        "http://rdfs.org/ns/void#inDataset"
+      ],
+      "comment": "As wrapper-prioritize-derived-resources.json, and also the links to the dataset a document belongs to (void:inDataset), so a publisher's dataset document, which names its query service, is read before the rest of its documents."
+    }
+  ]
+}

@@ -13,7 +13,7 @@
         { "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/actors#priority" }
       ],
       "mediatorRdfResolveHypermediaLinksQueue": { "@id": "urn:comunica:default:rdf-resolve-hypermedia-links-queue/mediators#main" },
-      "derivedResourcePredicate": "https://knows.idlab.ugent.be/vocab/derived#definedBy"
+      "derivedResourcePredicates": [ "https://knows.idlab.ugent.be/vocab/derived#definedBy" ]
     }
   ]
 }

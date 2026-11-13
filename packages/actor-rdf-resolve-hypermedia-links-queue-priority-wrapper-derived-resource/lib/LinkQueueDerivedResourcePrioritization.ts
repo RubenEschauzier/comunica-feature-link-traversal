@@ -3,7 +3,9 @@ import { LinkQueueWrapper } from '@comunica/bus-rdf-resolve-hypermedia-links-que
 import type { ILink } from '@comunica/types';
 
 /**
- * A link queue that prioritizes links found using a derived resource predicate extractor.
+ * A link queue that prioritizes links found by a predicate extractor for one of the given predicates,
+ * such as links to derived resources (`derived:definedBy`) or to the dataset a document belongs to
+ * (`void:inDataset`), whose description says what can answer queries over it.
  */
 export class LinkQueueDerivedResourcePrioritization extends LinkQueueWrapper<LinkQueuePriority> {
   /**
@@ -12,11 +14,11 @@ export class LinkQueueDerivedResourcePrioritization extends LinkQueueWrapper<Lin
    */
   public static readonly derivedResourcePriority = 1e9;
 
-  protected readonly derivedResourcePredicate: string;
+  protected readonly derivedResourcePredicates: Set<string>;
 
-  public constructor(linkQueue: LinkQueuePriority, derivedResourcePredicate: string) {
+  public constructor(linkQueue: LinkQueuePriority, derivedResourcePredicates: string[]) {
     super(linkQueue);
-    this.derivedResourcePredicate = derivedResourcePredicate;
+    this.derivedResourcePredicates = new Set(derivedResourcePredicates);
   }
 
   public override push(link: ILink, parent?: ILink): boolean {
@@ -43,8 +45,8 @@ export class LinkQueueDerivedResourcePrioritization extends LinkQueueWrapper<Lin
     const producedBy: Record<string, any> | undefined = link.metadata ? link.metadata["producedByActor"] : undefined;
     if (producedBy){
       const matchingPredicate: string | undefined = producedBy["matchingPredicate"];
-      if (matchingPredicate === this.derivedResourcePredicate){
-        return true
+      if (matchingPredicate !== undefined && this.derivedResourcePredicates.has(matchingPredicate)) {
+        return true;
       }
     }
     return false;

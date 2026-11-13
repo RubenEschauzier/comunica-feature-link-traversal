@@ -8,12 +8,12 @@ import { LinkQueueDerivedResourcePrioritization } from './LinkQueueDerivedResour
  */
 export class ActorRdfResolveHypermediaLinksQueuePriorityWrapperDerivedResource extends ActorRdfResolveHypermediaLinksQueue {
   private readonly mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
-  private readonly derivedResourcePredicate: string;
+  private readonly derivedResourcePredicates: string[];
 
   public constructor(args: IActorRdfResolveHypermediaLinksQueueWrapperPriorityDerivedResourceeArgs) {
     super(args);
     this.mediatorRdfResolveHypermediaLinksQueue = args.mediatorRdfResolveHypermediaLinksQueue;
-    this.derivedResourcePredicate = args.derivedResourcePredicate;
+    this.derivedResourcePredicates = args.derivedResourcePredicates;
   }
 
   public async test(action: IActionRdfResolveHypermediaLinksQueue): Promise<TestResult<IActorTest>> {
@@ -29,7 +29,7 @@ export class ActorRdfResolveHypermediaLinksQueuePriorityWrapperDerivedResource e
 
     const { linkQueue } = await this.mediatorRdfResolveHypermediaLinksQueue.mediate({ ...action, context });
 
-    return { linkQueue: new LinkQueueDerivedResourcePrioritization(<LinkQueuePriority>linkQueue, this.derivedResourcePredicate) };  }
+    return { linkQueue: new LinkQueueDerivedResourcePrioritization(<LinkQueuePriority>linkQueue, this.derivedResourcePredicates) };  }
 }
 
 
@@ -41,6 +41,10 @@ export const KEY_CONTEXT_WRAPPED = new ActionContextKey<boolean>(
 export interface IActorRdfResolveHypermediaLinksQueueWrapperPriorityDerivedResourceeArgs
   extends IActorArgs<IActionRdfResolveHypermediaLinksQueue, IActorTest, IActorRdfResolveHypermediaLinksQueueOutput> {
   mediatorRdfResolveHypermediaLinksQueue: MediatorRdfResolveHypermediaLinksQueue;
-  derivedResourcePredicate: string;
+  /**
+   * The predicates whose links are dereferenced before any other link, such as
+   * `https://knows.idlab.ugent.be/vocab/derived#definedBy` and `http://rdfs.org/ns/void#inDataset`.
+   */
+  derivedResourcePredicates: string[];
 
 }

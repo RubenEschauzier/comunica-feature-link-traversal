@@ -21,10 +21,15 @@ import { UnionPushdown } from './UnionPushdown';
  * container a seed lies in is requested, filters included, so it is at hand, or at least underway,
  * by the time the seed names it. Descriptions that do not exist cost a request that fails, sent
  * alongside the seed rather than after it.
+ *
+ * The candidates are guessed from the seeds' paths (the `.meta` of every container above them), which
+ * assumes Solid's url layout. Where documents link to their dataset instead (`void:inDataset`), set
+ * `prefetchDescriptions` to false: the query is still rewritten, and the dataset is found through the link.
  */
 export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOptimizeQueryOperation {
   public readonly mediatorDereferenceRdf: MediatorDereferenceRdf;
   public readonly mediatorDerivedResourceDiscover: MediatorDerivedResourceDiscover;
+  public readonly prefetchDescriptions: boolean;
   // TODO: move into an optimize-query-operation actor of its own
   protected readonly unionPushdown = new UnionPushdown(new AlgebraFactory());
 
@@ -32,6 +37,7 @@ export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOp
     super(args);
     this.mediatorDereferenceRdf = args.mediatorDereferenceRdf;
     this.mediatorDerivedResourceDiscover = args.mediatorDerivedResourceDiscover;
+    this.prefetchDescriptions = args.prefetchDescriptions ?? true;
   }
 
   public async test(_action: IActionOptimizeQueryOperation): Promise<TestResult<IActorTest>> {
@@ -44,7 +50,9 @@ export class ActorOptimizeQueryOperationPrefetchDerivedResources extends ActorOp
     const operation = this.unionPushdown.rewrite(action.operation);
     action = { ...action, operation, context: action.context.set(KeysInitQuery.query, operation) };
 
-    const seeds = this.seedUrls(action.context.get(KeysInitQuery.querySourcesUnidentified) ?? []);
+    const seeds = this.prefetchDescriptions ?
+      this.seedUrls(action.context.get(KeysInitQuery.querySourcesUnidentified) ?? []) :
+      [];
     if (seeds.length === 0) {
       return { ...action, context: action.context };
     }
@@ -115,4 +123,10 @@ export interface IActorOptimizeQueryOperationPrefetchDerivedResourcesArgs
    * The discover mediator finding the resources in a description.
    */
   mediatorDerivedResourceDiscover: MediatorDerivedResourceDiscover;
+  /**
+   * Whether to fetch the descriptions of the containers above the seeds ahead of traversal. Off where
+   * documents link to their dataset (`void:inDataset`) rather than the url layout naming it.
+   * @default {true}
+   */
+  prefetchDescriptions?: boolean;
 }

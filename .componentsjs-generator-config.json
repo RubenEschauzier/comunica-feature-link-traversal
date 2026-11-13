@@ -12,6 +12,7 @@
     "ShapeTree",
     "ContentPolicy",
     "BindingsStreamAdaptiveDestroy",
+    "SymmetricJoinIterator",
     "MetadataValidationState",
     "ILink",
     "IQuerySource",

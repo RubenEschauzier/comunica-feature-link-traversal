@@ -304,6 +304,7 @@
     "@comunica/actor-rdf-join-optional-hash": "^5.0.3",
     "@comunica/actor-rdf-join-optional-nestedloop": "^5.0.3",
     "@comunica/actor-rdf-join-selectivity-variable-counting": "^5.0.3",
+    "@comunica/actor-rdf-join-symmetric": "^0.8.0",
     "@comunica/actor-rdf-metadata-accumulate-cardinality": "^5.0.3",
     "@comunica/actor-rdf-metadata-accumulate-pagesize": "^5.0.3",
     "@comunica/actor-rdf-metadata-accumulate-requesttime": "^5.0.3",

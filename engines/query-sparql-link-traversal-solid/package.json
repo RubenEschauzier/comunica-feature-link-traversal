@@ -80,7 +80,6 @@
     "@comunica/actor-derived-resource-discover-declared": "^0.8.0",
     "@comunica/actor-derived-resource-discover-described-by": "^0.8.0",
     "@comunica/actor-derived-resource-discover-interface-link": "^0.8.0",
-    "@comunica/actor-derived-resource-discover-walk-up": "^0.8.0",
     "@comunica/actor-derived-resource-execute-composite-source": "^0.8.0",
     "@comunica/actor-derived-resource-execute-triple-pattern": "^0.8.0",
     "@comunica/actor-derived-resource-identify-linear-query": "^0.8.0",

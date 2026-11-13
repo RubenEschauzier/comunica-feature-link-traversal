@@ -19,7 +19,8 @@
     "AggregatedStoreMemory",
     "QuerySourceParameterizedQuery",
     "BlankNodeScopes",
-    "LinkQueuePriority"
+    "LinkQueuePriority",
+    "LinkQueueWrapperKnownSources"
   ],
   "modulePrefix": {}
 }

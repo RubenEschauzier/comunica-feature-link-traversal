@@ -36,6 +36,14 @@ export const KeysRdfResolveHypermediaLinks = {
   dynamicFilter: new ActionContextKey<IDynamicFilter>(
     '@comunica/bus-rdf-resolve-hypermedia-links-queue:filterDynamic'
   ),
+  /**
+   * Context entry declaring the namespaces a query source given with a type, such as a SPARQL endpoint,
+   * covers: a map from the source's url to the url prefixes of the documents whose data it serves.
+   * Such a source is the only way its data is accessed, so links into its namespaces are not traversed.
+   */
+  sourceNamespaces: new ActionContextKey<Record<string, string[]>>(
+    '@comunica/bus-rdf-resolve-hypermedia-links:sourceNamespaces',
+  ),
 
 };
 

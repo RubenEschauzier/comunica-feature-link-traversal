@@ -1,0 +1,20 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/runner/^5.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-query-source-dereference-link-extract-links/^0.0.0/components/context.jsonld"
+  ],
+  "@id": "urn:comunica:default:Runner",
+  "@type": "Runner",
+  "actors": [
+    {
+      "@id": "urn:comunica:default:query-source-dereference-link/actors#extract-links",
+      "@type": "ActorQuerySourceDereferenceLinkExtractLinks",
+      "mediatorQuerySourceDereferenceLink": { "@id": "urn:comunica:default:query-source-dereference-link/mediators#main" },
+      "mediatorExtractLinks": { "@id": "urn:comunica:default:extract-links/mediators#main" },
+      "beforeActors": [
+        { "@id": "urn:comunica:default:query-source-dereference-link/actors#force-sparql" },
+        { "@id": "urn:comunica:default:query-source-dereference-link/actors#dereference" }
+      ]
+    }
+  ]
+}

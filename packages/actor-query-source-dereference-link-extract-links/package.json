@@ -1,0 +1,56 @@
+{
+  "name": "@comunica/actor-query-source-dereference-link-extract-links",
+  "version": "0.8.0",
+  "description": "Follows links in the answers of the query sources given with a type, as link traversal does in documents",
+  "lsd:module": true,
+  "license": "MIT",
+  "funding": {
+    "type": "opencollective",
+    "url": "https://opencollective.com/comunica-association"
+  },
+  "homepage": "https://comunica.dev/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/comunica/comunica-feature-link-traversal.git",
+    "directory": "packages/actor-query-source-dereference-link-extract-links"
+  },
+  "bugs": {
+    "url": "https://github.com/comunica/comunica-feature-link-traversal/issues"
+  },
+  "keywords": [
+    "comunica",
+    "actor",
+    "query-source-dereference-link",
+    "extract-links",
+    "link-traversal"
+  ],
+  "main": "lib/index.js",
+  "typings": "lib/index",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "components",
+    "lib/**/*.d.ts",
+    "lib/**/*.js",
+    "lib/**/*.js.map"
+  ],
+  "scripts": {
+    "build": "yarn run build:ts && yarn run build:components",
+    "build:ts": "node \"../../node_modules/typescript/bin/tsc\"",
+    "build:components": "componentsjs-generator"
+  },
+  "dependencies": {
+    "@comunica/bus-extract-links": "^0.8.0",
+    "@comunica/bus-query-source-dereference-link": "^5.0.3",
+    "@comunica/context-entries": "^5.0.3",
+    "@comunica/context-entries-link-traversal": "^0.8.0",
+    "@comunica/core": "^5.0.3",
+    "@comunica/types": "^5.0.0",
+    "@comunica/types-link-traversal": "^0.8.0",
+    "@comunica/utils-algebra": "^5.0.3",
+    "@rdfjs/types": "*",
+    "asynciterator": "^3.10.0",
+    "readable-stream": "^4.7.0"
+  }
+}

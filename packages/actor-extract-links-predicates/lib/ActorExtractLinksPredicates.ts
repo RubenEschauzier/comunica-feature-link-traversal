@@ -15,6 +15,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
   private readonly predicates: RegExp[];
   private readonly stringPredicates: string[];
   private readonly podInternalLinks: boolean;
+  private readonly descriptionOnly: boolean;
 
   public constructor(args: IActorExtractLinksTraversePredicatesArgs) {
     super(args);
@@ -23,6 +24,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
     this.stringPredicates = args.predicateRegexes;
     this.predicates = args.predicateRegexes.map(stringRegex => new RegExp(stringRegex, 'u'));
     this.podInternalLinks = args.podInternalLinks ?? false;
+    this.descriptionOnly = args.descriptionOnly ?? false;
   }
 
   public async test(_action: IActionExtractLinks): Promise<TestResult<IActorTest>> {
@@ -44,6 +46,7 @@ export class ActorExtractLinksPredicates extends ActorExtractLinks {
                     matchingPredicate: quad.predicate.value,
                     checkSubject: this.checkSubject,
                   },
+                  ...this.descriptionOnly ? { descriptionOnly: true } : {},
                 },
               });
               break;
@@ -141,4 +144,13 @@ export interface IActorExtractLinksTraversePredicatesArgs
    * @default {false}
    */
   podInternalLinks?: boolean;
+  /**
+   * If the documents these links lead to are only read for what they describe, such as the dataset a
+   * document belongs to (`void:inDataset`) and the services answering queries over it. The links in such a
+   * document are then not followed, unless another link leads to it too, so that a description that is
+   * also a container, such as a Solid storage root, is not traversed because a document points to it.
+   * @range {boolean}
+   * @default {false}
+   */
+  descriptionOnly?: boolean;
 }

@@ -110,4 +110,36 @@ describe('ActorExtractLinksTraversePredicates', () => {
         });
     });
   });
+
+  describe('An ActorExtractLinksTraversePredicates instance for links to descriptions', () => {
+    it('marks its links as leading to descriptions only', async() => {
+      const predicateRegexes = [ 'http://rdfs.org/ns/void#inDataset' ];
+      const actor = new ActorExtractLinksPredicates({
+        name: 'actor',
+        bus,
+        checkSubject: true,
+        predicateRegexes,
+        descriptionOnly: true,
+      });
+      const input = stream([
+        quad('ex:s', 'http://rdfs.org/ns/void#inDataset', 'ex:dataset/'),
+        quad('ex:s', 'ex:px', 'ex:r1'),
+      ]);
+      await expect(actor.run({ url: 'ex:s', metadata: input, requestTime: 0, context: new ActionContext() })).resolves
+        .toEqual({
+          links: [{
+            url: 'ex:dataset/',
+            metadata: {
+              producedByActor: {
+                name: actor.name,
+                predicates: predicateRegexes,
+                matchingPredicate: 'http://rdfs.org/ns/void#inDataset',
+                checkSubject: true,
+              },
+              descriptionOnly: true,
+            },
+          }],
+        });
+    });
+  });
 });

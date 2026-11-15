@@ -8,11 +8,12 @@
   "@type": "Runner",
   "actors": [
     {
-      "comment": "A document's link to the dataset it belongs to (<doc> void:inDataset <dataset/>), whose own document says what answers queries over it, such as void:sparqlEndpoint. Replaces walking up the url to the storage root's .meta, which assumes Solid's url layout.",
+      "comment": "A document's link to the dataset it belongs to (<doc> void:inDataset <dataset/>), whose own document says what answers queries over it, such as void:sparqlEndpoint. Replaces walking up the url to the storage root's .meta, which assumes Solid's url layout. The dataset's document is only read for its description: when it is also a container, as a Solid storage root is, its ldp:contains links are not followed unless another link leads to it too, so that traversal follows the same links as without derived resources.",
       "@id": "urn:comunica:default:extract-links/actors#predicates-void-indataset",
       "@type": "ActorExtractLinksPredicates",
       "checkSubject": true,
       "podInternalLinks": true,
+      "descriptionOnly": true,
       "predicateRegexes": [
         "http://rdfs.org/ns/void#inDataset"
       ]

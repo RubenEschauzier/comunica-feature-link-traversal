@@ -406,4 +406,141 @@ describe('LinkTraversalManagerMediated', () => {
       await expect(bindingsStream1).toEqualBindingsStream([]);
     });
   });
+
+  describe('links to descriptions', () => {
+    // A document's links, by url; a link given as [ url ] leads to a description only
+    let web: Record<string, (string | [string])[]>;
+    let dereferenced: string[];
+    let onDereference: ((url: string) => Promise<void> | void) | undefined;
+
+    function traverse(seeds: string[], parallelization = 1): LinkTraversalManagerMediated {
+      dereferenced = [];
+      const manager = new LinkTraversalManagerMediated(
+        parallelization,
+        1,
+        seeds.map(url => ({ url })),
+        new LinkQueueFifo(),
+        new AggregatedStoreMemory(undefined, async(left, right) => ({ ...left, ...right }), false, DF),
+        new ActionContext(),
+        DF,
+        new BindingsFactory(DF),
+        <any> {
+          mediate: async({ metadata }: any) => ({
+            links: metadata.traverse ?? (web[metadata.url] ?? []).map(link => typeof link === 'string' ?
+                { url: link } :
+                { url: link[0], metadata: { descriptionOnly: true }}),
+          }),
+        },
+        <any> {
+          mediate: async({ link }: any) => {
+            dereferenced.push(link.url);
+            await onDereference?.(link.url);
+            return {
+              source: new QuerySourceRdfJs(
+                await storeStream(Readable.from([
+                  DF.quad(DF.namedNode(link.url), DF.namedNode('p'), DF.namedNode('o')),
+                ])),
+                DF,
+                new BindingsFactory(DF),
+              ),
+              metadata: { url: link.url },
+            };
+          },
+        },
+      );
+      return manager;
+    }
+
+    async function run(manager: LinkTraversalManagerMediated): Promise<void> {
+      manager.start(rejectionHandler, ctx);
+      await new Promise<void>(resolve => manager.addStopListener(resolve));
+      expect(rejectionHandler).not.toHaveBeenCalled();
+    }
+
+    beforeEach(() => {
+      onDereference = undefined;
+    });
+
+    it('reads a description without following the links in it', async() => {
+      web = { doc: [[ 'root/' ], 'next' ], 'root/': [ 'root/a', 'root/b' ]};
+      const manager = traverse([ 'doc' ]);
+      await run(manager);
+      expect(dereferenced).toEqual([ 'doc', 'root/', 'next' ]);
+      await expect(manager.aggregatedStore.match().toArray()).resolves.toHaveLength(3);
+    });
+
+    it('does not follow the links in a description that only descriptions lead to', async() => {
+      web = { doc1: [[ 'root/' ]], doc2: [[ 'root/' ]], 'root/': [ 'root/a' ]};
+      await run(traverse([ 'doc1', 'doc2' ]));
+      expect(dereferenced.sort()).toEqual([ 'doc1', 'doc2', 'root/' ]);
+    });
+
+    it('follows the links in a description that another link leads to as well, before reading it', async() => {
+      web = { doc: [[ 'root/' ], 'root/' ], 'root/': [ 'root/a' ]};
+      await run(traverse([ 'doc' ]));
+      expect(dereferenced).toEqual([ 'doc', 'root/', 'root/a' ]);
+    });
+
+    it('follows the links in a description that another link leads to as well, after reading it', async() => {
+      web = { doc: [[ 'root/' ], 'far' ], far: [ 'farther' ], farther: [ 'root/' ], 'root/': [ 'root/a' ]};
+      await run(traverse([ 'doc' ]));
+      expect(dereferenced).toEqual([ 'doc', 'root/', 'far', 'farther', 'root/a' ]);
+    });
+
+    it('follows the links in a description that another link leads to while reading it', async() => {
+      web = { doc: [[ 'root/' ], 'other' ], other: [ 'root/' ], 'root/': [ 'root/a' ]};
+      let readOther: () => void;
+      const otherRead = new Promise<void>((resolve) => {
+        readOther = resolve;
+      });
+      onDereference = async(url) => {
+        if (url === 'root/') {
+          // Reading the description ends only after the other document linked to it
+          await otherRead;
+        }
+        if (url === 'other') {
+          setTimeout(readOther, 10);
+        }
+      };
+      await run(traverse([ 'doc' ], 2));
+      expect(dereferenced).toEqual([ 'doc', 'root/', 'other', 'root/a' ]);
+    });
+
+    it('follows a link held in a description when another document links to it', async() => {
+      web = { doc: [[ 'root/' ], 'other' ], other: [ 'root/a' ], 'root/': [ 'root/a', 'root/b' ]};
+      await run(traverse([ 'doc' ]));
+      expect(dereferenced).toEqual([ 'doc', 'root/', 'other', 'root/a' ]);
+    });
+
+    it('reads a description inside a description, following the links of neither', async() => {
+      web = { doc: [[ 'root/' ]], 'root/': [[ 'up/' ], 'root/a' ], 'up/': [ 'up/a' ]};
+      await run(traverse([ 'doc' ]));
+      expect(dereferenced).toEqual([ 'doc', 'root/' ]);
+    });
+
+    it('releases the held descriptions in a description once another link leads to it', async() => {
+      web = { doc: [[ 'root/' ], 'far' ], far: [ 'root/' ], 'root/': [[ 'up/' ], 'root/a' ], 'up/': [ 'up/a' ]};
+      await run(traverse([ 'doc' ]));
+      expect(dereferenced).toEqual([ 'doc', 'root/', 'far', 'up/', 'root/a' ]);
+    });
+
+    it('follows the links added for a description, such as the answers of the services it names', async() => {
+      web = { doc: [[ 'root/' ]], 'root/': [ 'root/a' ]};
+      const manager = traverse([ 'doc' ]);
+      onDereference = async(url) => {
+        if (url === 'root/') {
+          // The derived resources of a description add the links in their answers with it as parent
+          await manager.addLinks({ url: 'root/' }, [{ url: 'answer' }]);
+        }
+      };
+      await run(manager);
+      expect(dereferenced).toEqual([ 'doc', 'root/', 'answer' ]);
+    });
+
+    it('treats a description link to a seed as already followed', async() => {
+      web = { doc: [[ 'seed' ]], seed: [ 'seed/a' ]};
+      await run(traverse([ 'seed', 'doc' ]));
+      expect(dereferenced).toEqual([ 'seed', 'doc', 'seed/a' ]);
+    });
+  });
 });

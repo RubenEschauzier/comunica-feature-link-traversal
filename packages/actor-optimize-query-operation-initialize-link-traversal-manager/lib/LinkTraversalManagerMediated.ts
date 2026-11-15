@@ -26,6 +26,13 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   protected running = false;
   protected ended = false;
   protected readonly handledUrls: Record<string, boolean> = {};
+  /**
+   * The documents that only links to descriptions (metadata descriptionOnly) have led to so far, with the
+   * links read from them, once read. A description is read for what it describes, such as the services of
+   * a dataset, and the links in it are held back, so that following a document to its dataset does not
+   * traverse the dataset's container. Once any other link leads to it too, its links are followed.
+   */
+  protected readonly descriptionsOnly: Record<string, ILink[] | undefined> = {};
   protected linksDereferencing: Set<AbortController> = new Set();
   protected querySourceAggregated: IQuerySource;
   protected querySourcesNonAggregated: AsyncReiterable<IQuerySource>;
@@ -159,6 +166,13 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
   }
 
   protected async getSourceLinks(metadata: Record<string, any>, startLink: ILink): Promise<ILink[]> {
+    return this.filterNewLinks(await this.resolveLinks(metadata, startLink));
+  }
+
+  /**
+   * The links in the metadata of a document, before removing the links followed already.
+   */
+  protected async resolveLinks(metadata: Record<string, any>, startLink: ILink): Promise<ILink[]> {
     const { links } = await this.mediatorRdfResolveHypermediaLinks.mediate({ context: this.context, metadata });
 
     // Update discovery event statistic if available
@@ -169,15 +183,31 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
         traversalTracker.updateStatistic({ url: link.url, metadata: { ...link.metadata }}, startLink);
       }
     }
+    return links;
+  }
 
-    // Filter URLs to avoid cyclic link loops
-    return links.filter((link) => {
+  /**
+   * The links not followed yet, to avoid cyclic link loops. A link other than to a description that leads
+   * to a document only descriptions led to so far releases the links held back from it.
+   */
+  protected filterNewLinks(links: ILink[]): ILink[] {
+    const released: ILink[] = [];
+    const fresh = links.filter((link) => {
+      const descriptionOnly = link.metadata?.descriptionOnly === true;
       if (this.handledUrls[link.url]) {
+        if (!descriptionOnly && link.url in this.descriptionsOnly) {
+          released.push(...this.descriptionsOnly[link.url] ?? []);
+          delete this.descriptionsOnly[link.url];
+        }
         return false;
       }
       this.setHandled(link);
+      if (descriptionOnly) {
+        this.descriptionsOnly[link.url] = undefined;
+      }
       return true;
     });
+    return released.length > 0 ? [ ...fresh, ...this.filterNewLinks(released) ] : fresh;
   }
 
   protected followLink(nextLink: ILink): void {
@@ -191,9 +221,14 @@ export class LinkTraversalManagerMediated implements ILinkTraversalManager {
       .set(KeysQuerySourceIdentifyLinkTraversal.linkTraversalManager, this),
     })
       .then(async({ source, metadata }) => {
-        // Determine next links
-        for (const link of await this.getSourceLinks(metadata, nextLink)) {
-          this.linkQueue.push(link);
+        // Determine next links, holding them back if only descriptions led here so far
+        const links = await this.resolveLinks(metadata, nextLink);
+        if (nextLink.url in this.descriptionsOnly) {
+          this.descriptionsOnly[nextLink.url] = links;
+        } else {
+          for (const link of this.filterNewLinks(links)) {
+            this.linkQueue.push(link);
+          }
         }
         // If the source is a document, add to aggregate store.
         // Otherwise, append to non-document sources.

@@ -43,6 +43,7 @@
 
 
     "ccqslt:config/context-preprocess/dynamic-links-filter.json",
+    "ccqslt:config/context-preprocess/links-filter.json",
     "ccqslt:config/rdf-resolve-hypermedia-links-queue/actors/wrapper-filter-dynamic-priority.json",
 
     "ccqslt:config/extract-links/actors/predicates-derived-resources.json",

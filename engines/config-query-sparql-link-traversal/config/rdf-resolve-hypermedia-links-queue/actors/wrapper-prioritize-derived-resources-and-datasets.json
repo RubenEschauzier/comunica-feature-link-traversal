@@ -19,9 +19,10 @@
       },
       "derivedResourcePredicates": [
         "https://knows.idlab.ugent.be/vocab/derived#definedBy",
-        "http://rdfs.org/ns/void#inDataset"
+        "http://rdfs.org/ns/void#inDataset",
+        "http://www.w3.org/ns/pim/space#storage"
       ],
-      "comment": "As wrapper-prioritize-derived-resources.json, and also the links to the dataset a document belongs to (void:inDataset), so a publisher's dataset document, which names its query service, is read before the rest of its documents."
+      "comment": "As wrapper-prioritize-derived-resources.json, and also the links to the dataset a document belongs to (void:inDataset), so a publisher's dataset document, which names its query service, is read before the rest of its documents. pim:storage is prioritised as well: documents that state pim:storage <./> before void:inDataset <./> have the storage-root link queued unprioritised by the Solid storage extractor first, after which the prioritised void:inDataset copy is dropped as already queued, delaying the dataset document (and its query service) by ~10 s."
     }
   ]
 }

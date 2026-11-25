@@ -37,45 +37,59 @@ export class ActorExtractLinksQuadPatternQuery extends ActorExtractLinks {
     return currentQueryOperation;
   }
 
+  /**
+   * Per query operation, the patterns a quad is matched against: the query's patterns, and one pattern per
+   * predicate of its property paths. Collected once per query rather than by walking the query for every quad
+   * of every document.
+   */
+  private static readonly candidatePatterns = new WeakMap<Algebra.Operation, RDF.BaseQuad[]>();
+
+  public static getCandidatePatterns(operation: Algebra.Operation): RDF.BaseQuad[] {
+    let candidates = ActorExtractLinksQuadPatternQuery.candidatePatterns.get(operation);
+    if (candidates === undefined) {
+      const collected: RDF.BaseQuad[] = [];
+      algebraUtils.visitOperation(operation, {
+        [Algebra.Types.PATTERN]: {
+          preVisitor: () => ({ continue: false }),
+          visitor: (pattern) => {
+            collected.push(pattern);
+          },
+        },
+        [Algebra.Types.PATH]: {
+          preVisitor: () => ({ continue: false }),
+          visitor: (path: Algebra.Path) => {
+            algebraUtils.visitOperation(path, {
+              [Algebra.Types.LINK]: {
+                preVisitor: () => ({ continue: false }),
+                visitor: (link: Algebra.Link) => {
+                  collected.push(DF.quad(VAR, link.iri, VAR, path.graph));
+                },
+              },
+              [Algebra.Types.NPS]: {
+                preVisitor: () => ({ continue: false }),
+                visitor: (nps: Algebra.Nps) => {
+                  for (const iri of nps.iris) {
+                    collected.push(DF.quad(VAR, iri, VAR, path.graph));
+                  }
+                },
+              },
+            });
+          },
+        },
+      });
+      candidates = collected;
+      ActorExtractLinksQuadPatternQuery.candidatePatterns.set(operation, candidates);
+    }
+    return candidates;
+  }
+
   public static matchQuadPatternInOperation(quad: RDF.Quad, operation: Algebra.Operation): RDF.BaseQuad[] {
     const matchingPatterns: RDF.BaseQuad[] = [];
-    algebraUtils.visitOperation(operation, {
-      [Algebra.Types.PATTERN]: {
-        preVisitor: () => ({ continue: false }),
-        visitor: (pattern) => {
-          if (matchPatternComplete(quad, pattern)) {
-            matchingPatterns.push(pattern);
-          }
-        },
-      },
-      [Algebra.Types.PATH]: {
-        preVisitor: () => ({ continue: false }),
-        visitor: (path: Algebra.Path) => {
-          algebraUtils.visitOperation(path, {
-            [Algebra.Types.LINK]: {
-              preVisitor: () => ({ continue: false }),
-              visitor: (link: Algebra.Link) => {
-                const pattern = DF.quad(VAR, link.iri, VAR, path.graph);
-                if (matchPatternComplete(quad, pattern)) {
-                  matchingPatterns.push(pattern);
-                }
-              },
-            },
-            [Algebra.Types.NPS]: {
-              preVisitor: () => ({ continue: false }),
-              visitor: (nps: Algebra.Nps) => {
-                for (const iri of nps.iris) {
-                  const pattern = DF.quad(VAR, iri, VAR, path.graph);
-                  if (matchPatternComplete(quad, pattern)) {
-                    matchingPatterns.push(pattern);
-                  }
-                }
-              },
-            },
-          });
-        },
-      },
-    });
+    for (const pattern of ActorExtractLinksQuadPatternQuery.getCandidatePatterns(operation)) {
+      if (matchPatternComplete(quad, pattern)) {
+        matchingPatterns.push(pattern);
+      }
+    }
     return matchingPatterns;
   }
 

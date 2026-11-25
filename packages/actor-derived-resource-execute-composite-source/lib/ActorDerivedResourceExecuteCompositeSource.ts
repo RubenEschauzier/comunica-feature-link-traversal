@@ -14,7 +14,7 @@ import type {
 } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { ArrayIterator } from 'asynciterator';
-import type { SelectivityEstimate } from './BoundCompositeCoordinator';
+import type { IBaseTupleSource } from './BoundCompositeCoordinator';
 import { BoundCompositeCoordinator } from './BoundCompositeCoordinator';
 import { FilterPushdown } from './FilterPushdown';
 import type { IAggregatedStore, ILinkTraversalManager } from '@comunica/types-link-traversal';
@@ -91,27 +91,23 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
       }
 
       // Bound composites: a block without a constant sharing a variable with the region of one is asked
-      // only for the values the blocks with a constant (seeds) bind, unless that turns out not to pay
+      // only for the values the blocks with a constant (seeds) bind, when those settle at once (one-shot)
       let seedVariables: RDF.Variable[] = [];
       if (coordinator) {
         const role = await this.boundRole(block, adaptiveJoinController, context);
         if (process.env.DERIVED_BOUND_DEBUG === '1') {
           process.stderr.write(`[bound] ${domain} ${block.operations.length} ops: ${role?.target ? `target ?${role.target.value}` : role?.seed ? `seed ${role.seed.map(v => `?${v.value}`).join(' ')}` : 'none'}\n`);
         }
+        // Seed values come from the base operators of the patterns around the constants as well, which hold
+        // the values of every source, not only of those answering composite blocks
+        this.tapRegion(block, adaptiveJoinController, coordinator);
         if (role?.target) {
           const target = role.target;
-          const send = (values: RDF.Term[]): Promise<void> =>
+          const send = (values: RDF.Term[]): Promise<number> =>
             this.sendBound(block, target, values, adaptiveJoinController, context, store, skolemId);
-          const estimate = (variable: string, values: Set<string>): { matching: number; total: number } | undefined =>
-            this.estimateSelectivity(block, adaptiveJoinController, variable, values);
-          const debugEstimate = (variable: string, values: Set<string>): { matching: number; total: number } | undefined => {
-            const counts = estimate(variable, values);
-            if (process.env.DERIVED_BOUND_DEBUG === '1') {
-              process.stderr.write(`[bound] ${domain} estimate ?${variable} values=${values.size} ${JSON.stringify(counts)}\n`);
-            }
-            return counts;
-          };
-          const taken = coordinator.addTarget(target, send, debugEstimate);
+          const sendWhole = (): Promise<number> =>
+            this.sendWhole(block, adaptiveJoinController, context, store, skolemId);
+          const taken = coordinator.addTarget(target, send, { label: domain, sendWhole });
           if (process.env.DERIVED_BOUND_DEBUG === '1') {
             process.stderr.write(`[bound] ${domain} target ${taken ? 'bound' : 'whole'} ${JSON.stringify(coordinator.statistics)}\n`);
           }
@@ -121,9 +117,6 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
           }
         } else if (role?.seed) {
           seedVariables = role.seed;
-        }
-        if (ActorDerivedResourceExecuteCompositeSource.boundBaseSeeds()) {
-          this.tapBaseSeeds(block, adaptiveJoinController, coordinator);
         }
       }
 
@@ -135,10 +128,13 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
       if (responded) {
         action.compositeResponses?.add(responded);
       }
-      let bindingsStream = this.withinDomain(block, this.scopeBlankNodes(answers, domain, store, skolemId));
+      let bindingsStream = this.traceWhole(
+        block,
+        this.withinDomain(block, this.scopeBlankNodes(answers, domain, store, skolemId)),
+      );
       let releaseSeed: (() => void) | undefined;
       if (coordinator && seedVariables.length > 0) {
-        const tapped = coordinator.tapSeed(bindingsStream, seedVariables);
+        const tapped = coordinator.tapSeed(bindingsStream, seedVariables, domain);
         bindingsStream = tapped.stream;
         releaseSeed = tapped.release;
       }
@@ -201,31 +197,43 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
   }
 
   /**
-   * Whether bound requests also carry the values the base operators find, not only those of seed composites:
-   * DERIVED_BOUND_BASE_SEEDS=1.
+   * Taps the base operators of the block's join component for seed values, following the component's seed plan
+   * (once per component).
    */
-  public static boundBaseSeeds(): boolean {
-    return process.env.DERIVED_BOUND_BASE_SEEDS === '1';
-  }
-
-  /**
-   * Taps the base operators of the block's join component that hold a constant for seed values (once per
-   * component), so that targets are asked for the values found in sources without a composite resource too.
-   */
-  protected tapBaseSeeds(
+  protected tapRegion(
     block: ICompositeExecutionBlock,
     adaptiveJoinController: { getComponentsForOperations: (operations: Algebra.Operation[]) => unknown[] },
     coordinator: BoundCompositeCoordinator,
   ): void {
-    const component = <{ operations: Algebra.Operation[]; stemsControllerStream?: Parameters<BoundCompositeCoordinator['tapBase']>[0] } | undefined>
+    const component = <{ operations: Algebra.Operation[]; stemsControllerStream?: Partial<IBaseTupleSource> } | undefined>
       adaptiveJoinController.getComponentsForOperations(block.operations)[0];
-    if (component?.stemsControllerStream?.onBaseTuples) {
-      coordinator.tapBase(
-        component.stemsControllerStream,
-        component.operations,
-        BoundCompositeCoordinator.seedableVariables(component.operations),
-      );
+    const controller = component?.stemsControllerStream;
+    if (controller?.onBaseTuples) {
+      coordinator.tapRegion(<IBaseTupleSource> controller, component!.operations);
     }
+  }
+
+  /**
+   * The rows of a block requested whole, counted in a trace once read in full (DERIVED_BOUND_TRACE=1).
+   */
+  protected traceWhole(block: ICompositeExecutionBlock, stream: BindingsStream): BindingsStream {
+    if (!BoundCompositeCoordinator.TRACE) {
+      return stream;
+    }
+    const sentAt = Date.now();
+    let rows = 0;
+    const counted = stream.map((binding) => {
+      rows++;
+      return binding;
+    });
+    counted.on('end', () => BoundCompositeCoordinator.trace({
+      e: 'whole',
+      pod: block.resource.baseUrl,
+      ops: block.operations.length,
+      rows,
+      ms: Date.now() - sentAt,
+    }));
+    return counted;
   }
 
   /**
@@ -288,7 +296,7 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
     context: IActionContext,
     store: IAggregatedStore,
     skolemId: string | undefined,
-  ): Promise<void> {
+  ): Promise<number> {
     const bindings = values.map(value => this.bindingsFactory.bindings([[ variable, value ]]));
     const answers = block.resource.querySource.queryBindings(
       this.blockQuery(block, context),
@@ -302,9 +310,14 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
         },
       }},
     );
-    const stream = this.withinDomain(block, this.scopeBlankNodes(answers, block.resource.baseUrl, store, skolemId));
-    const ended = new Promise<void>((resolve, reject) => {
-      stream.on('end', resolve);
+    let rows = 0;
+    const stream = this.withinDomain(block, this.scopeBlankNodes(answers, block.resource.baseUrl, store, skolemId))
+      .map((binding) => {
+        rows++;
+        return binding;
+      });
+    const ended = new Promise<number>((resolve, reject) => {
+      stream.on('end', () => resolve(rows));
       stream.on('error', reject);
     });
     const accepted = adaptiveJoinController.addCompositeSource(block.operations, stream, {
@@ -315,23 +328,45 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
     });
     if (!accepted) {
       stream.destroy();
-      return Promise.resolve();
+      return Promise.resolve(0);
     }
     return ended;
   }
 
   /**
-   * How selective binding the variable to the given values is, from the base operators of the block's join.
+   * Requests a target's block whole, after its bound requests failed, and hands the answer to the join like any
+   * composite answer. It is not accepted for the store-level drop, as that is decided when the pod's resources
+   * are executed. Resolves with the number of rows once the answer has been read in full.
    */
-  protected estimateSelectivity(
+  protected sendWhole(
     block: ICompositeExecutionBlock,
-    adaptiveJoinController: { getComponentsForOperations: (operations: Algebra.Operation[]) => unknown[] },
-    variable: string,
-    values: Set<string>,
-  ): { matching: number; total: number } | undefined {
-    const component = <{ stemsControllerStream?: { valueSelectivity?: SelectivityEstimate } } | undefined>
-      adaptiveJoinController.getComponentsForOperations(block.operations)[0];
-    return component?.stemsControllerStream?.valueSelectivity?.(variable, values);
+    adaptiveJoinController: {
+      addCompositeSource: (operations: Algebra.Operation[], stream: BindingsStream, metadata?: Record<string, any>) => boolean;
+    },
+    context: IActionContext,
+    store: IAggregatedStore,
+    skolemId: string | undefined,
+  ): Promise<number> {
+    const answers = block.resource.querySource.queryBindings(this.blockQuery(block, context), context);
+    let rows = 0;
+    const stream = this.withinDomain(block, this.scopeBlankNodes(answers, block.resource.baseUrl, store, skolemId))
+      .map((binding) => {
+        rows++;
+        return binding;
+      });
+    const ended = new Promise<number>((resolve, reject) => {
+      stream.on('end', () => resolve(rows));
+      stream.on('error', reject);
+    });
+    const accepted = adaptiveJoinController.addCompositeSource(block.operations, stream, {
+      authoritativeDomain: block.resource.baseUrl,
+      anchorTerms: block.anchorTerms,
+    });
+    if (!accepted) {
+      stream.destroy();
+      return Promise.resolve(0);
+    }
+    return ended;
   }
 
   /**

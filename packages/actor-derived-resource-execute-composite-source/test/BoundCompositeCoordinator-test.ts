@@ -57,13 +57,8 @@ function target(): { sent: string[][]; answer: () => void; send: (values: any[])
 }
 
 const tick = (): Promise<void> => new Promise(resolve => setImmediate(resolve));
-const noEstimate = (): undefined => undefined;
 
 describe('BoundCompositeCoordinator', () => {
-  afterEach(() => {
-    BoundCompositeCoordinator.MIN_EVIDENCE = 200;
-  });
-
   it('keeps one request in flight per target, batching what comes in meanwhile', async() => {
     const m = manager();
     const coordinator = new BoundCompositeCoordinator(m);
@@ -71,7 +66,7 @@ describe('BoundCompositeCoordinator', () => {
     const tapped = coordinator.tapSeed(s.stream, [ product ]);
     drain(tapped.stream);
     const t = target();
-    expect(coordinator.addTarget(product, t.send, noEstimate)).toBe(true);
+    expect(coordinator.addTarget(product, t.send)).toBe(true);
 
     s.push('http://p/1');
     await tick();
@@ -104,42 +99,35 @@ describe('BoundCompositeCoordinator', () => {
     s.push('http://p/2');
     await tick();
     const t = target();
-    coordinator.addTarget(product, t.send, noEstimate);
+    coordinator.addTarget(product, t.send);
     expect(t.sent).toEqual([[ 'http://p/1', 'http://p/2' ]]);
   });
 
-  it('has resources found once the values are unselective requested whole, and keeps the targets bound so far', async() => {
-    BoundCompositeCoordinator.MIN_EVIDENCE = 10;
-    const coordinator = new BoundCompositeCoordinator(manager());
-    const s = seed();
-    drain(coordinator.tapSeed(s.stream, [ product ]).stream);
-    s.push('http://p/1');
-    await tick();
-    const early = target();
-    expect(coordinator.addTarget(product, early.send, () => ({ matching: 1, total: 100 }))).toBe(true);
-    const late = target();
-    expect(coordinator.addTarget(product, late.send, () => ({ matching: 60, total: 100 }))).toBe(false);
-    // Once found unselective, without asking again
-    expect(coordinator.addTarget(product, target().send, () => ({ matching: 0, total: 100 }))).toBe(false);
-    early.answer();
-    s.push('http://p/2');
-    await tick();
-    expect(early.sent).toEqual([[ 'http://p/1' ], [ 'http://p/2' ]]);
-    expect(coordinator.statistics.wholeInstead).toBe(2);
-  });
-
-  it('trusts the estimate only with enough evidence', async() => {
-    const coordinator = new BoundCompositeCoordinator(manager());
-    const s = seed();
-    drain(coordinator.tapSeed(s.stream, [ product ]).stream);
-    s.push('http://p/1');
-    await tick();
-    expect(coordinator.addTarget(product, target().send, () => ({ matching: 9, total: 10 }))).toBe(true);
+  it('requests targets whole once more values are known than fit in one request, keeping earlier ones', async() => {
+    const max = BoundCompositeCoordinator.MAX_BATCH;
+    BoundCompositeCoordinator.MAX_BATCH = 2;
+    try {
+      const coordinator = new BoundCompositeCoordinator(manager());
+      const s = seed();
+      drain(coordinator.tapSeed(s.stream, [ product ]).stream);
+      s.push('http://p/1');
+      s.push('http://p/2');
+      await tick();
+      const early = target();
+      expect(coordinator.addTarget(product, early.send)).toBe(true);
+      s.push('http://p/3');
+      await tick();
+      expect(coordinator.addTarget(product, target().send)).toBe(false);
+      expect(coordinator.statistics.tooMany).toBe(1);
+      early.answer();
+      await tick();
+      expect(early.sent).toEqual([[ 'http://p/1', 'http://p/2' ], [ 'http://p/3' ]]);
+    } finally {
+      BoundCompositeCoordinator.MAX_BATCH = max;
+    }
   });
 
   it('finds the variables around the constants of a join', () => {
-    const p = (s: any, pr: string, o: any): any => AF.createPattern(s, DF.namedNode(pr), o, DF.defaultGraph());
-    const v = (name: string): any => DF.variable(name);
     const operations = [
       p(v('product'), 'type', DF.namedNode('http://t/T')),
       p(v('product'), 'producer', v('brand')),
@@ -151,16 +139,17 @@ describe('BoundCompositeCoordinator', () => {
       .toEqual([ 'brand', 'brandLabel', 'product' ]);
   });
 
-  it('also binds targets to the values that base operators holding a constant store, before and after tapping', async() => {
-    const coordinator = new BoundCompositeCoordinator(manager());
-    const typePattern = AF.createPattern(product, DF.namedNode('type'), DF.namedNode('T'), DF.defaultGraph());
-    const producerPattern = AF.createPattern(product, DF.namedNode('producer'), DF.variable('brand'), DF.defaultGraph());
-    const row = (value: string): any => BF.bindings([[ product, DF.namedNode(value) ]]);
-    const typeOperator = { operations: [ typePattern ], stored: [ row('p1') ], listeners: <any[]> []};
-    const producerOperator = { operations: [ producerPattern ], stored: [ row('p9') ], listeners: <any[]> []};
-    const controller = {
+  const p = (s: any, pr: string, o: any): any => AF.createPattern(s, DF.namedNode(pr), o, DF.defaultGraph());
+  const v = (name: string): any => DF.variable(name);
+  const iri = (value: string): any => DF.namedNode(value);
+
+  /**
+   * A join controller whose base operators are given per pattern, with the tuples they hold already.
+   */
+  function controllerOf(operators: { operations: any[]; stored: any[]; listeners: any[] }[]): any {
+    return {
       onBaseTuples(select: (operator: any) => boolean, listener: (item: any) => void) {
-        for (const operator of [ typeOperator, producerOperator ]) {
+        for (const operator of operators) {
           if (select(operator)) {
             operator.stored.forEach(listener);
             operator.listeners.push(listener);
@@ -168,18 +157,118 @@ describe('BoundCompositeCoordinator', () => {
         }
       },
     };
-    coordinator.tapBase(controller, [ typePattern, producerPattern ], new Set([ 'product' ]));
-    coordinator.tapBase(controller, [ typePattern, producerPattern ], new Set([ 'product' ]));
-    expect(typeOperator.listeners).toHaveLength(1);
-    expect(producerOperator.listeners).toHaveLength(0);
+  }
+
+  it('plans one-shot seeds from constant subjects and trickling ones from constant objects, one step on as well', () => {
+    const plan = BoundCompositeCoordinator.seedPlan([
+      p(iri('http://o/Offer1'), 'product', v('listing')),
+      p(v('listing'), 'listingOf', v('product')),
+      p(v('product'), 'type', iri('http://t/T')),
+      p(v('product'), 'label', v('label')),
+    ]);
+    expect(plan.get('listing')).toMatchObject({ kind: 'one-shot' });
+    expect(plan.get('listing')!.from).toBeUndefined();
+    // Reached one step on from a one-shot seed, which wins over the trickling type pattern
+    expect(plan.get('product')).toMatchObject({ kind: 'one-shot', from: 'listing' });
+    expect(plan.get('label')).toMatchObject({ kind: 'one-shot', from: 'product' });
+
+    const classOnly = BoundCompositeCoordinator.seedPlan([
+      p(v('product'), 'type', iri('http://t/T')),
+      p(v('product'), 'producer', v('brand')),
+    ]);
+    expect(classOnly.get('product')).toMatchObject({ kind: 'trickling' });
+    expect(classOnly.get('product')!.from).toBeUndefined();
+    expect(classOnly.get('brand')).toMatchObject({ kind: 'trickling', from: 'product' });
+  });
+
+  it('binds targets to the values the base operators of the seed plan store, before and after tapping', async() => {
+    const coordinator = new BoundCompositeCoordinator(manager());
+    const sellsPattern = p(iri('http://s/Shop'), 'sells', product);
+    const producerPattern = p(product, 'producer', v('brand'));
+    const row = (value: string): any => BF.bindings([[ product, iri(value) ]]);
+    const sellsOperator = { operations: [ sellsPattern ], stored: [ row('p1') ], listeners: <any[]> []};
+    const controller = controllerOf([ sellsOperator ]);
+    coordinator.tapRegion(controller, [ sellsPattern, producerPattern ]);
+    coordinator.tapRegion(controller, [ sellsPattern, producerPattern ]);
+    expect(sellsOperator.listeners).toHaveLength(1);
 
     const t = target();
-    expect(coordinator.addTarget(product, t.send, noEstimate)).toBe(true);
+    expect(coordinator.addTarget(product, t.send)).toBe(true);
     expect(t.sent).toEqual([[ 'p1' ]]);
-    typeOperator.listeners[0](row('p2'));
+    sellsOperator.listeners[0](row('p2'));
     t.answer();
     await tick();
     expect(t.sent).toEqual([[ 'p1' ], [ 'p2' ]]);
-    expect(coordinator.statistics.baseTuples).toBe(2);
+  });
+
+  it('passes values on one step only from tuples whose origin is a seed value, also when the origin comes later', () => {
+    const coordinator = new BoundCompositeCoordinator(manager());
+    const offerPattern = p(iri('http://o/Offer1'), 'product', v('listing'));
+    const listingPattern = p(v('listing'), 'listingOf', product);
+    const listingRow = (listing: string, value: string): any =>
+      BF.bindings([[ v('listing'), iri(listing) ], [ product, iri(value) ]]);
+    const offerOperator = { operations: [ offerPattern ], stored: <any[]> [], listeners: <any[]> []};
+    const listingOperator = {
+      operations: [ listingPattern ],
+      stored: [ listingRow('l1', 'p1'), listingRow('l2', 'p2') ],
+      listeners: <any[]> [],
+    };
+    coordinator.tapRegion(controllerOf([ offerOperator, listingOperator ]), [ offerPattern, listingPattern ]);
+    const t = target();
+    expect(coordinator.addTarget(product, t.send)).toBe(true);
+    expect(t.sent).toEqual([]);
+
+    // l1 becomes a seed value after its listing tuple was stored, so p1 follows, while p2 never does
+    offerOperator.listeners[0](BF.bindings([[ v('listing'), iri('l1') ]]));
+    expect(t.sent).toEqual([[ 'p1' ]]);
+  });
+
+  it('requests a target whole when no seed source gives its variable values', () => {
+    const coordinator = new BoundCompositeCoordinator(manager());
+    const typePattern = p(product, 'type', iri('T'));
+    coordinator.tapRegion(controllerOf([]), [ typePattern ]);
+    expect(coordinator.addTarget(v('vendor'), target().send)).toBe(false);
+    expect(coordinator.statistics.noSeed).toBe(1);
+  });
+
+  it('requests targets with a trickling seed whole, and binds those with a one-shot seed', () => {
+    const coordinator = new BoundCompositeCoordinator(manager());
+    coordinator.tapRegion(controllerOf([]), [
+      p(product, 'type', iri('T')),
+      p(iri('http://p/Product1'), 'producer', v('brand')),
+    ]);
+    expect(coordinator.addTarget(product, target().send)).toBe(false);
+    expect(coordinator.addTarget(v('brand'), target().send)).toBe(true);
+    expect(coordinator.statistics.trickling).toBe(1);
+  });
+
+  it('retries a failed bound request once, then requests the block whole and sends no more bound requests', async() => {
+    const m = manager();
+    const coordinator = new BoundCompositeCoordinator(m);
+    const s = seed();
+    drain(coordinator.tapSeed(s.stream, [ product ]).stream);
+    let attempts = 0;
+    let wholeRequests = 0;
+    const send = (): Promise<number> => {
+      attempts++;
+      return Promise.reject(new Error('endpoint down'));
+    };
+    const sendWhole = (): Promise<number> => {
+      wholeRequests++;
+      return Promise.resolve(3);
+    };
+    expect(coordinator.addTarget(product, send, { sendWhole })).toBe(true);
+    s.push('http://p/1');
+    await tick();
+    await tick();
+    expect(attempts).toBe(2);
+    expect(wholeRequests).toBe(1);
+    expect(coordinator.statistics).toMatchObject({ retries: 1, fallbacks: 1 });
+    s.push('http://p/2');
+    await tick();
+    expect(attempts).toBe(2);
+    s.end();
+    await tick();
+    expect(m.held).toBe(0);
   });
 });

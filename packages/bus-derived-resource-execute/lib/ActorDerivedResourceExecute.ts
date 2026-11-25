@@ -37,11 +37,13 @@ export abstract class ActorDerivedResourceExecute<TS = undefined>
   }
 
   /**
-   * The blocks that hand a whole set of join entries to one resource.
+   * The blocks that hand a whole set of join entries to one resource. A block of one operation is left out:
+   * it offloads no join, being the request a pattern-level resource makes as well, so its pattern is answered
+   * as any pattern no composite answers rather than fetched twice.
    */
   protected compositeBlocks(action: IActionDerivedResourceExecute): ICompositeExecutionBlock[] {
     return action.executionBlocks.filter(
-      (block): block is ICompositeExecutionBlock => block.type === 'composite',
+      (block): block is ICompositeExecutionBlock => block.type === 'composite' && block.operations.length > 1,
     );
   }
 

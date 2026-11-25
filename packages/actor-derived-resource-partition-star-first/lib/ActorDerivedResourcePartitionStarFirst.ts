@@ -1,7 +1,9 @@
 import { ActorDerivedResourcePartition, IActionDerivedResourcePartition, IActorDerivedResourcePartitionOutput, IActorDerivedResourcePartitionArgs, IActorDerivedResourcePartitionTest, ICompositeExecutionBlock, ITriplePatternExecutionBlock } from '@comunica/bus-derived-resource-partition';
 import { ICandidateResource } from '@comunica/bus-derived-resource-propose';
 import { TestResult, passTest } from '@comunica/core';
-import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
+import { canShapeAnswerBgp } from '@comunica/bus-derived-resource-propose';
+import type { FragmentSelectorShape } from '@comunica/types';
+import { Algebra, AlgebraFactory, algebraUtils } from '@comunica/utils-algebra';
 
 /**
  * A comunica Star First Derived Resource Partition Actor.
@@ -72,7 +74,74 @@ export class ActorDerivedResourcePartitionStarFirst extends ActorDerivedResource
         anchorTerms: block.anchorTerms,
       });
     }
+    if (process.env.DERIVED_EXTEND_BLOCKS === '1') {
+      return await this.extendBlocks(action, blocks, claimed);
+    }
     return blocks;
+  }
+
+  /**
+   * Extends every composite block with the stars hanging off its object variables (a variable in an object
+   * position of the block that is the subject of no pattern in it), where none of the star's patterns is
+   * claimed yet and the resource still answers the larger block. A star with an object variable leading to a
+   * pattern of its pod, such as an offer whose listing names the product, then forms one block with it, whose
+   * only variable shared with the rest of the query is that pattern's object. Such a block can be bound on
+   * that variable (bound composites), and its rows need no join with the hanging pattern on the client.
+   * A pattern held by a block of its own is taken over, and that block dropped: on its own it is the request
+   * a pattern-level resource makes as well, while within the larger block it no longer needs one.
+   */
+  protected async extendBlocks(
+    action: IActionDerivedResourcePartition,
+    blocks: ICompositeExecutionBlock[],
+    claimed: Set<Algebra.Operation>,
+  ): Promise<ICompositeExecutionBlock[]> {
+    const single = new Map<Algebra.Operation, ICompositeExecutionBlock>();
+    for (const block of blocks) {
+      if (block.operations.length === 1) {
+        single.set(block.operations[0], block);
+      }
+    }
+    const absorbed = new Set<ICompositeExecutionBlock>();
+    const queryPatterns: Algebra.Pattern[] = [];
+    algebraUtils.visitOperation(action.operation, {
+      [Algebra.Types.PATTERN]: { visitor: (pattern) => {
+        queryPatterns.push(pattern);
+      } },
+    });
+    const key = (term: { termType: string; value: string }): string => `${term.termType}|${term.value}`;
+    for (const block of blocks) {
+      const patterns = <Algebra.Pattern[]> block.operations.filter(operation => operation.type === Algebra.Types.PATTERN);
+      if (patterns.length !== block.operations.length || patterns.length < 2 || absorbed.has(block)) {
+        continue;
+      }
+      const subjects = new Set(patterns.map(pattern => key(pattern.subject)));
+      const hubs = new Map(patterns
+        .filter(pattern => pattern.object.termType === 'Variable' && !subjects.has(key(pattern.object)))
+        .map(pattern => [ key(pattern.object), pattern.object ]));
+      let shape: FragmentSelectorShape | undefined;
+      for (const [ hubKey, hub ] of hubs) {
+        const star = queryPatterns.filter(pattern => key(pattern.subject) === hubKey);
+        const takeable = (pattern: Algebra.Pattern): boolean => !claimed.has(pattern) ||
+          (single.has(pattern) && !absorbed.has(single.get(pattern)!));
+        if (star.length === 0 || star.some(pattern => !takeable(pattern) || pattern.predicate.termType !== 'NamedNode')) {
+          continue;
+        }
+        shape ??= await block.resource.querySource.getSelectorShape(action.context);
+        if (!canShapeAnswerBgp(shape, this.algebraFactory.createBgp([ ...<Algebra.Pattern[]> block.operations, ...star ]))) {
+          continue;
+        }
+        for (const pattern of star) {
+          claimed.add(pattern);
+          const own = single.get(pattern);
+          if (own) {
+            absorbed.add(own);
+          }
+        }
+        block.operations = [ ...block.operations, ...star ];
+        block.anchorTerms = [ ...block.anchorTerms, hub ];
+      }
+    }
+    return blocks.filter(block => !absorbed.has(block));
   }
 
   /**

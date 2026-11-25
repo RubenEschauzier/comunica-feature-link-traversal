@@ -137,6 +137,7 @@ export class ActorDerivedResourcePartitionStarFirst extends ActorDerivedResource
             absorbed.add(own);
           }
         }
+        block.core ??= { operations: block.operations, anchorTerms: block.anchorTerms };
         block.operations = [ ...block.operations, ...star ];
         block.anchorTerms = [ ...block.anchorTerms, hub ];
       }

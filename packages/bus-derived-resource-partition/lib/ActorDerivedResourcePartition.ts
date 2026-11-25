@@ -68,6 +68,14 @@ export interface ICompositeExecutionBlock {
    * The terms that have to be in the authoritative domain of the resource
    */
   anchorTerms: RDF.Term[];
+  /**
+   * For a block extended with the stars hanging off its object variables, the block it was extended from (a
+   * star): its own operations and anchor terms.
+   */
+  core?: {
+    operations: Algebra.Operation[];
+    anchorTerms: RDF.Term[];
+  };
 }
 
 /**

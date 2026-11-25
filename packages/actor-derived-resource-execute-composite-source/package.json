@@ -46,6 +46,8 @@
     "@comunica/types": "^5.1.3",
     "@comunica/types-link-traversal": "^0.8.0",
     "@comunica/utils-algebra": "^5.1.3",
+    "@comunica/utils-query-operation": "^5.1.3",
+    "asynciterator": "^3.10.0",
     "rdf-data-factory": "^2.0.2"
   },
   "scripts": {

@@ -14,8 +14,11 @@ import type {
 } from '@comunica/types';
 import { BindingsFactory } from '@comunica/utils-bindings-factory';
 import { ArrayIterator } from 'asynciterator';
+import type { AsyncIterator } from 'asynciterator';
+import { doesShapeAcceptOperation } from '@comunica/utils-query-operation';
 import type { IBaseTupleSource } from './BoundCompositeCoordinator';
 import { BoundCompositeCoordinator } from './BoundCompositeCoordinator';
+import { ExtendedBlockSplit } from './ExtendedBlockSplit';
 import { FilterPushdown } from './FilterPushdown';
 import type { IAggregatedStore, ILinkTraversalManager } from '@comunica/types-link-traversal';
 import { Algebra, AlgebraFactory } from '@comunica/utils-algebra';
@@ -120,6 +123,14 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
         }
       }
 
+      if (block.core) {
+        await this.sendExtended(block, block.core, action, adaptiveJoinController, store, skolemId, {
+          coordinator,
+          seedVariables,
+        });
+        return;
+      }
+
       const answers = block.resource.querySource.queryBindings(
         this.blockQuery(block, context),
         context,
@@ -164,6 +175,123 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
     }));
 
     return { links: []};
+  }
+
+  /**
+   * Requests an extended block whole, as the extended block and the star it was extended from, which the join
+   * takes on as two composite sources over the pod (see ExtendedBlockSplit). A resource taking an OPTIONAL is
+   * asked once, for `star OPTIONAL { hops }`; any other resource is asked for the star and the extended block
+   * separately.
+   */
+  protected async sendExtended(
+    block: ICompositeExecutionBlock,
+    core: { operations: Algebra.Operation[]; anchorTerms: RDF.Term[] },
+    action: IActionDerivedResourceExecute,
+    adaptiveJoinController: {
+      addCompositeSource: (operations: Algebra.Operation[], stream: BindingsStream, metadata?: Record<string, any>) => boolean;
+    },
+    store: IAggregatedStore,
+    skolemId: string | undefined,
+    seeds: { coordinator?: BoundCompositeCoordinator; seedVariables: RDF.Variable[] },
+  ): Promise<void> {
+    const context = action.context;
+    const domain = block.resource.baseUrl;
+    const starBlock: ICompositeExecutionBlock = {
+      type: 'composite',
+      operations: core.operations,
+      resource: block.resource,
+      anchorTerms: core.anchorTerms,
+    };
+    const termKey = (term: RDF.Term): string => `${term.termType}|${term.value}`;
+    const coreAnchors = new Set(core.anchorTerms.map(termKey));
+    const hubs = <RDF.Variable[]> block.anchorTerms
+      .filter(term => term.termType === 'Variable' && !coreAnchors.has(termKey(term)));
+    const corePatterns = <Algebra.Pattern[]> core.operations.filter(op => op.type === Algebra.Types.PATTERN);
+    const hops = <Algebra.Pattern[]> block.operations
+      .filter(op => op.type === Algebra.Types.PATTERN && !core.operations.includes(op));
+    const variablesOf = (patterns: Algebra.Pattern[]): RDF.Variable[] => [ ...new Map(patterns
+      .flatMap(pattern => [ pattern.subject, pattern.predicate, pattern.object ])
+      .filter((term): term is RDF.Variable => term.termType === 'Variable')
+      .map(term => [ term.value, term ])).values() ];
+
+    const responses: Promise<void>[] = [];
+    const releases: (() => void)[] = [];
+    const request = (requested: ICompositeExecutionBlock, operation?: Algebra.Operation): BindingsStream => {
+      const answers = block.resource.querySource.queryBindings(
+        this.blockQuery(requested, context, operation),
+        context,
+      );
+      const responded = answers.getProperty<Promise<void>>('responded');
+      if (responded) {
+        action.compositeResponses?.add(responded);
+        responses.push(responded);
+      }
+      let rows = this.withinDomain(requested, this.scopeBlankNodes(answers, domain, store, skolemId));
+      const variables = new Set(variablesOf(<Algebra.Pattern[]> requested.operations).map(variable => variable.value));
+      const seedVariables = seeds.seedVariables.filter(variable => variables.has(variable.value));
+      if (seeds.coordinator && seedVariables.length > 0) {
+        const tapped = seeds.coordinator.tapSeed(rows, seedVariables, domain);
+        rows = tapped.stream;
+        releases.push(tapped.release);
+      }
+      return rows;
+    };
+
+    // The marker is bound within the OPTIONAL, so a row tells whether its hops matched also when they bind no
+    // variable of their own
+    const marker = this.dataFactory.variable('derivedExtendedBlockHop');
+    const optional = this.algebraFactory.createLeftJoin(
+      this.algebraFactory.createBgp(corePatterns),
+      this.algebraFactory.createExtend(
+        this.algebraFactory.createBgp(hops),
+        marker,
+        this.algebraFactory.createTermExpression(this.dataFactory.literal(
+          'true',
+          this.dataFactory.namedNode('http://www.w3.org/2001/XMLSchema#boolean'),
+        )),
+      ),
+    );
+    const coreVariables = variablesOf(corePatterns).map(variable => variable.value);
+    let split: { star: AsyncIterator<Bindings>; extended: AsyncIterator<Bindings> };
+    if (doesShapeAcceptOperation(await block.resource.querySource.getSelectorShape(context), optional)) {
+      split = new ExtendedBlockSplit(coreVariables, hubs, domain, marker)
+        .splitOptional(request(starBlock, optional));
+    } else {
+      split = new ExtendedBlockSplit(coreVariables, hubs, domain)
+        .splitPair(request(starBlock), request(block));
+    }
+
+    // Only add the non-composite filters to query execution once composite has responded
+    await Promise.all(responses);
+
+    // Both are blocks of the same join component, so the join takes on both or neither, as it has to: neither
+    // holds all star rows
+    const extendedTaken = adaptiveJoinController.addCompositeSource(
+      block.operations,
+      <BindingsStream> this.traceWhole(block, <BindingsStream> split.extended),
+      { authoritativeDomain: domain, anchorTerms: block.anchorTerms },
+    );
+    const starTaken = adaptiveJoinController.addCompositeSource(
+      core.operations,
+      <BindingsStream> this.traceWhole(starBlock, <BindingsStream> split.star),
+      { authoritativeDomain: domain, anchorTerms: core.anchorTerms },
+    );
+    if (extendedTaken) {
+      action.compositeResponses?.accept(block);
+    } else {
+      split.extended.destroy();
+    }
+    if (starTaken) {
+      action.compositeResponses?.accept(starBlock);
+    } else {
+      split.star.destroy();
+    }
+    if (!extendedTaken && !starTaken) {
+      // The join never reads them, so they end nothing
+      for (const release of releases) {
+        release();
+      }
+    }
   }
 
   /**
@@ -409,11 +537,15 @@ export class ActorDerivedResourceExecuteCompositeSource extends ActorDerivedReso
   }
 
   /**
-   * The query to ask the resource for a block: its operations, with the query's filters that apply to every
-   * solution of the block and mention only its variables (see FilterPushdown).
+   * The query to ask the resource for a block: its operations (or the given operation over them), with the
+   * query's filters that apply to every solution of the block and mention only its variables (see
+   * FilterPushdown).
    */
-  protected blockQuery(block: ICompositeExecutionBlock, context: IActionContext): Algebra.Operation {
-    const operation = this.asSingleOperation(block.operations);
+  protected blockQuery(
+    block: ICompositeExecutionBlock,
+    context: IActionContext,
+    operation: Algebra.Operation = this.asSingleOperation(block.operations),
+  ): Algebra.Operation {
     const query = context.get(KeysInitQuery.query);
     const patterns = block.operations.filter((op): op is Algebra.Pattern => op.type === Algebra.Types.PATTERN);
     if (!query || typeof query !== 'object' || !('type' in query) || patterns.length !== block.operations.length) {

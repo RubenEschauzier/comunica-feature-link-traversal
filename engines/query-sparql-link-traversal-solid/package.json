@@ -386,5 +386,8 @@
   },
   "browser": {
     "./lib/index.js": "./lib/index-browser.js"
+  },
+  "overrides": {
+    "@comunica/config-query-sparql": "$@comunica/config-query-sparql"
   }
 }
